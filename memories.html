@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="manifest" href="manifest.webmanifest" />
+
+    <title>Congratulation Kenne!</title>
+    <!-- Favicon -->
+    <link
+      rel="icon"
+      href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🎁</text></svg>"
+    />
+    <!-- Apple Touch Icon -->
+    <link
+      rel="apple-touch-icon"
+      sizes="180x180"
+      href="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTkyIiBoZWlnaHQ9IjE5MiIgdmlld0JveD0iMCAwIDE5MiAxOTIiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxkZWZzPgo8bGluZWFyR3JhZGllbnQgaWQ9ImdyYWQxOTIiIHgxPSIwJSIgeTE9IjAlIiB4Mj0iMTAwJSIgeTI9IjEwMCUiPgo8c3RvcCBvZmZzZXQ9IjAlIiBzdHlsZT0ic3RvcC1jb2xvcjojZGI0YzNmIi8+CjxzdG9wIG9mZnNldD0iMTAwJSIgc3R5bGU9InN0b3AtY29sb3I6I2IwM2EyZSIvPgo8L2xpbmVhckdyYWRpZW50Pgo8L2RlZnM+CjxjaXJjbGUgY3g9Ijk2IiBjeT0iOTYiIHI9Ijk2IiBmaWxsPSJ1cmwoI2dyYWQxOTIpIi8+CjxwYXRoIGQ9Ik05NiAxMzQuMTY3QzExMy4zMzMgMTE3LjMzMyAxMjggMTA0IDEzMy4zMzMgOTAuNjY3QzEzNS4zMzMgODMuMzMzIDEzMiA3MiAxMjIuNjY3IDY2LjY2N0MxMTMuMzMzIDYyLjY2NyAxMDEuMzMzIDY2LjY3IDk2IDcyQzkwLjY2NyA2Ni42NjcgNzguNjY3IDYyLjY2NyA2OS4zMzMgNjYuNjdDNjAgNzIgNTYuNjY3IDgzLjMzMyA1OC42NjcgOTAuNjY3QzYwLjY2NyAxMDQgNzUuMzMzIDExNy4zMzMgOTYgMTM0LjE2N1oiIGZpbGw9IndoaXRlIiBzdHJva2U9IiMzMzMiIHN0cm9rZS13aWR0aD0iMS4zMzMiLz4KPC9zdmc+PC9zdmc+"
+    />
+    <!-- Bootstrap CSS -->
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+    />
+    <meta name="theme-color" content="pink" />
+    <!-- Chrome, Edge, Android -->
+
+    <!-- Font Awesome -->
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css"
+    />
+    <link
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css"
+      rel="stylesheet"
+    />
+    <!-- Animate.css -->
+    <link
+      href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css"
+      rel="stylesheet"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css"
+    />
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@700&family=Montserrat:wght@300;400;600&family=Pacifico&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="src/css/notification.css" />
+    <link rel="stylesheet" href="src/css/int.css" />
+    <link rel="stylesheet" href="src/css/loading.css" />
+  </head>
+
+  <body>
+      <button id="mode-toggle" class="mode-toggle" aria-label="Toggle dark mode">
+          <span class="mode-icon">🌙</span>
+          <span class="mode-text">Dark Mode</span>
+      </button>
+    <div class="loading-container is-visible" id="loadingSpinner" aria-hidden="false" aria-live="off">
+        <div class="loading-spinner"></div>
+        <div class="loading-text">
+            Loading<span class="loading-dots">
+                <span class="loading-dots__dot"></span>
+                <span class="loading-dots__dot"></span>
+                <span class="loading-dots__dot"></span>
+            </span>
+        </div>
+        <div class="loading-progress">
+            <div class="loading-progress__bar"></div>
+        </div>
+    </div>
+    <!-- Background Elements -->
+    <div class="glitter" aria-hidden="true"></div>
+
+    <!-- Main Card Content -->
+    <main
+      class="container d-none animate__animated animate__fadeIn"
+      id="protectedContent"
+    >
+      <!-- Decorative Ribbon -->
+      <div class="ribbon ribbon-top-right" aria-hidden="true">
+        <span>Congratulations !</span>
+      </div>
+      <section class="card-content">
+        <figure class="image-container animate__animated animate__zoomIn">
+          <img
+            src="/pics/profile_pic.jpg"
+            alt="Graduation girl smiling"
+            id="profile_pic"
+            loading="lazy"
+            width="240"
+            height="240"
+          />
+        </figure>
+
+        <h1 class="animate__animated animate__slideInLeft" id="Graduation-name">
+          Congratulations, 2025 Comb. Maths & Cscs!
+        </h1>
+
+        <blockquote class="message animate__animated animate__slideInRight">
+<strong>🎓🔥😂 MATHS & COMPUTER SCIENCE – CLASS OF 2025, WE MIRACULOUSLY MADE IT… SOMEHOW.</strong><br>
+😭🚀
+</p>
+
+<p>
+We survived <em>Measure Theory</em> — a course that didn’t measure sets — it measured who was going to carry-over 💀.<br>
+,<br>
+<em>Probability</em> — where the probability of passing depended on faith, luck, Classmates 🙃 and most especially attendance 😂😂,<br>
+and <strong>Mr. Landry’s course</strong> — a spiritual battle disguised as academics 💀😭.
+</p>
+
+<p>
+Let’s pour one out 🥲 for the sleep we lost,<br>
+the sanity we almost buried,<br>
+and most especially comming early to School (a special recognition to my mentor....ma no call name)<br>
+and the GPAs that didn’t survive the semester.<br>
+Some dreams were delayed, some confidence was destroyed… but <strong>we’re still standing</strong>.
+</p>
+
+<p>
+Special shout-out to <strong>ChatGPT</strong> — our Most brilliant Class Member (even though Measure theory and probability almost off ya light 🤣🤣) 🤝😭<br>
+breaking down proofs lecturers flew past,<br>
+,<br>
+providing solution to 50+ bloody tutorial question(make God punish Mr. Landry for me 🤣🤣🤣) <br>
+and writing project from scratch because we had no business failing,<br>
+and keeping us alive at <em>2 a.m.</em><br>
+(<em>At that point Academic integrity was step aside, ethic was negotiable, Morality was flexible. survival came first (if know what im talking about 🤣🤣🤣).</em>)
+</p>
+
+<p>
+We survived test scores that humbled us (All Hail Dr. Ernest),<br>
+exam halls that smelled like fear (Mr James),<br>
+Sleepless nights, (prof. Shu)<br>
+panic attacks before exams, (prof Shu again 🤣🤣)<br>
+“if I fail this, that mean say adon die boi ” thoughts<br>
+and yet… <strong>we passed</strong>. Miraculously. Suspiciously(Very Suspiciously 🤣🤣 i mean very very Suspiciously).
+</p>
+
+<p>
+This badge is proof that if you survived<br>
+<strong>Measure Theory</strong>,<br>
+<strong>Probability</strong>,<br>
+<strong>Mr. Landry</strong>,<br>
+and final exams —<br>
+<strong>life can threaten you, but it won’t scare you</strong> 😂🔥
+</p>
+
+<p>
+<strong>Class of 2025 forever.</strong><br>
+Traumatized but talented.<br>
+Emotionally damaged.<br>
+Broken but brilliant.<br>
+Graduated by force, faith, and pure stubbornness. 🐐🎓
+</p>
+</blockquote>
+
+
+        <section
+          class="memory-gallery animate__animated animate__fadeIn"
+          aria-label="Memory gallery"
+        >
+          <h2 class="visually-hidden">Our Special memories</h2>
+          <div class="photo-gallery" id="photo-gallery"></div>
+        </section>
+
+        <div class="see-more-container">
+<div class="see-more-arrow" id="see-more">
+  <div class="arrow"></div>
+  <div class="text">See More</div>
+</div>
+        </div>
+        <button
+          class="open-modal-btn"
+          id="modal_open"
+          aria-label="Open memory gallery"
+        >
+          <i class="fas fa-images" aria-hidden="true"></i> View memories
+        </button>
+
+        <address class="signature animate__animated animate__fadeIn">
+            With all my love,<br />
+            Your Secret Admirer
+        </address>
+        <button
+          class="btn-celebrate animate__animated animate__pulse animate__infinite"
+          id="celebrateBtn"
+          aria-label="Celebrate Graduation"
+        >
+          <i class="fas fa-gift" aria-hidden="true"></i> Celebrate Princess!
+        </button>
+
+        <aside
+          class="social-share animate__animated animate__fadeIn"
+          aria-label="Share options"
+        >
+          <h2 class="visually-hidden">Share this card</h2>
+          <a
+            href="https://api.whatsapp.com/send?text=Check%20out%20this%20beautiful%20Graduation%20wish%20I%20received!"
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label="Share on WhatsApp"
+          >
+            <i class="fab fa-whatsapp" aria-hidden="true"></i>
+          </a>
+          <a
+            href="https://www.instagram.com"
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label="Share on Instagram"
+          >
+            <i class="fab fa-instagram" aria-hidden="true"></i>
+          </a>
+          <a
+            href="https://www.tictok.com"
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label="Share on Tiktok"
+          >
+            <i class="fab fa-tiktok" aria-hidden="true"></i>
+          </a>
+        </aside>
+      </section>
+    </main>
+
+    <!-- Music Player -->
+    <aside class="music-player" aria-label="Music player">
+      <button
+        id="playBtn"
+        type="button"
+        class="grow-button"
+        aria-label="Play music"
+      >
+        <i class="fas fa-play" aria-hidden="true"></i>
+      </button>
+      <audio id="GraduationAudio" loop aria-label="Graduation music">
+        <source
+          src="/Simi_ft_Adekunle_Gold_DeJa_-_Happy_Graduation.mp3"
+          type="audio/mpeg"
+        />
+        Your browser does not support audio.
+      </audio>
+    </aside>
+
+    <!-- Image Modal -->
+    <dialog class="modal-overlay d-none" id="mediaModal" aria-label="Media modal">
+      <div class="modal-container">
+        <button class="modal-close" aria-label="Close modal">
+          <i class="fas fa-times"></i>
+        </button>
+        <button class="modal-maximize" aria-label="Maximize modal">
+          <i class="fas fa-expand"></i>
+        </button>
+        <div class="tooltip-content">
+        <div class="modal-tooltip">Hello world</div>
+      </div>
+
+          <div class="modal-image-container">
+            <button class="modal-nav modal-prev" aria-label="Previous image">
+              <i class="fas fa-chevron-left"></i>
+            </button>
+
+        <div class="modal-content">
+                        <div class="loading-container" id="Modal-loading__container" aria-hidden="true" aria-live="polite">
+                  <div class="loading-spinner is-loading loading-spinner--pulse"></div>
+                  <div class="loading-text">
+                      Loading<span class="loading-dots">
+                <span class="loading-dots__dot"></span>
+                <span class="loading-dots__dot"></span>
+                <span class="loading-dots__dot"></span>
+            </span>
+                  </div>
+                  <div class="loading-progress">
+                      <div class="loading-progress__bar"></div>
+                  </div>
+              </div>
+              <img
+              class="modal-image zoomable"
+              src=""
+              alt="Enlarged memory photo"
+            />
+            <video
+              class="modal-image modal-video zoomable"
+              controls
+            ></video>
+            <button class="modal-nav modal-next" aria-label="Next image">
+              <i class="fas fa-chevron-right"></i>
+            </button>
+            <div class="modal-counter">1/4</div>
+          </div>
+
+          <div class="modal-social">
+            <a href="#" class="share-facebook" aria-label="Share on Facebook">
+              <i class="fab fa-facebook-f"></i>
+            </a>
+            <a href="#" class="share-twitter" aria-label="Share on Twitter">
+              <i class="fab fa-twitter"></i>
+            </a>
+            <a href="#" class="share-pinterest" aria-label="Share on Pinterest">
+              <i class="fab fa-pinterest-p"></i>
+            </a>
+            <a href="#" class="share-link" aria-label="Copy link">
+              <i class="fas fa-link"></i>
+            </a>
+          </div>
+        </div>
+      </div>
+    </dialog>
+
+    <!-- Click Effects Container -->
+    <div id="clickHearts" aria-hidden="true"></div>
+    <div class="balloon"></div>
+
+    <div
+      class="pop-notification"
+      aria-label="Pop notification"
+      id="notification"
+    >
+      <div class="progress-bar">
+        <div class="progress" id="progress"></div>
+      </div>
+      <div class="notification-header">
+        <div class="notification-title">
+          <i class="fas fa-bell icon"></i>
+          <span id="notification-title">Notification</span>
+        </div>
+        <button
+          class="close-btn"
+          id="closeNotification"
+          aria-label="Close notification"
+        >
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+      <div class="notification-content">
+        <p class="notification-message" id="notification-message">
+          Your notification message goes here. This is a default message.
+        </p>
+        <div class="notification-actions">
+          <button class="action-btn secondary-action" id="dismiss">
+            Dismiss
+          </button>
+          <button class="action-btn primary-action" id="view-details">
+            View Details
+          </button>
+        </div>
+      </div>
+    </div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/hammer.js/2.0.8/hammer.min.js"></script>
+      <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+      <script type="module" src="/src/auth-check.js"></script>
+    <script type="module" src="/src/js/utility/Mode.js"></script>
+    <script type="module" src="src/js/HBD.js"></script>
+<script type="module">
+  import logger from '/src/js/utility/logger.js';
+  import { getAuthManager } from "/src/auth-check.js";
+
+  // Asynchronous function to initialize the protected page
+  async function initializeProtectedPage() {
+    try {
+      const authManager = await getAuthManager();
+      authManager.updateLoadingText("Yeah I know again😏... Just a moment 😅😊");
+      authManager.showLoading();
+
+      const authResult = await authManager.setupAuthProtection();
+      if (authResult.authenticated) {
+        // Delay hiding loader for a smoother transition
+        authManager.hideLoading(1000);
+      
+      } else {
+        authManager.hideLoading();
+        logger.warn("Access denied: User not authenticated");
+        window.location.href = "/login";
+      }
+    } catch (error) {
+      const authManager = await getAuthManager();
+      authManager.hideLoading();
+      logger.error("Authentication fail:", error);
+      window.location.href = "/login";
+    }
+  }
+
+  
+  // Check document ready state and initialize accordingly
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", initializeProtectedPage);
+  } else {
+    initializeProtectedPage();
+  }
+</script>
+  </body>
+</html>

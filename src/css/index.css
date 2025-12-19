@@ -1,0 +1,1178 @@
+/* ===== CSS Variables ===== */
+:root {
+--primary: #8E2DE2;
+--primary-dark: #1f0455;
+--primary-light: #F3EBFF;
+--secondary: #FF6B6B;
+--secondary-dark: #FF5252;
+--accent: #fa0193;
+--accent-dark: #ff07b0;
+--light: #FFFFFF;
+--dark: #212529;
+--text: #2C3E50;
+--bs-dark: #01192a;
+--text-muted: #7F8C8D;
+--border: #E0E6ED;
+--success: #27AE60;
+--shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.06);
+--shadow-md: 0 4px 16px rgba(0, 0, 0, 0.10);
+--shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.14);
+--shadow-xl: 0 16px 48px rgba(0, 0, 0, 0.18);
+--transition: all 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+--transition-fast: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+--radius-sm: 8px;
+--radius-md: 12px;
+--radius-lg: 16px;
+--radius-xl: 24px;
+--glow-primary: 0 0 20px rgba(142, 45, 226, 0.3);
+--glow-accent: 0 0 20px rgba(255, 107, 107, 0.3);
+}
+
+/* ===== Base Styles ===== */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: "Inter", "SF Pro Display", -apple-system, BlinkMacSystemFont,
+    "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, "Open Sans", "Helvetica Neue",
+    sans-serif;
+  background: linear-gradient(
+    135deg,
+    var(--primary) 0%,
+    var(--primary-dark) 50%,
+    var(--primary-light) 100%
+  );
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 2rem;
+  color: var(--text);
+  line-height: 1.7;
+  font-weight: 400;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background-size: 200% 200%;
+  animation: gradientShift 15s ease infinite;
+  position: relative;
+  overflow: scroll;
+}
+body::before {
+content: '';
+position: fixed;
+top: 0;
+left: 0;
+width: 100%;
+height: 100%;
+background: radial-gradient(circle at 20% 80%, rgba(142, 45, 226, 0.4) 0%, transparent 50%), radial-gradient(circle at 80% 20%, rgba(255, 107, 107, 0.4) 0%, transparent 50%);
+pointer-events: none;
+z-index: -1;
+animation: subtleFloat 15s ease-in-out infinite;
+}
+
+button{
+  transform-style: preserve-3d;
+    cursor: pointer;
+
+}
+
+/* ===== Layout Components ===== */
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+  position: relative;
+}
+
+.Graduation-card {
+  max-width: 1100px;
+  width: 100%;
+  background: linear-gradient(135deg, #ffffff 0%, #fafafa 100%);
+  border-radius: var(--radius-xl);
+  overflow: hidden;
+  box-shadow: var(--shadow-xl);
+  transition: var(--transition);
+  position: relative;
+  z-index: 1;
+  -webkit-backdrop-filter: blur(16px);
+  backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  animation: cardEntry 0.8 cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+.Graduation-card:hover {
+  transform: translateY(-12px) scale(1.02);
+  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.16), var(--glow-primary);
+}
+
+/* ===== Image Section ===== */
+.image-container {
+  height: 100%;
+  position: relative;
+  overflow: hidden;
+  min-height: 42rem;
+  isolation: isolate;
+  cursor: pointer;
+}
+
+.image-container::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    135deg,
+    rgba(142, 45, 226, 0.08) 0%,
+    rgba(225, 107, 107, 0.08) 100%
+  );
+  z-index: 2;
+  opacity: 0;
+  transition: var(--transition);
+  cursor: pointer;
+  border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+}
+
+.image-container:hover::before {
+  opacity: 1;
+  animation: overlayPulse 2s infinite;
+}
+
+.image-placeholder {
+  width: 100%;
+  height: 100%;
+  min-height: 450px;
+  background: linear-gradient(135deg, var(--primary) 0%, var(--secondary)100%);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  color: white;
+  position: relative;
+  overflow: hidden;
+}
+
+.image-placeholder::after {
+  content: "";
+  position: absolute;
+  top: -0%;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent, 
+    rgba(255, 255, 255, 0.2),
+    transparent 100%
+  );
+  animation: shimmer 2s infinite;
+}
+
+.Graduation-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+  transition: var(--transition);
+  position: absolute;
+  top: 0;
+  left: 0; 
+   border-radius: var(--radius-xl);
+}
+
+.image-container:hover .Graduation-image {
+  top: 12rem;
+  left: 4rem;
+  transform: scale(2.5);
+  filter: brightness(1.1) contrast(1.05);
+}
+
+/* ===== Content Section ===== */
+.content-section {
+padding: 0.7rem 1.5rem;
+display: flex;
+flex-direction: column;
+justify-content: center;
+position: relative;
+background: linear-gradient(180deg, #fff6f6 0%, #ffddf0 100%);
+transition: var(--transition);
+}
+
+.Graduation-title {
+  font-weight: 700;
+  margin-bottom: 2rem;
+  color: var(--text);
+  position: relative;
+  display: inline-block;
+  font-size: 2.8rem;
+  line-height: 1.2;
+  background: linear-gradient(135deg, var(--primary)0%, var(--secondary)100%);
+-webkit-background-clip: text;
+-webkit-text-fill-color: transparent;
+background-clip: text;
+transition: var(--transition);
+animation: titleGlow 3s ease-in-out infinite alternate;
+}
+
+.Graduation-title::after {
+  content: "";
+  position: absolute;
+  bottom: -12px;
+  left: 0;
+  width: 80px;
+  height: 4px;
+  background: linear-gradient(to right, var(--primary), var(--secondary));
+  border-radius: 2px;
+  transition: var(--transition);
+  box-shadow: var(--glow-primary);
+}
+
+.Graduation-card:hover .Graduation-title::after {
+  width: 320px;
+  animation: underlineExpand 0.4 ease;
+}
+
+.name-highlight {
+  font-family: "Dancing Script", cursive;
+  color: var(--accent);
+  font-size: 1.3em;
+  font-weight: 700;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  display: inline-block;
+  transition: var(--transition);
+  position: relative;
+
+}.name-highlight::before {
+content: '';
+position: absolute;
+top: 0;
+left: -10px;
+width: 4px;
+height: 100%;
+background: var(--accent);
+border-radius: 2px;
+opacity: 0;
+transition: var(--transition-fast);
+}
+
+.name-highlight:hover {
+  transform: scale(1.05) rotate(-2deg);
+  text-shadow: 0 4px 8px rgba(255, 0, 0, 0.3);
+  cursor: pointer;
+}
+.name-highlight:hover::before {
+opacity: 1;
+animation: sparkle 1s infinite;
+}
+
+/* ===== Message Styles ===== */
+
+.message-item {
+  margin-bottom: 1.2rem;
+  padding-left: 2.5rem;
+  position: relative;
+  transition: var(--transition);
+  font-size: 1.1rem;
+  line-height: 1.6;
+  opacity: 0;
+  transform: translateX(-20px);
+  animation: messageSlide 0.6s ease forwards;
+  cursor: pointer;
+}
+
+.message-item:nth-child(1) { animation-delay: 0.1s; }
+.message-item:nth-child(2) { animation-delay: 0.2s; }
+.message-item:nth-child(3) { animation-delay: 0.3s; }
+
+.message-item:hover {
+transform: translateX(3px);
+color: var(--primary);
+box-shadow: var(--glow-accent);
+border-radius: 5px;
+
+}
+
+.message-item::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0.8em;
+  width: 1.2rem;
+  height: 3px;
+  background: linear-gradient(to right, var(--accent), var(--primary));
+  border-radius: 3px;
+  transition: var(--transition);
+}
+
+.message-item:hover::before {
+width: 2rem;
+animation: pulse 1.5s infinite;
+}
+
+.Graduation-icon {
+  color: var(--accent);
+  margin-right: 14px;
+  font-size: 1.4rem;
+  vertical-align: middle;
+  transition: var(--transition-fast);
+  position: relative;
+}
+
+.Graduation-icon::after {
+content: '';
+position: absolute;
+top: 50%;
+left: 50%;
+width: 0;
+height: 0;
+background: var(--accent);
+border-radius: 50%;
+transform: translate(-50%, -50%);
+transition: var(--transition-fast);
+}
+.message-item:hover .Graduation-icon {
+transform: scale(1.2) rotate(360deg);
+}
+.message-item:hover .Graduation-icon::after {
+animation: ripple 0.6s ease-out;
+}
+/* ===== Wishes Section ===== */
+.Graduation-wishes {
+  font-family: "Dancing Script", cursive;
+  font-size: 2rem;
+  color: var(--primary);
+  padding: 1rem 0 1rem 0;
+  border-top: 2px dashed rgba(142, 45, 226, 0.2);
+  text-align: center;
+  position: relative;
+font-weight: 600;
+transition: var(--transition);
+animation: wishesFloat 4s ease-in-out infinite;
+}
+
+.Graduation-wishes::before,
+.Graduation-wishes::after {
+  content: "💝";
+  position: absolute;
+  top: 2.2rem;
+  font-size: 1.4rem;
+animation: heartBeat 2s ease-in-out infinite;
+transition: var(--transition-fast);
+}
+
+.Graduation-wishes::before {
+  left: 25%;
+  animation-delay: 0s;
+}
+
+.Graduation-wishes::after {
+  right: 25%;
+  animation-delay: 1s;
+}
+.Graduation-wishes:hover::before,
+.Graduation-wishes:hover::after {
+animation-duration: 0.8s;
+transform: scale(1.2);
+}
+/* ===== Share Section ===== */
+.share-section {
+padding-top: 2.5rem;
+border-top: 1px solid var(--border);
+transition: var(--transition);
+}
+
+.share-title {
+font-size: 0.95rem;
+text-transform: uppercase;
+letter-spacing: 1px;
+color: var(--text-muted);
+margin-bottom: 1.2rem;
+text-align: center;
+font-weight: 600;
+transition: var(--transition-fast);
+}
+
+.share-buttons {
+  display: flex;
+  justify-content: center;
+  gap: 1.2rem;
+  flex-wrap: wrap;
+  perspective: 1000px;
+}
+
+.share-btn {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-size: 1.3rem;
+  transition: var(--transition);
+  position: relative;
+  overflow: hidden;
+  box-shadow: var(--shadow-sm);
+  border: none;
+  cursor: pointer;
+}
+
+.share-btn::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.3),
+    rgba(255, 255, 255, 0.1)
+  );
+  opacity: 0;
+  transition: var(--transition);
+  border-radius: 50%;
+}
+
+.share-btn::after {
+content: '';
+position: absolute;
+top: 50%;
+left: 50%;
+width: 0;
+height: 0;
+background: rgba(255, 255, 255, 0.5);
+border-radius: 50%;
+transform: translate(-50%, -50%);
+transition: var(--transition-fast);
+}
+
+.share-btn:hover {
+transform: translateY(-6px) rotateY(10deg) scale(1.1);
+box-shadow: var(--shadow-lg), var(--glow-accent);
+}
+
+.share-btn:active::after {
+width: 100px;
+height: 100px;
+transition: none;
+animation: rippleOut 0.6s ease-out;
+}
+
+/*share button colors*/
+.whatsapp {
+background: linear-gradient(135deg, #25D366, #128C7E);
+}
+.instagram {
+  background: linear-gradient(
+    45deg,
+    #405de6,
+    #5851db,
+    #833ab4,
+    #c13584,
+    #e1306c,
+    #fd1d1d
+  );
+}
+.facebook {
+  background: linear-gradient(135deg, #1877f2, #0d5cbd);
+}
+.twitter {
+  background: linear-gradient(135deg, #1da1f2, #0c85d0);
+}
+.telegram {
+  background: linear-gradient(135deg, #0088cc, #006699);
+}
+
+/* ===== YouTube Embed ===== */
+iframe {
+  width: 100%;
+  border-radius: var(--radius-lg);
+  margin-top: 2rem;
+  box-shadow: var(--shadow-md);
+  transition: var(--transition);
+  border: 1px solid var(--border);
+}
+
+iframe:hover {
+transform: scale(1.02);
+box-shadow: var(--shadow-lg), var(--glow-primary);
+border-color: var(--primary);
+}
+
+/* ===== Decorative Elements ===== */
+.decorative-circle {
+position: absolute;
+border-radius: 50%;
+opacity: 0.4;
+z-index: 1000;
+pointer-events: none;
+transition: var(--transition);
+}
+
+.circle-1 {
+width: 250px;
+height: 250px;
+background: radial-gradient(circle, var(--primary) 0%, transparent 70%);
+top: -125px;
+right: -125px;
+animation: orbit 12s linear infinite;
+}
+
+.circle-2 {
+width: 180px;
+height: 180px;
+background: radial-gradient(circle, var(--secondary) 0%, transparent 70%);
+bottom: -90px;
+left: -90px;
+animation: orbitReverse 15s linear infinite;
+}
+
+/* ===== Animations ===== */
+@keyframes float {
+  0%,
+  100% {
+    transform: translateY(0px) rotate(0deg);
+  }
+  50% {
+    transform: translateY(-20px) rotate(5deg);
+  }
+}
+
+@keyframes subtleFloat {
+0%, 100% { transform: translateY(0px) scale(1); }
+50% { transform: translateY(-10px) scale(1.02); }
+}
+
+@keyframes cardEntry {
+from {
+opacity: 0;
+transform: translateY(30px) scale(0.95);
+}
+to {
+opacity: 1;
+transform: translateY(0) scale(1);
+}
+}
+@keyframes overlayPulse {
+0%, 100% { opacity: 1; }
+50% { opacity: 0.8; }
+}
+@keyframes shimmer {
+  0% {
+    transform: translateX(-100%) rotate(45deg);
+  }
+  100% {
+    transform: translateX(100%) rotate(45deg);
+  }
+}
+
+@keyframes gradientShift {
+  0% {
+    background-position: 0 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0 50%;
+  }
+}
+
+@keyframes titleGlow {
+from { filter: drop-shadow(var(--glow-accent)); }
+to { filter: drop-shadow(0 0 30px rgba(142, 45, 226, 0.5)); }
+}
+
+@keyframes underlineExpand {
+from { width: 0; }
+to { width: 160px; }
+}
+
+@keyframes messageSlide {
+to {
+opacity: 1;
+transform: translateX(0);
+}
+
+}
+@keyframes pulse {
+0%, 100% { transform: scale(1); }
+50% { transform: scale(1.1); }
+}
+
+@keyframes sparkle {
+0%, 100% { opacity: 1; transform: scale(1); }
+50% { opacity: 0.7; transform: scale(1.3); }
+}
+
+@keyframes ripple {
+0% { transform: translate(-50%, -50%) scale(0); opacity: 1; }
+100% { transform: translate(-50%, -50%) scale(4); opacity: 0; }
+}
+
+@keyframes wishesFloat {
+0%, 100% { transform: translateY(0px); }
+50% { transform: translateY(-8px); }
+}
+
+@keyframes heartBeat {
+0%, 100% { transform: scale(1); }
+14% { transform: scale(1.3); }
+28% { transform: scale(1); }
+}
+
+@keyframes rippleOut {
+0% { transform: translate(-50%, -50%) scale(0); opacity: 1; }
+100% { transform: translate(-50%, -50%) scale(1); opacity: 0; }
+}
+
+@keyframes orbit {
+from { transform: rotate(0deg) translateX(50px) rotate(0deg); }
+to { transform: rotate(360deg) translateX(50px) rotate(-360deg); }
+}
+
+@keyframes orbitReverse {
+from { transform: rotate(0deg) translateX(-40px) rotate(0deg); }
+to { transform: rotate(-360deg) translateX(-40px) rotate(360deg); }
+}
+
+@keyframes glow {
+  from {
+    scale: 1;
+    text-shadow: 0 0 2px rgba(226, 45, 45, 0.4), 0 0 5px rgba(226, 45, 45, 0.3),
+      0 0 9px rgba(226, 45, 45, 0.2);
+  }
+  to {
+    scale: 1.05;
+    text-shadow: 0 0 4px rgba(226, 45, 45, 0.7), 0 0 7px rgba(226, 45, 45, 0.5),
+      0 0 12px rgba(226, 45, 45, 0.4);
+  }
+}
+
+a {
+text-decoration: none;
+color: inherit;
+transition: var(--transition-fast);
+}
+
+.glow {
+  animation: glow 2s ease-in-out infinite alternate;
+}
+
+.animate-delay-1 {
+  animation-delay: 0.2s;
+}
+.animate-delay-2 {
+  animation-delay: 0.4s;
+}
+.animate-delay-3 {
+  animation-delay: 0.6s;
+}
+
+/* ===== Responsive Design ===== */
+@media (max-width: 1200px) {
+  .container {
+    padding: 0 1.5rem;
+  }
+}
+
+@media (max-width: 992px) {
+  .content-section {
+    padding: 2.5rem 3rem;
+  }
+
+  .Graduation-title {
+    font-size: 2.4rem;
+  }
+
+  .Graduation-wishes {
+    font-size: 1.8rem;
+  }
+  .image-container {
+    min-height: 57rem;
+  }
+    .Graduation-card:hover .Graduation-title::after {
+  width: 510px;
+  animation: underlineExpand 0.4 ease;
+}
+
+}
+
+@media (max-width: 768px) {
+  body {
+    padding: 1rem;
+  }
+
+  .Graduation-card {
+    flex-direction: column;
+    border-radius: var(--radius-lg);
+  }
+
+  .content-section {
+    padding: 2rem;
+  }
+
+  .Graduation-title {
+    font-size: 2rem;
+    text-align: center;
+  }
+
+  .Graduation-title::after {
+    left: 50%;
+    transform: translateX(-50%);
+  }
+  .message-item {
+    padding-left: 2rem;
+    font-size: 1.05rem;
+  }
+
+  .Graduation-wishes {
+    font-size: 1.6rem;
+  }
+
+  .share-buttons {
+    gap: 1rem;
+  }
+
+  .share-btn {
+    width: 44px;
+    height: 44px;
+    font-size: 1.2rem;
+  }
+
+  iframe {
+    height: 300px;
+  }
+  .image-container {
+    min-height: 47rem;
+  }
+}
+
+@media (max-width: 576px) {
+  .content-section {
+    padding: 1.5rem;
+  }
+
+  .Graduation-title {
+    font-size: 1.8rem;
+  }
+
+  .message-item {
+    padding-left: 2rem;
+    font-size: 1rem;
+  }
+
+  .Graduation-wishes {
+    font-size: 1.4rem;
+  }
+
+  .share-btn {
+    width: 40px;
+    height: 40px;
+    font-size: 1.1rem;
+  }
+  .image-container {
+    min-height: 35rem;
+  }
+}
+
+@media (max-width: 500px) {
+  .image-container {
+    min-height: 33rem;
+  }
+}
+@media (max-width: 400px) {
+  .Graduation-title {
+    font-size: 1.6rem;
+  }
+
+  .message-item {
+    padding-left: 1.5rem;
+    font-size: 0.95rem;
+  }
+
+  .Graduation-wishes {
+    font-size: 1.2rem;
+  }
+
+  .share-btn {
+    width: 36px;
+    height: 36px;
+    font-size: 1rem;
+  }
+
+  iframe {
+    height: 220px;
+  }
+
+  .image-container {
+    display: none;
+  }
+
+  .content-section {
+    background-image: url("/pics/profile_pic.jpg") !important;
+    background-size: cover !important;
+    background-position: center !important;
+    background-repeat: no-repeat !important;
+    color: white !important;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5) !important;
+    animation: bgFade 1s ease;
+  }
+  .Graduation-message {
+    -webkit-backdrop-filter: blur(15px);
+    backdrop-filter: blur(15px);
+background: rgba(255, 255, 255, 0.1);
+border-radius: 2rem;
+padding: 1rem;
+border: 1px solid rgba(255, 255, 255, 0.2);
+}
+}
+@keyframes bgFade {
+from { background-color: rgba(255, 255, 255, 0.9); }
+to { background-color: transparent; }
+}
+
+/*change the container max-height when the device is in portrait mode*/
+@media (max-width: 950px) and (orientation: landscape) {
+  .image-container {
+    display: none !important;
+  }
+  .content-section {
+    background-image: url("/pics/profile_pic.jpg") !important;
+    background-size: cover !important;
+    background-position: center -15.5rem !important;
+    background-repeat: no-repeat !important;
+    color: white !important;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5) !important;
+        animation: bgFade 1s ease;
+  }
+  .Graduation-message {
+    -webkit-backdrop-filter: blur(15px);
+    backdrop-filter: blur(15px);
+    border-radius: 2rem;
+    background: rgba(255, 255, 255, 0.1);
+    padding: 1rem;
+border: 1px solid rgba(255, 255, 255, 0.2);
+  }
+  .share-title {
+    color: var(--bs-dark) !important;
+  }
+}
+
+/* ===== Accessibility ===== */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+
+  body {
+    animation: none; /* Disable moving background */
+    background: linear-gradient(
+      135deg,
+      var(--primary),
+      var(--primary-dark)
+    ); /* Fallback */
+  }
+
+  .Graduation-card:hover {
+    transform: none;
+  }
+}
+.mode-toggle {
+position: fixed;
+top: 20px;
+right: 20px;
+z-index: 1000;
+background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+color: white;
+border: none;
+padding: 12px 18px;
+border-radius: 50px;
+cursor: pointer;
+display: flex;
+align-items: center;
+gap: 8px;
+font-size: 16px;
+box-shadow: var(--shadow-lg);
+transition: var(--transition);
+animation: subtleFloat 5s cubic-bezier(0.445, 0.05, 0.55, 0.95) infinite;
+}
+.mode-toggle:hover {
+transform: scale(1.08) translateY(-2px);
+box-shadow: var(--shadow-xl), var(--glow-primary);
+}
+.mode-icon {
+font-size: 18px;
+transition: var(--transition);
+}
+.mode-text {
+font-weight: 600;
+opacity: 0.95;
+}
+button:focus-visible,
+a:focus-visible {
+outline: 2px solid var(--primary);
+outline-offset: 2px;
+box-shadow: 0 0 0 3px rgba(142, 45, 226, 0.2);
+}
+
+.mode-text {
+    font-weight: 500;
+    opacity: 0.9;
+}
+
+[data-theme="dark"] .mode-toggle .mode-icon {
+    content: "☀️"; 
+    color: yellow;
+}
+
+[data-theme="dark"] .mode-toggle .mode-text {
+    content: "Light Mode";
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: more) {
+  :root {
+    --border: #000000;
+    --text: #000000;
+    --text-muted: #333333;
+  }
+
+  .Graduation-card {
+    border: 2px solid var(--border);
+  }
+}
+
+/* Dark mode support */
+/* ===== Dark Mode Support ===== */
+[data-theme="dark"] {
+
+  --primary: #a855f7; 
+  --primary-dark: #2f037b;
+  --primary-light: #4c1d95;
+  --secondary: #06b6d4; 
+  --secondary-dark: #0891b2;
+  --accent: #f87171; 
+  --accent-dark: #dc2626;
+  --light: #0f172a; 
+  --dark: #f8fafc; 
+  --text: #f1f5f9; 
+  --text-muted: #cbd5e1; 
+  --border: #334155; 
+  --success: #10b981; 
+
+  /* Shadows - lighter for dark mode to avoid over-darkening */
+  --shadow-sm: 0 1px 4px rgba(0, 0, 0, 0.15);
+  --shadow-md: 0 2px 8px rgba(0, 0, 0, 0.2);
+  --shadow-lg: 0 4px 16px rgba(0, 0, 0, 0.25);
+  --shadow-xl: 0 8px 32px rgba(0, 0, 0, 0.3);
+
+  /* Background gradients - subtle dark nebula effect */
+  --bg-gradient: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #334155 100%);
+  --card-gradient: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+  --image-placeholder-gradient: linear-gradient(135deg, #4a00e0 0%, #8e2de2 100%);
+
+  /* Ensure smooth transitions apply here too */
+  transition: var(--transition);
+}
+
+/* Global transitions for sleek switching - stagger for layered effect */
+html[data-theme="dark"],
+body[data-theme="dark"] {
+  transition: background 0.6s cubic-bezier(0.16, 1, 0.3, 1), color 0.4s ease;
+  background: var(--bg-gradient) !important;
+  background-size: 200% 200% !important;
+  animation: gradientShiftDark 5s ease infinite !important;
+  color: var(--text) !important;
+}
+
+html.theme-transitioning {
+
+  position: relative;
+}
+html.theme-transitioning::before {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: var(--bg-gradient);
+  z-index: 9999;
+  opacity: 0;
+  animation: expandFromButton 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  pointer-events: none;
+}
+@keyframes expandFromButton {
+  0% {
+    opacity: 0;
+    transform: scale(0) translate(20px, 20px); 
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translate(0, 0);
+  }
+}
+
+[data-theme="dark"] .Graduation-card {
+  background: var(--card-gradient) !important;
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-xl), 0 0 0 1px rgba(255, 255, 255, 0.05);  
+  color: var(--text) !important;
+  transition: background 0.4s ease, box-shadow 0.4s ease, transform 0.3s ease;
+}
+[data-theme="dark"] .Graduation-card:hover {
+  box-shadow: var(--shadow-xl), 0 0 0 1px rgba(255, 255, 255, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+[data-theme="dark"] .content-section {
+  background: rgba(30, 41, 59, 0.8) !important; 
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  color: var(--text) !important;
+  transition: background 0.4s ease, color 0.3s ease;
+}
+
+/* Text and icons - high contrast, subtle hovers */
+[data-theme="dark"] .Graduation-title {
+  color: var(--text) !important; 
+  background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  text-shadow: none; 
+  transition: color 0.3s ease;
+}
+[data-theme="dark"] .name-highlight {
+  color: var(--accent) !important;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+[data-theme="dark"] .message-item {
+  color: var(--text-muted) !important;
+  transition: color 0.3s ease;
+}
+[data-theme="dark"] .message-item:hover {
+  color: var(--text) !important;
+}
+[data-theme="dark"] .Graduation-icon {
+  color: var(--accent) !important;
+  text-shadow: none;
+}
+[data-theme="dark"] .Graduation-wishes {
+  color: var(--primary) !important;
+  border-top-color: rgba(168, 85, 247, 0.2);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+[data-theme="dark"] .share-title {
+  color: var(--text-muted) !important;
+}
+
+/* Image placeholder - inverted gradient */
+[data-theme="dark"] .image-placeholder {
+  background: var(--image-placeholder-gradient) !important;
+  color: var(--dark) !important; 
+}
+
+/* Share buttons - adjust shadows for dark */
+[data-theme="dark"] .share-btn {
+  box-shadow: var(--shadow-md);
+  transition: box-shadow 0.3s ease, transform 0.3s ease;
+}
+[data-theme="dark"] .share-btn:hover {
+  box-shadow: var(--shadow-lg);
+}
+
+/* Iframe - subtle border */
+[data-theme="dark"] iframe {
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-md);
+  transition: box-shadow 0.3s ease;
+}
+
+/* Decorative elements - lower opacity in dark */
+[data-theme="dark"] .decorative-circle {
+  opacity: 0.05;
+}
+
+/* Mode toggle refinements for dark */
+[data-theme="dark"] .mode-toggle {
+  background: var(--primary-dark);
+  box-shadow: var(--shadow-md);
+}
+[data-theme="dark"] .mode-toggle:hover {
+  box-shadow: var(--shadow-lg);
+}
+
+/* Responsive tweaks for dark - ensure contrast on mobile */
+@media (max-width: 400px) {
+  [data-theme="dark"] .content-section {
+    background: rgba(15, 23, 42, 0.95) !important; /* Near-opaque for small screens */
+    color: var(--text) !important;
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6) !important;
+  }
+  [data-theme="dark"] .Graduation-message {
+    backdrop-filter: blur(10px);
+    background: rgba(30, 41, 59, 0.9);
+  }
+}
+
+@media (max-width: 950px) and (orientation: landscape) {
+  [data-theme="dark"] .content-section {
+      background-size: cover !important;
+      background: linear-gradient(rgba(15, 23, 42, 0.9), rgba(15, 23, 42, 0.9)) url("/pics/profile_pic.jpg") center -15.5rem !important;
+      color: var(--text) !important;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.7) !important;
+  }
+  [data-theme="dark"] .share-title {
+    color: var(--text) !important;
+  }
+}
+
+/* Accessibility in dark mode */
+@media (prefers-reduced-motion: reduce) {
+  [data-theme="dark"] * {
+    animation: none !important;
+    transition: none !important;
+  }
+  [data-theme="dark"] body {
+    background: var(--bg-gradient) !important; 
+  }
+}
+
+@keyframes gradientShiftDark {
+  0% { background-position: 0 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0 50%; }
+}
+
+
+[data-theme="dark"] .mode-toggle .mode-icon::before {
+  content: "☀️";
+}
+[data-theme="dark"] .mode-toggle .mode-text::before {
+  content: "Light Mode";
+}
+.mode-toggle .mode-icon,
+.mode-toggle .mode-text {
+  position: relative;
+}
+.mode-toggle .mode-icon::before,
+.mode-toggle .mode-text::before {
+  content: attr(data-dark-content); 
+  opacity: 0;
+  position: absolute;
+  top: 0;
+  left: 0;
+  transition: opacity 5s ease;
+}

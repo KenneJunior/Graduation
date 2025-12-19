@@ -1,0 +1,87 @@
+{
+  "name": "Graduation's site",
+  "short_name": "Graduation 🎓👨‍🎓",
+  "description": "A Graduation sitee made by  Kenne Junior",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#1a0f15",
+  "theme_color": "#db707a",
+  "orientation": "portrait-primary",
+  "scope": "/",
+  "id": "/",
+  "lang": "en",
+  "categories": ["entertainment", "social"],
+  "icons": [
+    {
+      "src": "/icon/andriod_svg/icon_96X96.svg",
+      "sizes": "72x72",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon/andriod_svg/icon_96X96.svg",
+      "sizes": "96x96",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon/andriod_svg/icon_128X128.svg",
+      "sizes": "128x128",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon/apple/svg/icon_144X144.svg",
+      "sizes": "144x144",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon/andriod_svg/icon_168X168.svg",
+      "sizes": "168x168",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon/andriod_svg/icon_192X192.svg",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon/andriod_svg/icon_512X512.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "/screenshot.svg",
+      "sizes": "1200x630",
+      "type": "image/svg+xml",
+      "form_factor": "wide"
+    },
+    {
+      "src": "/pics/screenshot1.jpg",
+      "sizes": "1200x630",
+      "type": "image/svg+xml",
+      "form_factor": "wide"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Graduation memories",
+      "short_name": "memories",
+      "description": "your memories",
+      "url": "memories",
+      "icons": [
+        {
+          "src": "/icon/shortcut/memories.jpeg",
+          "sizes": "96x96",
+          "type": "image"
+        }
+      ]
+    }
+  ]
+}

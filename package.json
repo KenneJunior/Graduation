@@ -1,0 +1,33 @@
+{
+  "name": "Graduation",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "media-json": "node src/scripts/generate-media-json.js",
+    "robots": "node src/scripts/generate-robots.js",
+    "robots:dev": "node src/scripts/generate-robots.js development",
+    "build:sw": "node src/scripts/build-offline-page.js",
+    "prebuild": "node src/scripts/pre-build.js",
+    "build": "vite build && node src/scripts/copy-sw.js && npm run build:sw",
+    "dev": "vite",
+    "preview": "vite preview"
+  },
+  "devDependencies": {
+    "html-minifier-terser": "^7.2.0",
+    "sitemap": "^8.0.1",
+    "terser": "^5.44.0",
+    "vite": "^7.1.0",
+    "vite-plugin-devtools-json": "^1.0.0",
+    "vite-plugin-html": "^3.2.2",
+    "vite-plugin-html-minifier-terser": "^3.8.0",
+    "vite-plugin-qrcode": "^0.3.0"
+  },
+  "dependencies": {
+    "@auth0/auth0-spa-js": "^2.7.0",
+    "error-stack-parser": "^2.1.4",
+    "hammerjs": "^2.0.8",
+    "pwa-asset-generator": "^8.1.2",
+    "sharp": "^0.34.4"
+  }
+}
