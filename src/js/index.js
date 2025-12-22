@@ -1,4 +1,5 @@
 import logger from "../js/utility/logger.js";
+import { loadMediaData } from "./utility/utils.js";
 ("use strict");
 
 const appLogger = logger.withContext({
@@ -414,7 +415,7 @@ class ImageLoader {
 
   loadFallbackImage() {
     imageLogger.warn("Loading fallback image");
-    const fallbackSrc = "/public/pics/screenshot1.jpg";
+    const fallbackSrc = "/pics/profile_pic.jpg";
     if (fallbackSrc !== this.image.src) {
       this.image.src = fallbackSrc;
       this.image.alt = "Graduation celebration image";
@@ -512,6 +513,10 @@ class ImageLoader {
     };
 
     requestAnimationFrame(animateFrame);
+  }
+  cacheMediaData() {
+    // Cache media data if needed
+    this.mediaData = loadMediaData();
   }
 }
 
@@ -966,6 +971,8 @@ class GraduationApp {
       await this.initializeModules();
       this.setupEventListeners();
       this.startApp();
+      this.animateMessagesOneByOne();
+      this.changeTitleName();
       this.isInitialized = true;
       appLogger.info("GraduationApp initialized successfully");
     } catch (error) {
@@ -1294,6 +1301,56 @@ class GraduationApp {
         appLogger.debug("Error message removed");
       }
     }, 5000);
+  }
+
+  /**
+   * Animate messages one by one
+   */
+  animateMessagesOneByOne() {
+    if (!this.elements.messageItems) {
+      appLogger.warn("No message items found for animation");
+      return;
+    }
+    
+    appLogger.debug("Starting one-by-one message animations", {
+      messageCount: this.elements.messageItems.length,
+    });
+    let index = 0;
+    
+    const animateNext = () => {
+      if (index >= this.elements.messageItems.length) {
+        appLogger.debug("All messages animated");
+        return;
+      }
+      
+      const item = this.elements.messageItems[index];
+      item.style.opacity = "1";
+      item.style.visibility = "visible";
+      appLogger.debug(`Message ${index + 1} animated`);
+      index++;
+      
+      setTimeout(animateNext, 300);
+    };
+    
+    animateNext();
+  }
+
+  /**
+  * Change the name of the title 
+  */
+  changeTitleName() {
+    appLogger.time("Change title name");
+    const titleElement = document.querySelector(".Graduation-title");
+    const authString = localStorage.getItem("GraduationAppPassword");
+    const auth = authString ? JSON.parse(authString) : null;
+    const newName = auth && auth.name ? auth.name : "Friend";
+    if (titleElement) {
+      titleElement.textContent = `Congratulations, ${newName}!`;
+      appLogger.debug("Title name changed", { newName });
+    } else {
+      appLogger.warn("Title element not found for name change");
+    }
+    appLogger.timeEnd("Change title name");
   }
 
   /**

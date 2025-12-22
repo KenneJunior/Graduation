@@ -6,16 +6,15 @@ import { createLogger } from "./js/utility/logger.js";
 
 class AuthManager {
   // Configuration
-  static AuthConfig = Object.freeze({
+  static AuthConfig = {
     PASSWORD_KEY: "{KEY}",
-    CORRECT_PASSWORD: "{PASSWORD}",
     LOGIN_URL: "/login",
     RETRY_ATTEMPTS: 3,
     RETRY_DELAY: 1000,
     SESSION_TIMEOUT: 30 * 60 * 1000,
     ACTIVITY_EVENTS: ["mousedown", "keydown", "scroll", "touchstart"],
     SESSION_CHECK_INTERVAL: 60000,
-  });
+  };
 
   constructor() {
     this.authCheckInitialized = false;
@@ -180,8 +179,8 @@ class AuthManager {
    */
   async _checkPasswordAuthentication() {
     try {
-      const storedPassword = localStorage.getItem(this.config.PASSWORD_KEY);
-      const isPasswordValid = storedPassword === this.config.CORRECT_PASSWORD;
+      const storedPassword = JSON.parse(localStorage.getItem(this.config.PASSWORD_KEY));
+      const isPasswordValid = storedPassword.ok;
 
       return {
         authenticated: isPasswordValid,
@@ -210,10 +209,7 @@ class AuthManager {
       if (!config.PasswordManager) {
         throw new Error("Invalid auth configuration structure");
       }
-
-      this.config.CORRECT_PASSWORD = config.PasswordManager.PASSWORD;
       this.config.PASSWORD_KEY = config.PasswordManager.STORAGE_KEY;
-      Object.freeze(this.config);
 
       this.authLogger.debug("Password manager configured successfully");
       this.authLogger.timeEnd("Password manager setup");

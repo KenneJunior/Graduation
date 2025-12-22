@@ -60,6 +60,19 @@ const DEFAULT_CONFIG = {
 };
 
 let CONFIG = {};
+  const PERSON_MAP = Object.freeze({
+  M: "Mcckelly",
+  J: "Junior",
+  K: "Mama Kech",
+  T: "Terence",
+  CC: "Chris La Belle",
+  C4: "C4",
+  CM: "Takeoff",
+  G: "Goto",
+  LG: "Grace",
+  W: "Wales",
+  MN: "Marie",
+});
 
 async function generateMediaJSON(config = {}) {
   CONFIG = { ...DEFAULT_CONFIG, ...config };
@@ -106,12 +119,14 @@ async function generateMediaJSON(config = {}) {
           src: srcPath,
           thumb: thumbUrl,
           alt: altText,
+          persons: extractPersonsFromFilename(filename),
           "data-type": "image",
         };
       } else {
         // Generate WebP thumbnail
         try {
-          const inputPath = join(CONFIG.picsDir, filename);
+          const inputPath = `${config.picDir}/${encodeURIComponent(filename)}`;
+
           const buffer = readFileSync(inputPath);
 
           await sharp(buffer)
@@ -259,6 +274,48 @@ async function generateMediaJSON(config = {}) {
     return { success: false, error: error.message };
   }
 }
+
+function extractPersonsFromFilename(filename) {
+  // Remove extension
+  const base = filename.replace(/\.(jpg|jpeg|png|heic|webp)$/i, "");
+  //if the base includes profile_pic return all persons
+  if(base.includes("profile_pic")){
+    return [
+      { code: "M", name: "Mcckelly" },
+      { code: "J", name: "Junior" },
+      { code: "K", name: "Kech" },
+      { code: "T", name: "Terence" },
+      { code: "CC", name: "Christabelle" },
+      { code: "C4", name: "C4" },
+      { code: "TO", name: "Takeoff" },
+      { code: "G", name: "Gotrand" },
+    ];
+  }
+    // Expect format: [ACR]_[A]_[B]__img123
+  if (!base.includes("__")) return [];
+
+  const [personsPart] = base.split("__");
+
+  const matches = personsPart.match(/\[([A-Z0-9]+)\]/g) || [];
+const persons = matches
+    .map((m) => m.replace(/\[|\]/g, "")) // remove brackets
+    .map((code) => {
+      if (!PERSON_MAP[code]) {
+        throw new Error(`❌ Unknown person code "${code}" in file: ${filename}`);
+      }
+      return {
+        code,
+        name: PERSON_MAP[code],
+      };
+    });
+
+  if (persons.length === 0) {
+    throw new Error(`❌ No person tags found in filename: ${filename}`);
+  }
+
+  return persons;
+}
+
 
 // Run when called directly
 if (import.meta.url === `file://${process.argv[1]}`) {

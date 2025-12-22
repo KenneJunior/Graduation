@@ -4,8 +4,28 @@
     "clientId": "rhwOnqEEAZsJQ037JjkFBFugcu46Pn4o",
     "cacheLocation": "localstorage"
   },
+
   "PasswordManager": {
-    "PASSWORD": "Congratulations2025!",
-    "STORAGE_KEY": "GraduationAppPassword"
+    "STORAGE_KEY": "GraduationAppPassword",  
+
+    "CURRENT_USER_KEY": "GraduationAppCurrentUser",
+
+    "general": {
+      "password": "Congratulations2025!"
+    },
+    "users": {
+      "K": {
+        "name": "Kech",
+        "password": "CongratulationsMamaKech"
+      },
+      "T": {
+        "name": "Terence",
+        "password": "CongratulationsdullMan"
+      },
+      "M": {
+        "name": "Mcckelly",
+        "password": "CongratulationsMcc"
+      }
+    }
   }
 }

@@ -206,7 +206,7 @@ const Auth0Config = {
 // Password Manager Configuration
 const PasswordConfig = {
   STORAGE_KEY: "{KEY}",
-  CORRECT_PASSWORD: "",
+  Auth: {},
   REDIRECT_URL: window.location.origin,
   MIN_PASSWORD_LENGTH: 8,
   NOTIFICATION_DURATION: 3000,
@@ -215,18 +215,11 @@ const PasswordConfig = {
   REDIRECT_DELAY: 3000,
 };
 
-/**
- * Auth0 Manager - Handles Auth0 authentication
- */
-const Auth0Manager = (() => {
-  let isAuthenticated = false;
-  let userProfile = null;
-
   /**
    * Fetches Auth0 configuration from server
    * @returns {Promise<Object>} Configuration object
    */
-  const _fetchAuthConfig = async () => {
+  async function fetchAuthConfig() {
     auth0Logger.time("Fetch auth config");
     try {
       auth0Logger.debug("Fetching auth configuration from /auth_config.json");
@@ -243,7 +236,15 @@ const Auth0Manager = (() => {
       auth0Logger.timeEnd("Fetch auth config");
       throw error;
     }
-  };
+  }
+
+/**
+ * Auth0 Manager - Handles Auth0 authentication
+ */
+const Auth0Manager = (() => {
+  let isAuthenticated = false;
+  let userProfile = null;
+
 
   /**
    * Initialize Auth0 client
@@ -253,21 +254,6 @@ const Auth0Manager = (() => {
     auth0Logger.time("Auth0 initialization");
 
     try {
-      const config = await _fetchAuthConfig();
-
-      // Update configuration with fetched values
-      Auth0Config.domain = config.Auth.domain;
-      Auth0Config.client_id = config.Auth.clientId;
-      Auth0Config.cacheLocation = config.Auth.cacheLocation;
-      PasswordConfig.CORRECT_PASSWORD = config.PasswordManager.PASSWORD;
-      PasswordConfig.STORAGE_KEY = config.PasswordManager.STORAGE_KEY;
-
-      auth0Logger.debug("Configuration updated from server", {
-        domain: Auth0Config.domain ? "set" : "missing",
-        clientId: Auth0Config.client_id ? "set" : "missing",
-        password: PasswordConfig.CORRECT_PASSWORD ? "set" : "missing",
-      });
-
       const savedLocation = getSavedLocation();
       PasswordConfig.REDIRECT_URL =
         savedLocation && savedLocation.startsWith(window.location.origin)
@@ -511,7 +497,7 @@ const Auth0Manager = (() => {
     checkAuth,
     isAuthenticated: () => isAuthenticated,
     getUser: () => userProfile,
-    fetchAuth: _fetchAuthConfig,
+    fetchAuth: fetchAuthConfig,
   };
 })();
 /**
@@ -529,30 +515,23 @@ const PasswordManager = (() => {
     redirectTimeout: null,
     ismouseOnNotification: false,
     isNotificationVisible: false,
-    correctPassword: PasswordConfig.CORRECT_PASSWORD, // default value
   };
 
   const dom = {};
   let hammer = null;
 
   /**
-   * Initialize the password manager
-   * @param {string} [password] - Optional password to use for verification
+   * Initialize the password manage
    */
-  const init = (password) => {
+  const init = () => {
     passwordLogger.time("PasswordManager initialization");
-
-    if (password) {
-      state.correctPassword = password;
-      passwordLogger.debug("Password set from parameter");
-    }
 
     try {
       _cacheDomElements();
       _checkExistingPassword();
 
-      // If password exists and Auth0 is not authenticated, redirect
-      if (state.hasExistingPassword && !Auth0Manager.isAuthenticated()) {
+      // If password exists or Auth0 is authenticated, redirect
+      if (state.hasExistingPassword || Auth0Manager.isAuthenticated()) {
         passwordLogger.info("Existing password found, redirecting user");
         _showNotification("Password verified. Redirecting...", "success");
         _scheduleRedirect();
@@ -576,13 +555,14 @@ const PasswordManager = (() => {
     passwordLogger.time("DOM element caching");
 
     //for testing purpose only
-    if (window.location.origin.includes("localhost")|| window.location.origin.includes("kennejunior")) {
+    /*if (window.location.origin.includes("localhost")|| window.location.origin.includes("kennejunior")) {
       passwordLogger.debug("Localhost detected, setting test password");
-      _savePassword("Congratulations2025");
-    }
+      _saveAuth("Congratulations2025");
+    }*/
 
     dom.helper = document.getElementById("password-requirements");
     dom.Auth0 = document.getElementById("auth0");
+    dom.name = document.getElementById("name");
     dom.loginForm = document.getElementById("loginForm");
     dom.passwordInput = document.getElementById("password");
     dom.toggleButton = document.getElementById("togglePassword");
@@ -673,24 +653,26 @@ const PasswordManager = (() => {
     passwordLogger.time("Existing password check");
 
     try {
-      const storedPassword = localStorage.getItem(PasswordConfig.STORAGE_KEY);
-      state.hasExistingPassword = storedPassword === state.correctPassword;
+      const storedAuth = localStorage.getItem(PasswordConfig.STORAGE_KEY);
+      const auth = JSON.parse(storedAuth);
+      state.hasExistingPassword = auth.ok;
 
       passwordLogger.debug("Password storage check", {
-        hasStoredPassword: !!storedPassword,
-        matchesCorrect: state.hasExistingPassword,
+        auth
       });
 
       if (state.hasExistingPassword) {
         passwordLogger.info("Existing password found in local storage");
+        dom.name.textContent = `${auth.message || "User"}`;
       } else {
         passwordLogger.debug("No valid password found in local storage");
       }
-
-      passwordLogger.timeEnd("Existing password check");
     } catch (error) {
       passwordLogger.error("Failed to check existing password", error);
-      passwordLogger.timeEnd("Existing password check");
+    }
+    finally{
+            passwordLogger.timeEnd("Existing password check");
+
     }
   };
 
@@ -753,11 +735,12 @@ const PasswordManager = (() => {
     passwordLogger.time("Password verification");
 
     let valid;
-    if (password === state.correctPassword) {
+    const passwordMetada = checkPassword(password,PasswordConfig.Auth);
+    if (passwordMetada.ok) {
       passwordLogger.info("Password verification successful");
-      _savePassword(password);
+      _saveAuth(passwordMetada);
       _showNotification(
-        "Password verified successfully! Redirecting...",
+        passwordMetada.message || "Password verified. Redirecting...",
         "success"
       );
       _scheduleRedirect();
@@ -810,6 +793,7 @@ const PasswordManager = (() => {
 
   /**
    * @param {boolean} isValid return the icon with text
+   * @param {string} text
    * @returns
    */
   const _textIcon = (isValid, text) => {
@@ -822,13 +806,12 @@ const PasswordManager = (() => {
 
   /**
    * Saves password to local storage
-   * @param {string} password - Password to save
    */
-  const _savePassword = (password) => {
+  const _saveAuth = (passwordData) => {
     passwordLogger.time("Password save");
 
     try {
-      localStorage.setItem(PasswordConfig.STORAGE_KEY, password);
+      localStorage.setItem(PasswordConfig.STORAGE_KEY, JSON.stringify(passwordData));
       state.hasExistingPassword = true;
       passwordLogger.info("Password saved to local storage successfully");
       passwordLogger.timeEnd("Password save");
@@ -957,7 +940,6 @@ const PasswordManager = (() => {
 
     state.notificationTimeout = setInterval(() => {
       if (!state.ismouseOnNotification) {
-        passwordLogger.debug("Auto-hiding notification after timeout");
         notification.classList.remove("show");
         state.isNotificationVisible = false;
       }
@@ -969,7 +951,7 @@ const PasswordManager = (() => {
   /**
    * take is the type of notification then return the icon
    * @param {type} type
-   * @returns
+   * @returns {string} icon HTML string for the icon
    */
   const _getNotificationIcon = (type) => {
     const icons = {
@@ -1091,6 +1073,79 @@ const PasswordManager = (() => {
   };
 })();
 
+/**
+ * Checks a user-entered password against config
+ * and returns rich authentication info.
+ *
+ * @param {string} inputPassword
+ * @param {object} passwordConfig - PasswordManager section from config JSON
+ * @returns {object}
+ */
+export function checkPassword(inputPassword, passwordConfig) {
+  if (!inputPassword || typeof inputPassword !== "string") {
+    return {
+      ok: false,
+      reason: "EMPTY_OR_INVALID",
+      message: "Password is required",
+    };
+  }
+
+  const cleanInput = inputPassword.trim();
+
+  // 1️⃣ Check GENERAL password
+  if (cleanInput === passwordConfig.general?.password) {
+    return {
+      ok: true,
+      type: "general",
+      code: "ALL",
+      name: "Everyone",
+      accessLevel: 100,
+      message: "General access granted 🎉",
+    };
+  }
+
+  // 2️⃣ Check USER-SPECIFIC passwords
+  const users = passwordConfig.users || {};
+
+  for (const [code, user] of Object.entries(users)) {
+    if (cleanInput === user.password) {
+      return {
+        ok: true,
+        type: "user",
+        code,
+        name: user.name,
+        accessLevel: 50,
+        message: `Welcome back, ${user.name} 😈`,
+      };
+    }
+  }
+
+  // 3️⃣ Failed authentication
+  return {
+    ok: false,
+    reason: "INVALID_PASSWORD",
+    attemptsRemaining: null,
+    message: "Wrong password. Try again 👀",
+  };
+}
+
+async function inialisedPasswordConfig(){
+      const config = await Auth0Manager.fetchAuth();
+      Auth0Config.domain = config.Auth.domain;
+      Auth0Config.client_id = config.Auth.clientId;
+      Auth0Config.cacheLocation = config.Auth.cacheLocation;
+      PasswordConfig.Auth = config.PasswordManager;
+      PasswordConfig.STORAGE_KEY = config.PasswordManager.STORAGE_KEY;
+
+      auth0Logger.debug("Configuration updated from server", {
+        domain: Auth0Config.domain ? "set" : "missing",
+        clientId: Auth0Config.client_id ? "set" : "missing",
+        password: PasswordConfig.Auth ? "set" : "missing",
+      });
+
+}
+
+
 // Create contextual logger for main application
 const appLogger = logger.withContext({ module: "MainApp" });
 
@@ -1104,32 +1159,12 @@ document.addEventListener("DOMContentLoaded", async () => {
     // Initialize Auth0
     appLogger.debug("Initializing Auth0 manager");
     const auth0Initialized = await Auth0Manager.init();
-
-    let correctPassword = PasswordConfig.CORRECT_PASSWORD;
+      await inialisedPasswordConfig();
 
     if (auth0Initialized) {
       appLogger.debug("Auth0 initialized, checking authentication");
       await Auth0Manager.checkAuth();
-
       // Get password from config if available
-      if (!correctPassword) {
-        appLogger.debug("No password in config, fetching from server");
-        const config = await Auth0Manager.fetchAuth();
-        if (
-          config &&
-          config.PasswordManager &&
-          config.PasswordManager.PASSWORD
-        ) {
-          correctPassword = config.PasswordManager.PASSWORD;
-          appLogger.debug("Password retrieved from server config");
-        } else {
-          const error = new Error(
-            "App was unable to load the password please try again later or contact support"
-          );
-          appLogger.error("Password configuration missing", error);
-          throw error;
-        }
-      }
     } else {
       appLogger.warn(
         "Auth0 initialization failed, using password fallback only"
@@ -1138,7 +1173,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     // Initialize Password Manager (fallback)
     appLogger.debug("Initializing Password Manager");
-    PasswordManager.init(correctPassword);
+    PasswordManager.init();
 
     appLogger.info("Application initialization completed successfully");
     appLogger.timeEnd("Application initialization");

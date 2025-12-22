@@ -1,5 +1,5 @@
 import logger from "./utility/logger.js";
-
+import { loadMediaData } from "./utility/utils.js";
 // Create contextual logger for UltimateModal
 const modalLogger = logger.withContext({ module: "UltimateModal" });
 
@@ -1078,7 +1078,7 @@ class UltimateModal {
     }
 
     modalLogger.debug("Starting gallery generation");
-    this.mediaData = await this.loadMediaData();
+    this.mediaData = await loadMediaData();
 
     this.mediaData.media.forEach((mediaData, index) => {
       const figure = this.createGalleryFigure(mediaData, index);
@@ -1708,30 +1708,7 @@ class UltimateModal {
     modalLogger.timeEnd("Tooltip display");
   }
 
-  async loadMediaData() {
-    modalLogger.time("Media data loading");
 
-    try {
-      modalLogger.debug("Fetching gallery data from /gallery-data.json");
-      const response = await fetch("/gallery-data.json");
-
-      if (!response.ok) {
-        throw new Error(`Network response was not ok: ${response.status}`);
-      }
-
-      const mediaData = await response.json();
-      modalLogger.info("Media data loaded successfully", {
-        mediaCount: mediaData.media?.length || 0,
-      });
-
-      modalLogger.timeEnd("Media data loading");
-      return mediaData;
-    } catch (error) {
-      modalLogger.error("Error loading gallery data:", error);
-      modalLogger.timeEnd("Media data loading");
-      throw error;
-    }
-  }
 }
 
 export default UltimateModal
