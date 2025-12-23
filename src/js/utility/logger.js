@@ -1,13 +1,13 @@
 import StackTraceParser from "error-stack-parser";
 import {
-    getBrowserContext,
-    getDeviceContext,
-    getNetworkInfo,
-    getPWAInfo,
-    getPageContext,
-    getPerformanceContext,
-    getServiceWorkerInfo,
-    isBrowser,
+  getBrowserContext,
+  getDeviceContext,
+  getNetworkInfo,
+  getPWAInfo,
+  getPageContext,
+  getPerformanceContext,
+  getServiceWorkerInfo,
+  isBrowser,
 } from "./logger_info.js";
 const LOG_LEVELS = Object.freeze({
   DEBUG: 0,
@@ -38,7 +38,7 @@ class Logger {
     this.isWorker = typeof self !== "undefined" && self.location;
     this.performanceMarks = new Map();
     this.workingFolder = "/home/kenne-junior/Desktop/Graduation";
-    this.useBrowserURL = true;
+    this.useBrowserURL = false;
     this.contextStack = [];
     this._detectEnvironment();
     this._setupGlobalErrorHandling();
@@ -385,7 +385,7 @@ class Logger {
       const cleanurl = url.replace(/^https?:\/\/[^/]+/, "");
 
        full_parth = this.workingFolder + cleanurl;
-      const vscodeUrl = `vscode://file/${full_parth}:${line}:${column}`;
+      const vscodeUrl = `vscode://file${full_parth}:${line}:${column}`;
       const browserUrl = `${url}:${line}:${column}`;
       // For browser environments, create a vscode:// URL
       return { vscodeUrl, browserUrl };
@@ -472,7 +472,7 @@ class Logger {
 
         return value;
       },
-      2
+      0.5
     );
   }
 
@@ -531,6 +531,7 @@ class Logger {
     }
     const prefix = args.shift();
     const mainMessage = "%c" + args.shift();
+    const remainingArgs = args.shift();
 
     switch (level) {
       case LOG_LEVELS.DEBUG:
@@ -538,6 +539,7 @@ class Logger {
           `${prefix} ${mainMessage}`,
           levelStyle,
           messagestyle,
+          ...remainingArgs,
           ...args
         );
         break;
@@ -546,6 +548,7 @@ class Logger {
           `${prefix} ${mainMessage}`,
           levelStyle,
           messagestyle,
+          ...remainingArgs,
           ...args
         );
         break;
@@ -554,6 +557,7 @@ class Logger {
           `${prefix} ${mainMessage}`,
           levelStyle,
           messagestyle,
+          ...remainingArgs,
           ...args
         );
         break;
@@ -562,16 +566,19 @@ class Logger {
           `${prefix} ${mainMessage}`,
           levelStyle,
           messagestyle,
+          ...remainingArgs,
           ...args
         );
         break;
       default:
         console.log(
-          `${prefix}, ${mainMessage}`,
+          `${prefix} ${mainMessage}`,
           levelStyle,
           messagestyle,
+          ...remainingArgs,
           ...args
         );
+        break;
     }
   }
 
@@ -912,7 +919,7 @@ class Logger {
       }
     }
     if (!markData || !markData.startTime) {
-      this.warn(`No timer found for label: ${label}`);
+      //this.warn(`No timer found for label: ${label}`);
       return this;
     }
 

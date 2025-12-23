@@ -367,156 +367,1116 @@ class ConfettiSystem {
 }
 
 /**
- * IMAGE LOADER - Handles image loading with transitions
+ * IMAGE LOADER - Advanced image loading, caching, rotation and transition system
  * @class ImageLoader
+ * @implements {IResponsiveImageLoader}
  */
 class ImageLoader {
-  constructor(imageElement, placeholderElement) {
+  /**
+   * Create an ImageLoader instance
+   * @param {HTMLElement} imageElement - The main image element
+   * @param {HTMLElement} placeholderElement - Placeholder element for loading states
+   * @param {Object} options - Configuration options
+   */
+  constructor(imageElement, placeholderElement, options = {}) {
     imageLogger.time("ImageLoader constructor");
+    
+    // Validate required elements
+    if (!imageElement) {
+      throw new Error("ImageLoader requires a valid image element");
+    }
+    
     this.image = imageElement;
     this.placeholder = placeholderElement;
+    
+    // Configuration with defaults
+    this.config = {
+      rotationDelay: options.rotationDelay || 5000,
+      transitionDuration: options.transitionDuration || 600,
+      preloadCount: options.preloadCount || 2,
+      maxRetries: options.maxRetries || 2,
+      retryDelay: options.retryDelay || 1000,
+      lazyLoadThreshold: options.lazyLoadThreshold || 300,
+      enableWebP: options.enableWebP !== false,
+      enableBlurHash: options.enableBlurHash !== false,
+      ...options
+    };
+    
+    // State management
+    this.mediaData = null;
+    this.currentIndex = 0;
+    this.rotationInterval = null;
     this.isLoaded = false;
-
+    this.isRotating = false;
+    this.paused = false;
+    this.retryCounts = new Map();
+    this.preloadedImages = new Map();
+    this.performanceMetrics = {
+      loadTimes: [],
+      cacheHits: 0,
+      cacheMisses: 0
+    };
+    
+    // Bind methods for event listeners
+    this.handleVisibilityChange = this.handleVisibilityChange.bind(this);
+    this.handleNetworkChange = this.handleNetworkChange.bind(this);
+    this.handleImageError = this.handleImageError.bind(this);
+    
+    // Feature detection
+    this.supportsIntersectionObserver = 'IntersectionObserver' in window;
+    this.supportsWebP = this.detectWebPSupport();
+    this.isLowBandwidth = this.detectLowBandwidth();
+    
     imageLogger.debug("ImageLoader instance created", {
-      imageElement: !!imageElement,
-      placeholderElement: !!placeholderElement,
+      config: this.config,
+      features: {
+        intersectionObserver: this.supportsIntersectionObserver,
+        webP: this.supportsWebP,
+        lowBandwidth: this.isLowBandwidth
+      }
     });
+    
+    // Initialize
+    this.init();
     imageLogger.timeEnd("ImageLoader constructor");
   }
 
   /**
-   * Load image with error handling
-   * @param {string} src - Image source URL
+   * Initialize the image loader
+   * @async
    */
-  async loadImage(src) {
-    imageLogger.time("Image loading");
-    if (!src) {
-      const errorMsg = "No image source provided";
-      imageLogger.error(errorMsg);
-      this.handleImageError(errorMsg);
-      imageLogger.timeEnd("Image loading");
-      return;
-    }
-
-    const cacheBustedSrc = this.isDevelopment ? `${src}?t=${Date.now()}` : src;
-    imageLogger.debug("Starting image load", { src: cacheBustedSrc });
-
+  async init() {
+    imageLogger.time("ImageLoader initialization");
+    
     try {
-      await this.loadImageWithTimeout(cacheBustedSrc, 10000);
-      imageLogger.info("Image loaded successfully");
+      // Load media data first
+      await this.loadMediaData();
+      
+      if (!this.mediaData?.media?.length) {
+        imageLogger.warn("No media found for slideshow");
+        this.showNoMediaMessage();
+        return;
+      }
+      
+      // Setup intersection observer for lazy loading
+      this.setupIntersectionObserver();
+      
+      // Preload initial images
+      await this.preloadInitialImages();
+      
+      // Load and display first image
+      await this.loadImageAtIndex(0, true);
+      
+      // Start rotation if more than one image
+      if (this.mediaData.media.length > 1) {
+        this.startRotation();
+      }
+      
+      // Setup event listeners
+      this.setupEventListeners();
+      
+      // Setup performance monitoring
+      this.setupPerformanceMonitoring();
+      
+      this.isLoaded = true;
+      imageLogger.info("ImageLoader initialized successfully", {
+        totalImages: this.mediaData.media.length,
+        preloaded: this.preloadedImages.size
+      });
+      
     } catch (error) {
-      imageLogger.error("Image loading failed", error);
-      this.handleImageError(error.message);
-      this.loadFallbackImage();
+      imageLogger.error("Failed to initialize ImageLoader", error);
+      this.handleInitializationError(error);
     } finally {
-      imageLogger.timeEnd("Image loading");
-    }
-  }
-
-  loadFallbackImage() {
-    imageLogger.warn("Loading fallback image");
-    const fallbackSrc = "/pics/profile_pic.jpg";
-    if (fallbackSrc !== this.image.src) {
-      this.image.src = fallbackSrc;
-      this.image.alt = "Graduation celebration image";
-      imageLogger.debug("Fallback image set", { fallbackSrc });
+      imageLogger.timeEnd("ImageLoader initialization");
     }
   }
 
   /**
-   * Load image with timeout
+   * Load media data from source
+   * @async
+   * @returns {Promise<void>}
    */
-  loadImageWithTimeout(src, timeout) {
+  async loadMediaData() {
+    imageLogger.time("Load media data");
+    
+    try {
+      this.mediaData = await loadMediaData();
+      
+      if (!this.mediaData?.media?.length) {
+        throw new Error("No media data available");
+      }
+      
+      // Optimize image sources based on browser support
+      this.mediaData.media = this.mediaData.media.map(mediaItem => {
+        return this.optimizeMediaItem(mediaItem);
+      });
+      
+      imageLogger.debug("Media data loaded and optimized", {
+        count: this.mediaData.media.length,
+        optimizedForWebP: this.supportsWebP
+      });
+      
+    } catch (error) {
+      imageLogger.error("Failed to load media data", error);
+      this.mediaData = {
+        media: this.getFallbackMedia()
+      };
+    } finally {
+      imageLogger.timeEnd("Load media data");
+    }
+  }
+
+  /**
+   * Optimize media item based on browser capabilities
+   * @param {Object} mediaItem - Original media item
+   * @returns {Object} Optimized media item
+   */
+  optimizeMediaItem(mediaItem) {
+    const optimized = { ...mediaItem };
+    
+    // Use WebP if supported and available
+    if (this.config.enableWebP && this.supportsWebP && mediaItem.srcWebP) {
+      optimized.src = mediaItem.srcWebP;
+      optimized.format = 'webp';
+    }
+    
+    // Add blur hash placeholder if enabled
+    if (this.config.enableBlurHash && mediaItem.blurHash) {
+      optimized.blurHash = mediaItem.blurHash;
+    }
+    
+    // Generate responsive srcset if sizes are available
+    if (mediaItem.sizes) {
+      optimized.srcset = this.generateSrcset(mediaItem);
+    }
+    
+    // Add loading strategy
+    optimized.loading = this.isLowBandwidth ? 'lazy' : 'eager';
+    
+    return optimized;
+  }
+
+  /**
+   * Generate srcset for responsive images
+   * @param {Object} mediaItem - Media item with sizes
+   * @returns {string} srcset attribute value
+   */
+  generateSrcset(mediaItem) {
+    if (!mediaItem.sizes || !Array.isArray(mediaItem.sizes)) {
+      return '';
+    }
+    
+    return mediaItem.sizes
+      .map(size => {
+        const url = this.supportsWebP && size.webp ? size.webp : size.url;
+        return `${url} ${size.width}w`;
+      })
+      .join(', ');
+  }
+
+/**
+ * Set up intersection observer with fallback
+ */
+setupIntersectionObserver() {
+  if (!this.supportsIntersectionObserver) {
+    imageLogger.warn("IntersectionObserver not supported, using fallback");
+    this.initializeWithoutObserver();
+    return;
+  }
+  
+  imageLogger.time("Setup IntersectionObserver");
+  
+  this.intersectionObserver = new IntersectionObserver(
+    (entries) => {
+      entries.forEach(entry => {
+        const { isIntersecting, intersectionRatio, boundingClientRect } = entry;
+        
+        imageLogger.debug("IntersectionObserver entry", {
+          isIntersecting,
+          intersectionRatio: intersectionRatio.toFixed(3),
+          bounds: {
+            top: Math.round(boundingClientRect.top),
+            bottom: Math.round(boundingClientRect.bottom)
+          }
+        });
+        
+        if (isIntersecting && intersectionRatio > 0.1) {
+          this.onImageVisible(entry.target);
+          // We could unobserve here, but let's keep observing for performance monitoring
+          // this.intersectionObserver.unobserve(entry.target);
+        } else if (!isIntersecting && this.config.pauseWhenNotVisible) {
+          // Optional: pause rotation when not visible
+          this.pauseRotation();
+          imageLogger.debug("Image not visible - rotation paused");
+        }
+      });
+    },
+    {
+      root: null, // viewport
+      rootMargin: `${this.config.lazyLoadThreshold}px`,
+      threshold: [0, 0.1, 0.5, 1.0] // Multiple thresholds for better monitoring
+    }
+  );
+  
+  // Observe the main image element
+  if (this.image) {
+    this.intersectionObserver.observe(this.image);
+    imageLogger.debug("IntersectionObserver attached to image element");
+  }
+  
+  // Optionally observe the container for better user experience
+  const container = this.image.parentElement;
+  if (container && container !== document.body) {
+    this.intersectionObserver.observe(container);
+    imageLogger.debug("IntersectionObserver also attached to container");
+  }
+  
+  imageLogger.timeEnd("Setup IntersectionObserver");
+}
+
+/**
+ * Initialize without IntersectionObserver (fallback)
+ */
+initializeWithoutObserver() {
+  imageLogger.time("Initialize without IntersectionObserver");
+  
+  // Load immediately without lazy loading
+  if (this.mediaData?.media?.length > 0) {
+    this.loadImageAtIndex(0, true).catch(error => {
+      imageLogger.error("Fallback initialization failed", error);
+    });
+  }
+  
+  // Start rotation immediately
+  if (this.mediaData?.media?.length > 1) {
+    this.startRotation();
+  }
+  
+  imageLogger.timeEnd("Initialize without IntersectionObserver");
+}
+
+/**
+ * Check if image is currently visible in viewport
+ * @returns {boolean}
+ */
+isImageVisible() {
+  if (!this.image) return false;
+  
+  const rect = this.image.getBoundingClientRect();
+  const viewportHeight = window.innerHeight || document.documentElement.clientHeight;
+  const viewportWidth = window.innerWidth || document.documentElement.clientWidth;
+  
+  return (
+    rect.top >= 0 &&
+    rect.left >= 0 &&
+    rect.bottom <= viewportHeight &&
+    rect.right <= viewportWidth
+  );
+}
+
+/**
+ * Force visibility check and load if needed
+ * @async
+ */
+async ensureImageVisible() {
+  if (this.isImageVisible() && !this.isLoaded) {
+    imageLogger.debug("Image is visible but not loaded - forcing load");
+    await this.loadImageAtIndex(this.currentIndex, true);
+  }
+}
+
+  /**
+   * Preload initial images for smooth rotation
+   * @async
+   * @returns {Promise<void>}
+   */
+  async preloadInitialImages() {
+    imageLogger.time("Preload initial images");
+    
+    const preloadPromises = [];
+    const preloadCount = Math.min(this.config.preloadCount, this.mediaData.media.length);
+    
+    for (let i = 1; i <= preloadCount; i++) {
+      const nextIndex = i % this.mediaData.media.length;
+      preloadPromises.push(this.preloadImageAtIndex(nextIndex));
+    }
+    
+    try {
+      await Promise.all(preloadPromises);
+      imageLogger.debug("Initial images preloaded", {
+        count: preloadCount,
+        successful: this.preloadedImages.size
+      });
+    } catch (error) {
+      imageLogger.warn("Some images failed to preload", error);
+    } finally {
+      imageLogger.timeEnd("Preload initial images");
+    }
+  }
+
+  /**
+   * Preload image at specific index
+   * @param {number} index - Image index to preload
+   * @returns {Promise<HTMLImageElement>}
+   */
+  async preloadImageAtIndex(index) {
+    if (this.preloadedImages.has(index)) {
+      this.performanceMetrics.cacheHits++;
+      return this.preloadedImages.get(index);
+    }
+    
+    const mediaItem = this.mediaData.media[index];
+    if (!mediaItem) {
+      throw new Error(`No media item at index ${index}`);
+    }
+    
     return new Promise((resolve, reject) => {
-      const timer = setTimeout(() => {
-        const error = new Error("Image loading timeout");
-        imageLogger.warn("Image loading timeout", { src, timeout });
-        reject(error);
-      }, timeout);
-
       const img = new Image();
-      imageLogger.debug("Creating image element for loading");
-
+      
+      // Store loading start time
+      const startTime = performance.now();
+      
       img.onload = () => {
-        clearTimeout(timer);
-        imageLogger.debug("Image loaded successfully", { src });
-        this.handleImageLoad(src);
-        resolve();
+        const loadTime = performance.now() - startTime;
+        this.performanceMetrics.loadTimes.push(loadTime);
+        
+        // Cache the loaded image
+        this.preloadedImages.set(index, img);
+        this.performanceMetrics.cacheMisses++;
+        
+        imageLogger.debug("Image preloaded", {
+          index,
+          src: mediaItem.src,
+          loadTime: `${loadTime.toFixed(2)}ms`
+        });
+        
+        resolve(img);
       };
-
-      img.onerror = () => {
-        clearTimeout(timer);
-        const error = new Error("Failed to load image");
-        imageLogger.error("Image load error", { src, error });
+      
+      img.onerror = (error) => {
+        imageLogger.error("Failed to preload image", {
+          index,
+          src: mediaItem.src,
+          error
+        });
         reject(error);
       };
-
-      img.src = src;
-      imageLogger.debug("Image source set, starting load");
+      
+      // Set src to start loading
+      img.src = mediaItem.src;
+      
+      // Preload srcset if available
+      if (mediaItem.srcset) {
+        img.srcset = mediaItem.srcset;
+      }
     });
   }
 
   /**
-   * Handle successful image load
+   * Load and display image at specific index
+   * @async
+   * @param {number} index - Image index to load
+   * @param {boolean} isInitial - Whether this is the initial load
+   * @returns {Promise<void>}
    */
-  handleImageLoad(src) {
-    imageLogger.time("Image transition");
-    this.image.src = src;
-    this.image.classList.remove("d-none");
-    this.animateTransition();
-    this.isLoaded = true;
-    imageLogger.debug("Image transition completed");
-    imageLogger.timeEnd("Image transition");
-  }
-
-  /**
-   * Handle image loading error
-   */
-  handleImageError(message) {
-    imageLogger.error("Image loading error handled", { message });
-    if (this.placeholder) {
-      const errorText =
-        this.placeholder.querySelector("span") ||
-        document.createElement("span");
-      errorText.textContent = "Image not available";
-      if (!errorText.parentNode) {
-        this.placeholder.appendChild(errorText);
+  async loadImageAtIndex(index, isInitial = false) {
+    if (index < 0 || index >= this.mediaData.media.length) {
+      imageLogger.error("Invalid image index", { index });
+      return;
+    }
+    
+    imageLogger.time(`Load image at index ${index}`);
+    
+    try {
+      // Check if image is preloaded
+      let loadedImage = this.preloadedImages.get(index);
+      
+      if (!loadedImage) {
+        // Load image with retry logic
+        loadedImage = await this.loadImageWithRetry(index);
       }
-      imageLogger.debug("Error message displayed in placeholder");
+      
+      // Update current index
+      this.currentIndex = index;
+      
+      // Perform transition
+      await this.transitionToImage(loadedImage, isInitial);
+      
+      // Preload next images
+      this.preloadNextImages();
+      
+      imageLogger.debug("Image loaded successfully", {
+        index,
+        src: loadedImage.src,
+        fromCache: !!this.preloadedImages.has(index)
+      });
+      
+    } catch (error) {
+      imageLogger.error("Failed to load image", {
+        index,
+        error: error.message
+      });
+      
+      // Try to load fallback image
+      await this.loadFallbackImage();
+    } finally {
+      imageLogger.timeEnd(`Load image at index ${index}`);
     }
   }
 
   /**
-   * Animate transition from placeholder to image
+   * Load image with retry logic
+   * @async
+   * @param {number} index - Image index
+   * @returns {Promise<HTMLImageElement>}
    */
-  animateTransition() {
-    imageLogger.debug("Starting image transition animation");
-    this.image.style.opacity = "0";
-    this.placeholder.style.opacity = "1";
-
-    const startTime = performance.now();
-    const fadeDuration = 600;
-
-    const animateFrame = (currentTime) => {
-      const elapsed = currentTime - startTime;
-      const progress = Math.min(elapsed / fadeDuration, 1);
-
-      this.image.style.opacity = progress;
-      this.placeholder.style.opacity = 1 - progress;
-
-      if (progress < 1) {
-        requestAnimationFrame(animateFrame);
-      } else {
-        this.placeholder.style.display = "none";
-        imageLogger.debug("Image transition animation completed");
+  async loadImageWithRetry(index) {
+    const mediaItem = this.mediaData.media[index];
+    const retryKey = `${index}-${mediaItem.src}`;
+    let retryCount = this.retryCounts.get(retryKey) || 0;
+    
+    while (retryCount <= this.config.maxRetries) {
+      try {
+        const img = await this.loadImage(mediaItem);
+        
+        // Reset retry count on success
+        this.retryCounts.delete(retryKey);
+        
+        return img;
+      } catch (error) {
+        retryCount++;
+        this.retryCounts.set(retryKey, retryCount);
+        
+        if (retryCount > this.config.maxRetries) {
+          throw error;
+        }
+        
+        imageLogger.warn(`Retrying image load (${retryCount}/${this.config.maxRetries})`, {
+          index,
+          src: mediaItem.src
+        });
+        
+        // Wait before retry
+        await this.delay(this.config.retryDelay * retryCount);
       }
-    };
-
-    requestAnimationFrame(animateFrame);
+    }
   }
-  cacheMediaData() {
-    // Cache media data if needed
-    this.mediaData = loadMediaData();
+
+  /**
+   * Load single image
+   * @async
+   * @param {Object} mediaItem - Media item to load
+   * @returns {Promise<HTMLImageElement>}
+   */
+  loadImage(mediaItem) {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      const startTime = performance.now();
+      
+      // Set timeout for image loading
+      const timeoutId = setTimeout(() => {
+        reject(new Error(`Image load timeout: ${mediaItem.src}`));
+      }, 15000); // 15 second timeout
+      
+      img.onload = () => {
+        clearTimeout(timeoutId);
+        const loadTime = performance.now() - startTime;
+        this.performanceMetrics.loadTimes.push(loadTime);
+        
+        // Apply blur hash if available
+        if (mediaItem.blurHash && this.config.enableBlurHash) {
+          this.applyBlurHash(img, mediaItem.blurHash);
+        }
+        
+        resolve(img);
+      };
+      
+      img.onerror = (error) => {
+        clearTimeout(timeoutId);
+        reject(new Error(`Failed to load image: ${mediaItem.src}`));
+      };
+      
+      // Set image attributes
+      img.src = mediaItem.src;
+      if (mediaItem.srcset) {
+        img.srcset = mediaItem.srcset;
+      }
+      if (mediaItem.sizes) {
+        img.sizes = mediaItem.sizes;
+      }
+      img.loading = mediaItem.loading || 'eager';
+      img.decoding = 'async';
+      
+      // Set alt text if available
+      if (mediaItem.alt) {
+        img.alt = mediaItem.alt;
+      }
+    });
+  }
+
+  /**
+   * Transition to new image with smooth animation
+   * @async
+   * @param {HTMLImageElement} newImage - The new image to display
+   * @param {boolean} isInitial - Whether this is the initial transition
+   * @returns {Promise<void>}
+   */
+  async transitionToImage(newImage, isInitial = false) {
+    imageLogger.time("Image transition");
+    
+    return new Promise((resolve) => {
+      // Store current image state
+      const oldSrc = this.image.src;
+      const isSameImage = oldSrc === newImage.src;
+      
+      if (isSameImage && !isInitial) {
+        imageLogger.debug("Skipping transition - same image");
+        resolve();
+        return;
+      }
+      
+      // Prepare new image
+      const tempImage = new Image();
+      tempImage.src = newImage.src;
+      if (newImage.srcset) tempImage.srcset = newImage.srcset;
+      if (newImage.sizes) tempImage.sizes = newImage.sizes;
+      
+      // Handle initial load (no transition)
+      if (isInitial) {
+        this.image.src = newImage.src;
+        if (newImage.srcset) this.image.srcset = newImage.srcset;
+        if (newImage.sizes) this.image.sizes = newImage.sizes;
+        this.image.classList.remove('d-none');
+        
+        if (this.placeholder) {
+          this.placeholder.style.display = 'none';
+        }
+        
+        resolve();
+        imageLogger.timeEnd("Image transition");
+        return;
+      }
+      
+      // Cross-fade transition
+      this.image.style.transition = `opacity ${this.config.transitionDuration}ms ease-in-out`;
+      this.image.style.opacity = '0';
+      
+      // After fade out completes
+      setTimeout(() => {
+        // Swap image source
+        this.image.src = newImage.src;
+        if (newImage.srcset) this.image.srcset = newImage.srcset;
+        if (newImage.sizes) this.image.sizes = newImage.sizes;
+        
+        // Apply alt text
+        if (newImage.alt) {
+          this.image.alt = newImage.alt;
+        }
+        
+        // Fade in new image
+        this.image.style.opacity = '1';
+        
+        // Resolve after transition completes
+        setTimeout(() => {
+          this.image.style.transition = '';
+          resolve();
+          imageLogger.debug("Image transition completed");
+          imageLogger.timeEnd("Image transition");
+        }, this.config.transitionDuration);
+      }, this.config.transitionDuration);
+    });
+  }
+
+  /**
+   * Preload next images in sequence
+   */
+  preloadNextImages() {
+    const nextIndices = [];
+    
+    for (let i = 1; i <= this.config.preloadCount; i++) {
+      const nextIndex = (this.currentIndex + i) % this.mediaData.media.length;
+      if (!this.preloadedImages.has(nextIndex)) {
+        nextIndices.push(nextIndex);
+      }
+    }
+    
+    // Preload in background
+    if (nextIndices.length > 0 && !this.paused) {
+      nextIndices.forEach(index => {
+        this.preloadImageAtIndex(index).catch(error => {
+          imageLogger.debug("Background preload failed", {
+            index,
+            error: error.message
+          });
+        });
+      });
+    }
+  }
+
+  /**
+   * Start image rotation
+   */
+  startRotation() {
+    if (this.isRotating || this.mediaData.media.length <= 1) {
+      return;
+    }
+    
+    this.isRotating = true;
+    this.paused = false;
+    
+    this.rotationInterval = setInterval(() => {
+      if (!this.paused) {
+        this.nextImage();
+      }
+    }, this.config.rotationDelay);
+    
+    imageLogger.info("Image rotation started", {
+      interval: this.config.rotationDelay,
+      totalImages: this.mediaData.media.length
+    });
+  }
+
+  /**
+   * Stop image rotation
+   */
+  stopRotation() {
+    this.isRotating = false;
+    
+    if (this.rotationInterval) {
+      clearInterval(this.rotationInterval);
+      this.rotationInterval = null;
+      imageLogger.debug("Image rotation stopped");
+    }
+  }
+
+  /**
+   * Pause rotation (without stopping)
+   */
+  pauseRotation() {
+    this.paused = true;
+    imageLogger.debug("Image rotation paused");
+  }
+
+  /**
+   * Resume rotation
+   */
+  resumeRotation() {
+    this.paused = false;
+    imageLogger.debug("Image rotation resumed");
+  }
+
+  /**
+   * Move to next image
+   */
+  async nextImage() {
+    const nextIndex = (this.currentIndex + 1) % this.mediaData.media.length;
+    await this.loadImageAtIndex(nextIndex);
+  }
+
+  /**
+   * Move to previous image
+   */
+  async previousImage() {
+    const prevIndex = (this.currentIndex - 1 + this.mediaData.media.length) % this.mediaData.media.length;
+    await this.loadImageAtIndex(prevIndex);
+  }
+
+  /**
+   * Jump to specific image
+   * @param {number} index - Image index to jump to
+   */
+  async jumpToImage(index) {
+    if (index >= 0 && index < this.mediaData.media.length) {
+      await this.loadImageAtIndex(index);
+    }
+  }
+
+  /**
+   * Setup event listeners
+   */
+  setupEventListeners() {
+    // Visibility change
+    document.addEventListener('visibilitychange', this.handleVisibilityChange);
+    
+    // Network status
+    window.addEventListener('online', this.handleNetworkChange);
+    window.addEventListener('offline', this.handleNetworkChange);
+    
+    // Image error handling
+    this.image.addEventListener('error', this.handleImageError);
+    
+    // Pause on hover (optional)
+    if (this.config.pauseOnHover) {
+      this.image.addEventListener('mouseenter', () => this.pauseRotation());
+      this.image.addEventListener('mouseleave', () => this.resumeRotation());
+    }
+    
+    // Keyboard navigation
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowLeft') {
+        this.previousImage();
+      } else if (e.key === 'ArrowRight') {
+        this.nextImage();
+      }
+    });
+  }
+
+  /**
+   * Handle visibility change
+   */
+  handleVisibilityChange() {
+    if (document.hidden) {
+      this.pauseRotation();
+      imageLogger.debug("Page hidden - rotation paused");
+    } else {
+      this.resumeRotation();
+      imageLogger.debug("Page visible - rotation resumed");
+    }
+  }
+
+  /**
+   * Handle network status change
+   */
+  handleNetworkChange() {
+    if (navigator.onLine) {
+      // Resume normal operation
+      this.resumeRotation();
+      imageLogger.debug("Online - resuming normal operation");
+    } else {
+      // Pause rotation and switch to low-bandwidth mode
+      this.pauseRotation();
+      this.isLowBandwidth = true;
+      imageLogger.debug("Offline - pausing rotation and enabling low-bandwidth mode");
+    }
+  }
+
+  /**
+   * Handle image error
+   */
+  handleImageError(event) {
+    imageLogger.error("Image error occurred", {
+      src: event.target.src,
+      error: event.error
+    });
+    
+    // Try to load fallback
+    this.loadFallbackImage().catch(() => {
+      this.showErrorState();
+    });
+  }
+
+  /**
+   * Load fallback image
+   * @async
+   */
+  async loadFallbackImage() {
+    const fallbackMedia = this.getFallbackMedia();
+    if (fallbackMedia.length > 0) {
+      const fallbackItem = this.optimizeMediaItem(fallbackMedia[0]);
+      const img = await this.loadImage(fallbackItem);
+      this.image.src = img.src;
+      imageLogger.debug("Fallback image loaded");
+    }
+  }
+
+  /**
+   * Get fallback media items
+   * @returns {Array} Fallback media items
+   */
+  getFallbackMedia() {
+    return [
+      {
+        src: '/pics/profile_pic.jpg',
+        alt: 'Default graduation photo'
+      }
+    ];
+  }
+
+  /**
+ * Handle when image becomes visible in viewport (for lazy loading)
+ * @param {HTMLElement} target - The observed element
+ */
+onImageVisible(target) {
+  imageLogger.debug("Image element entered viewport", {
+    element: target.tagName,
+    src: target.src || 'not-yet-loaded',
+    currentIndex: this.currentIndex
+  });
+  
+  // If this is the initial load and we haven't loaded the first image yet
+  if (!this.isLoaded && this.currentIndex === 0) {
+    imageLogger.debug("First time image visible - triggering initial load");
+    
+    // Load the first image if not already loaded
+    if (!this.image.src || this.image.src === '') {
+      this.loadImageAtIndex(0, true).catch(error => {
+        imageLogger.error("Failed to load initial image on visible", error);
+      });
+    }
+  }
+  
+  // If we're in low-bandwidth mode and images aren't preloaded, load on demand
+  if (this.isLowBandwidth && !this.preloadedImages.has(this.currentIndex)) {
+    imageLogger.debug("Low bandwidth mode - loading current image on demand");
+    this.preloadImageAtIndex(this.currentIndex).catch(error => {
+      imageLogger.warn("Failed to load image on demand in low bandwidth mode", error);
+    });
+  }
+  
+  // Start or resume rotation if it was paused due to visibility
+  if (!this.isRotating && this.mediaData.media.length > 1) {
+    imageLogger.debug("Image visible - starting rotation if not already running");
+    this.startRotation();
+  }
+  
+  // Trigger a performance check
+  this.checkImagePerformance(target);
+}
+
+/**
+ * Check and log image loading performance when visible
+ * @param {HTMLElement} imgElement - The image element to check
+ */
+checkImagePerformance(imgElement) {
+  // Check if image is already loaded
+  if (imgElement.complete) {
+    const loadTime = this.performanceMetrics.loadTimes[this.currentIndex];
+    if (loadTime) {
+      imageLogger.debug("Image already loaded when became visible", {
+        index: this.currentIndex,
+        loadTime: `${loadTime.toFixed(2)}ms`,
+        naturalSize: `${imgElement.naturalWidth}x${imgElement.naturalHeight}`
+      });
+    }
+    
+    // Check if image is displayed at appropriate size
+    const displayedWidth = imgElement.clientWidth;
+    const naturalWidth = imgElement.naturalWidth;
+    const scaleFactor = displayedWidth / naturalWidth;
+    
+    if (scaleFactor > 1.5) {
+      imageLogger.warn("Image potentially upscaled too much", {
+        displayedWidth,
+        naturalWidth,
+        scaleFactor: scaleFactor.toFixed(2),
+        recommendation: "Consider using a larger source image"
+      });
+    } else if (scaleFactor < 0.5) {
+      imageLogger.warn("Image potentially larger than needed", {
+        displayedWidth,
+        naturalWidth,
+        scaleFactor: scaleFactor.toFixed(2),
+        recommendation: "Consider using a smaller source image for better performance"
+      });
+    }
+  } else {
+    // Image is still loading
+    imageLogger.debug("Image still loading when became visible", {
+      index: this.currentIndex,
+      src: imgElement.src
+    });
+    
+    // Set up a load listener to track when it finishes
+    const loadListener = () => {
+      const loadTime = performance.now() - performance.now(); // This would need actual start time tracking
+      imageLogger.debug("Image finished loading after becoming visible", {
+        index: this.currentIndex,
+        loadTime: `${loadTime.toFixed(2)}ms`
+      });
+      imgElement.removeEventListener('load', loadListener);
+    };
+    
+    imgElement.addEventListener('load', loadListener);
+  }
+  
+  // Check for placeholder visibility
+  if (this.placeholder && this.placeholder.style.display !== 'none') {
+    imageLogger.debug("Placeholder still visible, image might be slow to load", {
+      placeholderVisible: true,
+      currentSrc: imgElement.src
+    });
+  }
+}
+
+
+  /**
+   * Show error state
+   */
+  showErrorState() {
+    if (this.placeholder) {
+      this.placeholder.innerHTML = `
+        <div class="image-error">
+          <span class="error-icon">⚠️</span>
+          <p>Unable to load image</p>
+          <button class="retry-btn">Retry</button>
+        </div>
+      `;
+      
+      this.placeholder.style.display = 'flex';
+      this.placeholder.querySelector('.retry-btn').addEventListener('click', () => {
+        this.loadImageAtIndex(this.currentIndex);
+      });
+    }
+  }
+
+  /**
+   * Show no media message
+   */
+  showNoMediaMessage() {
+    if (this.placeholder) {
+      this.placeholder.innerHTML = `
+        <div class="no-media-message">
+          <p>No images available</p>
+        </div>
+      `;
+      this.placeholder.style.display = 'flex';
+    }
+  }
+
+  /**
+   * Setup performance monitoring
+   */
+  setupPerformanceMonitoring() {
+    // Log performance metrics periodically
+    setInterval(() => {
+      if (this.performanceMetrics.loadTimes.length > 0) {
+        const avgLoadTime = this.performanceMetrics.loadTimes.reduce((a, b) => a + b, 0) / 
+                           this.performanceMetrics.loadTimes.length;
+        
+        imageLogger.debug("Performance metrics", {
+          avgLoadTime: `${avgLoadTime.toFixed(2)}ms`,
+          cacheHitRate: `${((this.performanceMetrics.cacheHits / 
+                           (this.performanceMetrics.cacheHits + this.performanceMetrics.cacheMisses || 1)) * 100).toFixed(1)}%`,
+          imagesLoaded: this.performanceMetrics.loadTimes.length
+        });
+      }
+    }, 30000); // Log every 30 seconds
+  }
+
+  /**
+   * Handle initialization error
+   */
+  handleInitializationError(error) {
+    imageLogger.error("Initialization error handled", error);
+    
+    // Show error to user
+    if (this.placeholder) {
+      this.placeholder.innerHTML = `
+        <div class="init-error">
+          <p>Failed to load images. Please refresh.</p>
+        </div>
+      `;
+      this.placeholder.style.display = 'flex';
+    }
+    
+    // Load single fallback image
+    this.loadFallbackImage();
+  }
+
+  /**
+   * Utility: Delay function
+   * @param {number} ms - Milliseconds to delay
+   * @returns {Promise<void>}
+   */
+  delay(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+  }
+
+  /**
+   * Detect WebP support
+   * @returns {boolean}
+   */
+  detectWebPSupport() {
+    const elem = document.createElement('canvas');
+    if (!!(elem.getContext && elem.getContext('2d'))) {
+      return elem.toDataURL('image/webp').indexOf('data:image/webp') === 0;
+    }
+    return false;
+  }
+
+  /**
+   * Detect low bandwidth
+   * @returns {boolean}
+   */
+  detectLowBandwidth() {
+    if (navigator.connection) {
+      const connection = navigator.connection;
+      return connection.saveData || 
+             connection.effectiveType === 'slow-2g' || 
+             connection.effectiveType === '2g';
+    }
+    return false;
+  }
+
+  /**
+   * Apply blur hash placeholder (stub - implement if using blurhash library)
+   * @param {HTMLImageElement} img - Image element
+   * @param {string} blurHash - Blur hash string
+   */
+  applyBlurHash(img, blurHash) {
+    // Implement blur hash decoding if you have a blurhash library
+    // Example: const decoded = decodeBlurHash(blurHash);
+    // img.style.backgroundImage = `url(${decoded})`;
+    // img.style.filter = 'blur(20px)';
+  }
+
+  /**
+   * Get current state
+   * @returns {Object} Current loader state
+   */
+  getState() {
+    return {
+      currentIndex: this.currentIndex,
+      totalImages: this.mediaData?.media?.length || 0,
+      isRotating: this.isRotating,
+      isPaused: this.paused,
+      isLoaded: this.isLoaded,
+      preloadedCount: this.preloadedImages.size,
+      cacheHitRate: this.performanceMetrics.cacheHits / 
+                   (this.performanceMetrics.cacheHits + this.performanceMetrics.cacheMisses || 1)
+    };
+  }
+
+  /**
+   * Cleanup all resources
+   */
+  destroy() {
+    imageLogger.time("ImageLoader cleanup");
+    
+    // Stop rotation
+    this.stopRotation();
+    
+    // Remove event listeners
+    document.removeEventListener('visibilitychange', this.handleVisibilityChange);
+    window.removeEventListener('online', this.handleNetworkChange);
+    window.removeEventListener('offline', this.handleNetworkChange);
+    
+    if (this.image) {
+      this.image.removeEventListener('error', this.handleImageError);
+    }
+    
+    // Disconnect observers
+    if (this.intersectionObserver) {
+      this.intersectionObserver.disconnect();
+    }
+    
+    // Clear caches
+    this.preloadedImages.clear();
+    this.retryCounts.clear();
+    
+    // Clear intervals
+    if (this.performanceInterval) {
+      clearInterval(this.performanceInterval);
+    }
+    
+    // Log final metrics
+    imageLogger.info("ImageLoader destroyed", {
+      totalImagesLoaded: this.performanceMetrics.loadTimes.length,
+      finalCacheSize: this.preloadedImages.size
+    });
+    
+    imageLogger.timeEnd("ImageLoader cleanup");
   }
 }
 
@@ -1220,9 +2180,6 @@ class GraduationApp {
 
     // Load image
     appLogger.debug("Starting image load");
-    this.modules.imageLoader.loadImage("/pics/profile_pic.jpg").catch((error) => {
-      appLogger.warn("Imapicsge loading failed", error);
-    });
 
     // Initial animations
     appLogger.debug("Starting message animations");
