@@ -184,7 +184,7 @@ class ConfettiSystem {
     confettiLogger.time("Event listeners setup");
 
     // Image container click
-    const imageContainer = document.querySelector(".image-container");
+    /*const imageContainer = document.querySelector(".image-container");
     if (imageContainer) {
       imageContainer.addEventListener("click", () => {
         confettiLogger.debug(
@@ -192,7 +192,7 @@ class ConfettiSystem {
         );
         window.location.href = this.mainPage;
       });
-    }
+    }*/
 
     // Name highlight click
     const nameHighlight = document.querySelector(".name-highlight");
@@ -386,6 +386,7 @@ class ImageLoader {
       throw new Error("ImageLoader requires a valid image element");
     }
     
+    this.navigationController = null;
     this.image = imageElement;
     this.placeholder = placeholderElement;
     
@@ -399,6 +400,7 @@ class ImageLoader {
       lazyLoadThreshold: options.lazyLoadThreshold || 300,
       enableWebP: options.enableWebP !== false,
       enableBlurHash: options.enableBlurHash !== false,
+      pauseOnHover: options.pauseOnHover !== false,
       ...options
     };
     
@@ -460,6 +462,11 @@ class ImageLoader {
       
       // Setup intersection observer for lazy loading
       this.setupIntersectionObserver();
+
+        // After imageLoader is fully initialized
+        if (!this.navigationController) {
+          this.navigationController = new ImageNavigationController(this);
+        }
       
       // Preload initial images
       await this.preloadInitialImages();
@@ -526,6 +533,15 @@ class ImageLoader {
       imageLogger.timeEnd("Load media data");
     }
   }
+
+
+  setRotationSpeed(speed) {
+    this.config.rotationDelay = speed;
+    if (this.rotationInterval) {
+      this.stopRotation();
+      this.startRotation();
+    }
+ }
 
   /**
    * Optimize media item based on browser capabilities
@@ -799,6 +815,11 @@ async ensureImageVisible() {
       
       // Update current index
       this.currentIndex = index;
+
+        if (this.navigationController) {
+    this.navigationController.currentIndex = index;
+    this.navigationController.updateUI();
+  }
       
       // Perform transition
       await this.transitionToImage(loadedImage, isInitial);
@@ -1480,6 +1501,973 @@ checkImagePerformance(imgElement) {
   }
 }
 
+
+/**
+ * IMAGE NAVIGATION CONTROLLER - Handles image navigation, playback, and UI controls
+ * @class ImageNavigationController
+ */
+class ImageNavigationController {
+  constructor(imageLoader) {
+    this.imageLoader = imageLoader;
+    this.currentIndex = 0;
+    this.totalImages = 0;
+    this.isPlaying = true;
+    this.rotationSpeed = 5000; // 5 seconds
+    this.playbackSpeed = 1; // Normal speed
+    this.rotationTimeout = null;
+    this.progressInterval = null;
+    this.lastUpdateTime = null;
+    this.progress = 0;
+    this.isInitialized = false;
+    this.keyboardShortcutsEnabled = true;
+    
+    // DOM Elements
+    this.elements = {
+      navPrev: null,
+      navNext: null,
+      playbackBtn: null,
+      progressBar: null,
+      imageCounter: null,
+      thumbnailNav: null,
+      keyboardHints: null
+    };
+    
+    // Bind methods
+    this.handlePrevClick = this.handlePrevClick.bind(this);
+    this.handleNextClick = this.handleNextClick.bind(this);
+    this.handlePlaybackClick = this.handlePlaybackClick.bind(this);
+    this.handleThumbnailClick = this.handleThumbnailClick.bind(this);
+    this.handleKeyDown = this.handleKeyDown.bind(this);
+    this.updateProgressBar = this.updateProgressBar.bind(this);
+    this.resetProgressBar = this.resetProgressBar.bind(this);
+    
+    // Initialize
+    this.init();
+  }
+  
+  /**
+   * Initialize the navigation controller
+   */
+  init() {
+    console.time("ImageNavigationController initialization");
+    
+    try {
+      this.cacheElements();
+      this.setupEventListeners();
+      this.setupKeyboardShortcuts();
+      this.isInitialized = true;
+      
+      // Initial update
+      this.updateTotalImages();
+      this.updateUI();
+      
+      // Show keyboard hints briefly
+      this.showKeyboardHints();
+      
+      console.info("ImageNavigationController initialized successfully");
+      console.timeEnd("ImageNavigationController initialization");
+    } catch (error) {
+      console.error("Failed to initialize ImageNavigationController", error);
+    }
+  }
+  
+  /**
+   * Cache DOM elements
+   */
+  cacheElements() {
+    this.elements = {
+      navPrev: document.querySelector('.nav-btn.prev'),
+      navNext: document.querySelector('.nav-btn.next'),
+      playbackBtn: document.querySelector('.playback-btn'),
+      progressBar: document.querySelector('.progress-bar'),
+      imageCounter: document.querySelector('.image-counter'),
+      thumbnailNav: document.querySelector('.thumbnail-nav'),
+      keyboardHints: document.querySelector('.keyboard-hints')
+    };
+    
+    // Create elements if they don't exist
+    this.ensureElementsExist();
+    
+    console.debug("Navigation elements cached", {
+      elementsFound: Object.keys(this.elements).filter(key => !!this.elements[key]).length,
+      totalElements: Object.keys(this.elements).length
+    });
+  }
+  
+  /**
+   * Ensure required elements exist in the DOM
+   */
+  ensureElementsExist() {
+    const container = this.imageLoader.image?.parentElement;
+    if (!container) return;
+    
+    // Navigation controls
+    if (!this.elements.navPrev) {
+      this.elements.navPrev = this.createNavButton('prev', 'Previous (←)');
+    }
+    
+    if (!this.elements.navNext) {
+      this.elements.navNext = this.createNavButton('next', 'Next (→)');
+    }
+    
+    // Playback controls
+    if (!this.elements.playbackBtn) {
+      this.elements.playbackBtn = this.createPlaybackButton();
+    }
+    
+    // Progress bar
+    if (!this.elements.progressBar) {
+      this.elements.progressBar = this.createProgressBar();
+    }
+    
+    // Image counter
+    if (!this.elements.imageCounter) {
+      this.elements.imageCounter = this.createImageCounter();
+    }
+    
+    // Thumbnail navigation
+    if (!this.elements.thumbnailNav) {
+      this.elements.thumbnailNav = this.createThumbnailNav();
+    }
+    
+    // Keyboard hints
+    if (!this.elements.keyboardHints) {
+      this.elements.keyboardHints = this.createKeyboardHints();
+    }
+  }
+  
+  /**
+   * Create navigation button
+   */
+  createNavButton(direction, tooltip) {
+    const btn = document.createElement('button');
+    btn.className = `nav-btn ${direction}`;
+    btn.setAttribute('data-tooltip', tooltip);
+    btn.setAttribute('aria-label', direction === 'prev' ? 'Previous image' : 'Next image');
+    
+    const icon = document.createElement('span');
+    icon.className = 'icon';
+    icon.setAttribute('aria-hidden', 'true');
+    
+    btn.appendChild(icon);
+    return btn;
+  }
+  
+  /**
+   * Create playback button
+   */
+  createPlaybackButton() {
+    const btn = document.createElement('button');
+    btn.className = 'playback-btn pause';
+    btn.setAttribute('aria-label', 'Pause image rotation');
+    
+    const icon = document.createElement('span');
+    icon.className = 'playback-icon';
+    icon.setAttribute('aria-hidden', 'true');
+    
+    const speed = document.createElement('span');
+    speed.className = 'playback-speed';
+    speed.textContent = `${this.rotationSpeed / 1000}s`;
+    
+    btn.appendChild(icon);
+    btn.appendChild(speed);
+    return btn;
+  }
+  
+  /**
+   * Create progress bar
+   */
+  createProgressBar() {
+    const container = document.createElement('div');
+    container.className = 'rotation-progress';
+    container.setAttribute('role', 'progressbar');
+    container.setAttribute('aria-label', 'Image rotation progress');
+    
+    const bar = document.createElement('div');
+    bar.className = 'progress-bar';
+    
+    container.appendChild(bar);
+    return bar;
+  }
+  
+  /**
+   * Create image counter
+   */
+  createImageCounter() {
+    const counter = document.createElement('div');
+    counter.className = 'image-counter';
+    counter.setAttribute('aria-label', 'Image position');
+    counter.innerHTML = '<span class="current">1</span> / <span class="total">0</span>';
+    return counter;
+  }
+  
+  /**
+   * Create thumbnail navigation
+   */
+  createThumbnailNav() {
+    const container = document.createElement('div');
+    container.className = 'thumbnail-nav';
+    container.setAttribute('role', 'tablist');
+    container.setAttribute('aria-label', 'Image thumbnails');
+    return container;
+  }
+  
+  /**
+   * Create keyboard hints
+   */
+  createKeyboardHints() {
+    const hints = document.createElement('div');
+    hints.className = 'keyboard-hints';
+    hints.setAttribute('role', 'status');
+    hints.setAttribute('aria-live', 'polite');
+    
+    const shortcuts = [
+      { key: '←', label: 'Previous image' },
+      { key: '→', label: 'Next image' },
+      { key: 'Space', label: 'Pause/Play' }
+    ];
+    
+    shortcuts.forEach(shortcut => {
+      const hint = document.createElement('div');
+      hint.className = 'keyboard-hint';
+      
+      const key = document.createElement('kbd');
+      key.className = 'keyboard-key';
+      key.textContent = shortcut.key;
+      
+      const label = document.createElement('span');
+      label.textContent = shortcut.label;
+      
+      hint.appendChild(key);
+      hint.appendChild(label);
+      hints.appendChild(hint);
+    });
+    
+    return hints;
+  }
+  
+  /**
+   * Setup event listeners
+   */
+  setupEventListeners() {
+    console.time("Navigation event listeners setup");
+    
+    // Navigation buttons
+    if (this.elements.navPrev) {
+      this.elements.navPrev.addEventListener('click', this.handlePrevClick);
+    }
+    
+    if (this.elements.navNext) {
+      this.elements.navNext.addEventListener('click', this.handleNextClick);
+    }
+    
+    // Playback button
+    if (this.elements.playbackBtn) {
+      this.elements.playbackBtn.addEventListener('click', this.handlePlaybackClick);
+    }
+    
+    // Thumbnail navigation
+    if (this.elements.thumbnailNav) {
+      this.elements.thumbnailNav.addEventListener('click', this.handleThumbnailClick);
+    }
+    
+    // Mouse events for showing/hiding controls
+    const container = this.imageLoader.image?.parentElement;
+    if (container) {
+      container.addEventListener('mouseenter', () => this.showControls());
+      container.addEventListener('mouseleave', () => this.hideControls());
+    }
+    
+    // Touch events for mobile
+    if (container) {
+      container.addEventListener('touchstart', () => this.showControls(), { passive: true });
+      container.addEventListener('touchend', () => {
+        setTimeout(() => this.hideControls(), 3000);
+      }, { passive: true });
+    }
+    
+    console.timeEnd("Navigation event listeners setup");
+  }
+  
+  /**
+   * Setup keyboard shortcuts
+   */
+  setupKeyboardShortcuts() {
+    if (this.keyboardShortcutsEnabled) {
+      document.addEventListener('keydown', this.handleKeyDown);
+      
+      // Add keyboard shortcut indicator
+      this.showKeyboardShortcutIndicator();
+    }
+  }
+  
+  /**
+   * Handle previous button click
+   */
+  async handlePrevClick() {
+    console.debug("Previous button clicked");
+    this.animateButton(this.elements.navPrev);
+    
+    // Reset progress bar
+    this.resetProgressBar();
+    
+    // Navigate to previous image
+    await this.previousImage();
+    
+    // Update UI
+    this.updateUI();
+  }
+  
+  /**
+   * Handle next button click
+   */
+  async handleNextClick() {
+    console.debug("Next button clicked");
+    this.animateButton(this.elements.navNext);
+    
+    // Reset progress bar
+    this.resetProgressBar();
+    
+    // Navigate to next image
+    await this.nextImage();
+    
+    // Update UI
+    this.updateUI();
+  }
+  
+  /**
+   * Handle playback button click
+   */
+  handlePlaybackClick() {
+    console.debug("Playback button clicked");
+    this.animateButton(this.elements.playbackBtn);
+    
+    if (this.isPlaying) {
+      this.pauseRotation();
+    } else {
+      this.resumeRotation();
+    }
+    
+    this.updateUI();
+  }
+  
+  /**
+   * Handle thumbnail click
+   */
+  async handleThumbnailClick(event) {
+    const thumbnail = event.target.closest('.thumbnail-dot');
+    if (!thumbnail) return;
+    
+    const index = Array.from(this.elements.thumbnailNav.children).indexOf(thumbnail);
+    if (index >= 0 && index !== this.currentIndex) {
+      console.debug("Thumbnail clicked", { index });
+      this.animateButton(thumbnail);
+      
+      // Reset progress bar
+      this.resetProgressBar();
+      
+      // Jump to selected image
+      await this.jumpToImage(index);
+      
+      // Update UI
+      this.updateUI();
+    }
+  }
+  
+  /**
+   * Handle keyboard navigation
+   */
+  handleKeyDown(event) {
+    if (!this.keyboardShortcutsEnabled) return;
+    
+    // Don't trigger if user is typing in an input
+    if (event.target.tagName === 'INPUT' || 
+        event.target.tagName === 'TEXTAREA' || 
+        event.target.isContentEditable) {
+      return;
+    }
+    
+    switch (event.key) {
+      case 'ArrowLeft':
+      case 'Left':
+        event.preventDefault();
+        console.debug("Left arrow key pressed");
+        this.handlePrevClick();
+        break;
+        
+      case 'ArrowRight':
+      case 'Right':
+        event.preventDefault();
+        console.debug("Right arrow key pressed");
+        this.handleNextClick();
+        break;
+        
+      case ' ':
+      case 'Spacebar':
+        if (event.target === document.body || event.target === this.imageLoader.image) {
+          event.preventDefault();
+          console.debug("Space bar pressed");
+          this.handlePlaybackClick();
+        }
+        break;
+        
+      case 'p':
+      case 'P':
+        if (event.ctrlKey || event.metaKey) {
+          event.preventDefault();
+          console.debug("Ctrl+P pressed");
+          this.handlePlaybackClick();
+        }
+        break;
+        
+      case 'Escape':
+        this.hideKeyboardHints();
+        break;
+    }
+  }
+  
+  /**
+   * Navigate to previous image
+   */
+  async previousImage() {
+    if (!this.imageLoader || !this.imageLoader.mediaData?.media?.length) {
+      console.warn("No media available for navigation");
+      return;
+    }
+    
+    const media = this.imageLoader.mediaData.media;
+    this.currentIndex = (this.currentIndex - 1 + media.length) % media.length;
+    
+    console.debug("Navigating to previous image", {
+      newIndex: this.currentIndex,
+      total: media.length
+    });
+    
+    await this.imageLoader.loadImageAtIndex(this.currentIndex);
+  }
+  
+  /**
+   * Navigate to next image
+   */
+  async nextImage() {
+    if (!this.imageLoader || !this.imageLoader.mediaData?.media?.length) {
+      console.warn("No media available for navigation");
+      return;
+    }
+    
+    const media = this.imageLoader.mediaData.media;
+    this.currentIndex = (this.currentIndex + 1) % media.length;
+    
+    console.debug("Navigating to next image", {
+      newIndex: this.currentIndex,
+      total: media.length
+    });
+    
+    await this.imageLoader.loadImageAtIndex(this.currentIndex);
+  }
+  
+  /**
+   * Jump to specific image
+   */
+  async jumpToImage(index) {
+    if (!this.imageLoader || !this.imageLoader.mediaData?.media?.length) {
+      console.warn("No media available for navigation");
+      return;
+    }
+    
+    const media = this.imageLoader.mediaData.media;
+    if (index >= 0 && index < media.length) {
+      this.currentIndex = index;
+      
+      console.debug("Jumping to image", {
+        index,
+        total: media.length
+      });
+      
+      await this.imageLoader.loadImageAtIndex(this.currentIndex);
+    }
+  }
+  
+  /**
+   * Pause image rotation
+   */
+  pauseRotation() {
+    if (!this.isPlaying) return;
+    
+    console.debug("Pausing image rotation");
+    this.isPlaying = false;
+    
+    // Stop the image loader's rotation
+    if (this.imageLoader.stopRotation) {
+      this.imageLoader.stopRotation();
+    }
+    
+    // Clear progress interval
+    if (this.progressInterval) {
+      clearInterval(this.progressInterval);
+      this.progressInterval = null;
+    }
+    
+    // Update button state
+    this.updatePlaybackButton();
+  }
+  
+  /**
+   * Resume image rotation
+   */
+  resumeRotation() {
+    if (this.isPlaying) return;
+    
+    console.debug("Resuming image rotation");
+    this.isPlaying = true;
+    
+    // Start the image loader's rotation
+    if (this.imageLoader.startRotation) {
+      this.imageLoader.startRotation();
+    }
+    
+    // Start progress bar
+    this.startProgressBar();
+    
+    // Update button state
+    this.updatePlaybackButton();
+  }
+  
+  /**
+   * Toggle play/pause state
+   */
+  togglePlayback() {
+    if (this.isPlaying) {
+      this.pauseRotation();
+    } else {
+      this.resumeRotation();
+    }
+    this.updateUI();
+  }
+  
+  /**
+   * Start progress bar animation
+   */
+  startProgressBar() {
+    if (!this.isPlaying || !this.elements.progressBar) return;
+    
+    console.debug("Starting progress bar");
+    
+    // Clear existing interval
+    if (this.progressInterval) {
+      clearInterval(this.progressInterval);
+    }
+    
+    this.progress = 0;
+    this.lastUpdateTime = performance.now();
+    
+    // Calculate step based on rotation speed
+    const step = 100 / (this.rotationSpeed / 100); // 100 steps per second
+    
+    this.progressInterval = setInterval(() => {
+      this.progress += step;
+      
+      if (this.progress >= 100) {
+        this.progress = 0;
+        // Trigger next image when progress completes
+        this.handleAutoAdvance();
+      }
+      
+      this.updateProgressBar();
+    }, 100); // Update every 100ms for smooth animation
+  }
+  
+  /**
+   * Update progress bar width
+   */
+  updateProgressBar() {
+    if (!this.elements.progressBar) return;
+    
+    // Ensure progress is between 0 and 100
+    const clampedProgress = Math.min(100, Math.max(0, this.progress));
+    
+    this.elements.progressBar.style.width = `${clampedProgress}%`;
+    
+    // Update aria attributes
+    this.elements.progressBar.setAttribute('aria-valuenow', clampedProgress.toFixed(0));
+    this.elements.progressBar.setAttribute('aria-valuetext', `${clampedProgress.toFixed(0)}% complete`);
+  }
+  
+  /**
+   * Reset progress bar
+   */
+  resetProgressBar() {
+    console.debug("Resetting progress bar");
+    this.progress = 0;
+    this.updateProgressBar();
+    
+    // Restart progress bar if playing
+    if (this.isPlaying) {
+      this.startProgressBar();
+    }
+  }
+  
+  /**
+   * Handle automatic advancement to next image
+   */
+  async handleAutoAdvance() {
+    if (!this.isPlaying) return;
+    
+    console.debug("Auto-advancing to next image");
+    await this.nextImage();
+    this.updateUI();
+  }
+  
+  /**
+   * Update all UI elements
+   */
+  updateUI() {
+    this.updateTotalImages();
+    this.updateImageCounter();
+    this.updatePlaybackButton();
+    this.updateThumbnailNav();
+    this.updateNavigationButtons();
+    
+    // Start progress bar if playing
+    if (this.isPlaying && !this.progressInterval) {
+      this.startProgressBar();
+    }
+  }
+  
+  /**
+   * Update total images count
+   */
+  updateTotalImages() {
+    if (this.imageLoader?.mediaData?.media) {
+      this.totalImages = this.imageLoader.mediaData.media.length;
+    }
+  }
+  
+  /**
+   * Update image counter
+   */
+  updateImageCounter() {
+    if (!this.elements.imageCounter) return;
+    
+    const currentSpan = this.elements.imageCounter.querySelector('.current');
+    const totalSpan = this.elements.imageCounter.querySelector('.total');
+    
+    if (currentSpan) {
+      currentSpan.textContent = (this.currentIndex + 1).toString();
+    }
+    
+    if (totalSpan) {
+      totalSpan.textContent = this.totalImages.toString();
+    }
+    
+    // Update aria label
+    this.elements.imageCounter.setAttribute(
+      'aria-label',
+      `Image ${this.currentIndex + 1} of ${this.totalImages}`
+    );
+  }
+  
+  /**
+   * Update playback button state
+   */
+  updatePlaybackButton() {
+    if (!this.elements.playbackBtn) return;
+    
+    if (this.isPlaying) {
+      this.elements.playbackBtn.classList.remove('pause');
+      this.elements.playbackBtn.classList.add('play');
+      this.elements.playbackBtn.setAttribute('aria-label', 'Pause image rotation');
+      
+      const icon = this.elements.playbackBtn.querySelector('.playback-icon');
+      if (icon) {
+        icon.textContent = '⏸';
+      }
+    } else {
+      this.elements.playbackBtn.classList.remove('play');
+      this.elements.playbackBtn.classList.add('pause');
+      this.elements.playbackBtn.setAttribute('aria-label', 'Play image rotation');
+      
+      const icon = this.elements.playbackBtn.querySelector('.playback-icon');
+      if (icon) {
+        icon.textContent = '▶';
+      }
+    }
+    
+    // Update speed indicator
+    const speedElement = this.elements.playbackBtn.querySelector('.playback-speed');
+    if (speedElement) {
+      speedElement.textContent = `${(this.rotationSpeed / 1000) * this.playbackSpeed}s`;
+    }
+  }
+  
+  /**
+   * Update thumbnail navigation
+   */
+  updateThumbnailNav() {
+    if (!this.elements.thumbnailNav) return;
+    
+    const media = this.imageLoader?.mediaData?.media;
+    if (!media || !Array.isArray(media)) return;
+    
+    // Clear existing thumbnails
+    this.elements.thumbnailNav.innerHTML = '';
+    
+    // Create thumbnails
+    media.forEach((_, index) => {
+      const thumbnail = document.createElement('button');
+      thumbnail.className = `thumbnail-dot ${index === this.currentIndex ? 'active' : ''}`;
+      thumbnail.setAttribute('role', 'tab');
+      thumbnail.setAttribute('aria-selected', index === this.currentIndex ? 'true' : 'false');
+      thumbnail.setAttribute('aria-label', `Image ${index + 1}`);
+      thumbnail.setAttribute('data-index', index);
+      
+      this.elements.thumbnailNav.appendChild(thumbnail);
+    });
+    
+    // Update ARIA attributes
+    this.elements.thumbnailNav.setAttribute(
+      'aria-label',
+      `Image thumbnails, ${this.currentIndex + 1} of ${media.length} selected`
+    );
+  }
+  
+  /**
+   * Update navigation buttons state
+   */
+  updateNavigationButtons() {
+    // Disable previous button if at first image
+    if (this.elements.navPrev) {
+      const isFirstImage = this.currentIndex === 0;
+      this.elements.navPrev.disabled = isFirstImage && this.totalImages > 1;
+      this.elements.navPrev.setAttribute('aria-disabled', isFirstImage.toString());
+      
+      if (isFirstImage && this.totalImages > 1) {
+        this.elements.navPrev.classList.add('disabled');
+      } else {
+        this.elements.navPrev.classList.remove('disabled');
+      }
+    }
+    
+    // Disable next button if at last image
+    if (this.elements.navNext) {
+      const isLastImage = this.currentIndex === this.totalImages - 1;
+      this.elements.navNext.disabled = isLastImage && this.totalImages > 1;
+      this.elements.navNext.setAttribute('aria-disabled', isLastImage.toString());
+      
+      if (isLastImage && this.totalImages > 1) {
+        this.elements.navNext.classList.add('disabled');
+      } else {
+        this.elements.navNext.classList.remove('disabled');
+      }
+    }
+  }
+  
+  /**
+   * Show navigation controls
+   */
+  showControls() {
+    const container = this.imageLoader.image?.parentElement;
+    if (container) {
+      container.classList.add('show-controls');
+    }
+  }
+  
+  /**
+   * Hide navigation controls
+   */
+  hideControls() {
+    const container = this.imageLoader.image?.parentElement;
+    if (container) {
+      container.classList.remove('show-controls');
+    }
+  }
+  
+  /**
+   * Show keyboard hints
+   */
+  showKeyboardHints() {
+    if (!this.elements.keyboardHints) return;
+    
+    console.debug("Showing keyboard hints");
+    
+    this.elements.keyboardHints.classList.add('show');
+    
+    // Auto-hide after 5 seconds
+    setTimeout(() => {
+      this.hideKeyboardHints();
+    }, 5000);
+  }
+  
+  /**
+   * Hide keyboard hints
+   */
+  hideKeyboardHints() {
+    if (!this.elements.keyboardHints) return;
+    
+    this.elements.keyboardHints.classList.remove('show');
+  }
+  
+  /**
+   * Show keyboard shortcut indicator
+   */
+  showKeyboardShortcutIndicator() {
+    // Add a subtle indicator that keyboard shortcuts are available
+    const indicator = document.createElement('div');
+    indicator.className = 'keyboard-shortcut-indicator';
+    indicator.innerHTML = '🎮';
+    indicator.title = 'Keyboard shortcuts available (← → Space)';
+    indicator.style.cssText = `
+      position: fixed;
+      bottom: 10px;
+      right: 10px;
+      font-size: 20px;
+      opacity: 0.7;
+      cursor: help;
+      z-index: 1000;
+      transition: opacity 0.3s;
+    `;
+    
+    indicator.addEventListener('mouseenter', () => {
+      indicator.style.opacity = '1';
+      this.showKeyboardHints();
+    });
+    
+    indicator.addEventListener('mouseleave', () => {
+      indicator.style.opacity = '0.7';
+    });
+    
+    indicator.addEventListener('click', () => {
+      this.showKeyboardHints();
+    });
+    
+    document.body.appendChild(indicator);
+  }
+  
+  /**
+   * Animate button on click
+   */
+  animateButton(button) {
+    if (!button) return;
+    
+    button.style.transform = 'scale(0.9)';
+    
+    setTimeout(() => {
+      button.style.transform = 'scale(1.1)';
+      
+      setTimeout(() => {
+        button.style.transform = '';
+      }, 150);
+    }, 150);
+  }
+  
+  /**
+   * Change rotation speed
+   */
+  setRotationSpeed(speed) {
+    if (speed < 1000 || speed > 30000) {
+      console.warn("Rotation speed must be between 1000 and 30000 ms");
+      return;
+    }
+    
+    console.debug("Setting rotation speed", { newSpeed: speed });
+    this.rotationSpeed = speed;
+    
+    // Update image loader if it has speed control
+    if (this.imageLoader.setRotationSpeed) {
+      this.imageLoader.setRotationSpeed(speed);
+    }
+    
+    // Restart progress bar if playing
+    if (this.isPlaying) {
+      this.startProgressBar();
+    }
+    
+    this.updateUI();
+  }
+  
+  /**
+   * Set playback speed multiplier
+   */
+  setPlaybackSpeed(multiplier) {
+    if (multiplier < 0.25 || multiplier > 4) {
+      console.warn("Playback speed must be between 0.25 and 4");
+      return;
+    }
+    
+    console.debug("Setting playback speed multiplier", { multiplier });
+    this.playbackSpeed = multiplier;
+    
+    // Calculate effective rotation speed
+    const effectiveSpeed = this.rotationSpeed / multiplier;
+    
+    // Update image loader if it has speed control
+    if (this.imageLoader.setRotationSpeed) {
+      this.imageLoader.setRotationSpeed(effectiveSpeed);
+    }
+    
+    this.updateUI();
+  }
+  
+  /**
+   * Get current navigation state
+   */
+  getState() {
+    return {
+      currentIndex: this.currentIndex,
+      totalImages: this.totalImages,
+      isPlaying: this.isPlaying,
+      rotationSpeed: this.rotationSpeed,
+      playbackSpeed: this.playbackSpeed,
+      progress: this.progress
+    };
+  }
+  
+  /**
+   * Cleanup resources
+   */
+  destroy() {
+    console.time("ImageNavigationController cleanup");
+    
+    // Remove event listeners
+    if (this.elements.navPrev) {
+      this.elements.navPrev.removeEventListener('click', this.handlePrevClick);
+    }
+    
+    if (this.elements.navNext) {
+      this.elements.navNext.removeEventListener('click', this.handleNextClick);
+    }
+    
+    if (this.elements.playbackBtn) {
+      this.elements.playbackBtn.removeEventListener('click', this.handlePlaybackClick);
+    }
+    
+    if (this.elements.thumbnailNav) {
+      this.elements.thumbnailNav.removeEventListener('click', this.handleThumbnailClick);
+    }
+    
+    document.removeEventListener('keydown', this.handleKeyDown);
+    
+    // Clear intervals
+    if (this.progressInterval) {
+      clearInterval(this.progressInterval);
+      this.progressInterval = null;
+    }
+    
+    // Pause rotation
+    this.pauseRotation();
+    
+    // Remove keyboard shortcut indicator
+    const indicator = document.querySelector('.keyboard-shortcut-indicator');
+    if (indicator) {
+      indicator.remove();
+    }
+    
+    this.isInitialized = false;
+    console.info("ImageNavigationController destroyed");
+    console.timeEnd("ImageNavigationController cleanup");
+  }
+}
+
 /**
  * SCROLL ANIMATOR - Handles scroll-triggered animations
  * @class ScrollAnimator
@@ -2064,6 +3052,9 @@ class GraduationApp {
         scrollAnimator: this.createModuleWithFallback(ScrollAnimator),
         shareManager: this.createModuleWithFallback(ShareManager),
       };
+      if (this.modules.imageLoader && !this.modules.imageLoader.navigationController) {
+      this.modules.imageLoader.navigationController = new ImageNavigationController(this.modules.imageLoader);
+    }
 
       appLogger.info("All modules initialized successfully", {
         modules: Object.keys(this.modules),
@@ -2302,7 +3293,9 @@ class GraduationApp {
     const auth = authString ? JSON.parse(authString) : null;
     const newName = auth && auth.name ? auth.name : "Friend";
     if (titleElement) {
-      titleElement.textContent = `Congratulations, ${newName}!`;
+      titleElement.innerHTML = `Congratulations, ${newName}!                   <span class="name-highlight glow" tabindex="0" role="button"
+                    >Combine Maths&Cscs 2025! 💘💗💓</span
+                  >`;
       appLogger.debug("Title name changed", { newName });
     } else {
       appLogger.warn("Title element not found for name change");
@@ -2350,6 +3343,9 @@ class GraduationApp {
         module.destroy();
       }
     });
+      if (this.modules.imageLoader?.navigationController) {
+    this.modules.imageLoader.navigationController.destroy();
+  }
 
     // Remove event listeners
     if (this.elements.imageContainer) {
