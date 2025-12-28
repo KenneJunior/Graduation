@@ -125,7 +125,7 @@ async function generateMediaJSON(config = {}) {
       } else {
         // Generate WebP thumbnail
         try {
-          const inputPath = `${config.picDir}/${encodeURIComponent(filename)}`;
+          const inputPath = `${CONFIG.picsDir}/${filename}`;
 
           const buffer = readFileSync(inputPath);
 
@@ -164,15 +164,9 @@ async function generateMediaJSON(config = {}) {
       .filter((dirent) => dirent.isFile() && /\.(jpg|heic|jpeg|png|webp)$/i.test(dirent.name))
       .map((dirent) => dirent.name);
 
-    const videoThumbs = thumbFiles.filter((thumbFile) => {
-      const baseName = thumbFile.replace(/\.(jpg|heic|jpeg|png|webp)$/i, "");
-      const correspondingImage = picFiles.some((pic) =>
-        pic.toLowerCase() === `${baseName}.jpg` ||
-        pic.toLowerCase() === `${baseName}.jpeg` ||
-        pic.toLowerCase() === `${baseName}.png`
-      );
-      return !correspondingImage && thumbFile !== CONFIG.lastFile.replace(".jpg", ".webp");
-    });
+    const videoThumbs = thumbFiles.filter(thumbFile => 
+      thumbFile.includes("vid") && thumbFile !== CONFIG.lastFile.replace(".jpg", ".webp")
+    );
 
     _log(`🎥 Detected ${videoThumbs.length} video thumbnails`);
 
