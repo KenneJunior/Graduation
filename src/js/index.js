@@ -1326,14 +1326,18 @@ class ImageLoader {
             } else if (e.key === ' ' || e.key === 'Spacebar') {
                 // Space bar to toggle manual pause
                 if (this.rotationEnabled) {
-                    if (this.isManualPaused) {
-                        this.resumeRotation();
-                    } else {
-                        this.pauseRotation();
-                    }
+                    this.togglePause();
                 }
             }
         });
+    }
+
+    togglePause() {
+        if (this.isManualPaused) {
+            this.resumeRotation();
+        } else {
+            this.pauseRotation();
+        }
     }
 
     /**
@@ -2823,16 +2827,87 @@ class ScrollAnimator {
 }
 
 /**
- * SHARE MANAGER - Handles social sharing functionality
+ * SHARE MANAGER - Enhanced social sharing functionality with analytics, fallbacks, and better UX
  * @class ShareManager
  */
 class ShareManager {
-  constructor() {
+  constructor(options = {}) {
     shareLogger.time("ShareManager constructor");
+    
+    this.options = {
+      // Default share text
+      shareText: "Beautiful Graduation wishes! Send to your loved ones using this website",
+      // Fallback copy to clipboard when native sharing fails
+      enableClipboardFallback: true,
+      // Enable analytics tracking
+      enableAnalytics: true,
+      // Platform-specific configurations
+      platforms: {
+        whatsapp: {
+          label: "WhatsApp",
+          color: "#25D366",
+          icon: "fab fa-whatsapp"
+        },
+        facebook: {
+          label: "Facebook",
+          color: "#1877F2",
+          icon: "fab fa-facebook-f"
+        },
+        twitter: {
+          label: "Twitter",
+          color: "#1DA1F2",
+          icon: "fab fa-twitter"
+        },
+        instagram: {
+          label: "Instagram",
+          color: "#E4405F",
+          icon: "fab fa-instagram"
+        },
+        telegram: {
+          label: "Telegram",
+          color: "#0088CC",
+          icon: "fab fa-telegram"
+        },
+        clipboard: {
+          label: "Copy Link",
+          color: "#6C757D",
+          icon: "fas fa-link"
+        }
+      },
+      // Animation settings
+      animation: {
+        duration: 300,
+        scale: 0.95
+      },
+      // Success/error messages
+      messages: {
+        copied: "Link copied to clipboard!",
+        copiedFailed: "Failed to copy link",
+        sharingFailed: "Sharing failed. Please try again.",
+        notSupported: "Sharing not supported on this device"
+      }
+    };
+    
+    // Merge user options
+    Object.assign(this.options, options);
+    
+    // State management
     this.buttons = [];
     this.isInitialized = false;
-
-    shareLogger.debug("ShareManager instance created");
+    this.clipboardSupported = 'clipboard' in navigator;
+    this.nativeShareSupported = 'share' in navigator;
+    this.shareData = this.prepareShareData();
+    
+    // Bind methods
+    this.handleShare = this.handleShare.bind(this);
+    this.handleKeyDown = this.handleKeyDown.bind(this);
+    
+    shareLogger.debug("ShareManager instance created", {
+      clipboardSupported: this.clipboardSupported,
+      nativeShareSupported: this.nativeShareSupported,
+      options: this.options
+    });
+    
     shareLogger.timeEnd("ShareManager constructor");
   }
 
@@ -2847,168 +2922,739 @@ class ShareManager {
 
     try {
       shareLogger.time("ShareManager initialization");
+      
+      // Update share data with current page info
+      this.shareData = this.prepareShareData();
+      
       this.cacheButtons();
       this.setupListeners();
+      this.setupAccessibility();
+      
+      // Add sharing hints if native sharing is supported
+      if (this.nativeShareSupported) {
+        this.addNativeShareHint();
+      }
+      
       this.isInitialized = true;
-      shareLogger.info("ShareManager initialized successfully");
+      shareLogger.info("ShareManager initialized successfully", {
+        totalButtons: this.buttons.length,
+        nativeShare: this.nativeShareSupported,
+        clipboard: this.clipboardSupported
+      });
+      
       shareLogger.timeEnd("ShareManager initialization");
     } catch (error) {
       shareLogger.error("Failed to initialize share manager", error);
+      this.showErrorMessage("Failed to initialize sharing. Please refresh.");
     }
   }
 
   /**
-   * Cache share buttons
+   * Prepare share data
+   */
+  prepareShareData() {
+    const pageUrl = window.location.href;
+    const pageTitle = document.title || "Graduation Wishes";
+    
+    return {
+      title: pageTitle,
+      text: this.options.shareText,
+      url: pageUrl,
+      hashtags: ["Graduation", "Congratulations", "Wishes"],
+      via: "GraduationApp"
+    };
+  }
+
+  /**
+   * Cache share buttons with platform detection
    */
   cacheButtons() {
     shareLogger.time("Button caching");
-    this.buttons = Array.from(document.querySelectorAll(".share-btn")).filter(
-      Boolean
-    );
-
+    
+    // Find all share buttons
+    const buttonElements = document.querySelectorAll(".share-btn, [data-share], [data-platform]");
+    
+    this.buttons = Array.from(buttonElements)
+      .filter(btn => {
+        // Ensure button is visible and not disabled
+        const style = window.getComputedStyle(btn);
+        return style.display !== 'none' && 
+               style.visibility !== 'hidden' && 
+               !btn.disabled;
+      })
+      .map(btn => {
+        // Determine platform from various sources
+        const platform = this.detectPlatform(btn);
+        
+        // Add data attributes for tracking
+        btn.dataset.sharePlatform = platform;
+        btn.dataset.shareInitialized = "true";
+        
+        // Add ARIA label if not present
+        if (!btn.hasAttribute('aria-label')) {
+          const platformConfig = this.options.platforms[platform];
+          if (platformConfig) {
+            btn.setAttribute('aria-label', `Share on ${platformConfig.label}`);
+          }
+        }
+        
+        return {
+          element: btn,
+          platform: platform,
+          originalHTML: btn.innerHTML,
+          originalClasses: btn.className
+        };
+      });
+    
     shareLogger.debug("Share buttons cached", {
       buttonCount: this.buttons.length,
-      platforms: this.buttons.map(
-        (btn) =>
-          Array.from(btn.classList).find((cls) =>
-            [
-              "whatsapp",
-              "instagram",
-              "facebook",
-              "twitter",
-              "telegram",
-            ].includes(cls)
-          ) || "unknown"
-      ),
+      platforms: this.buttons.map(b => b.platform),
+      nativeSupport: this.nativeShareSupported
     });
+    
     shareLogger.timeEnd("Button caching");
   }
 
   /**
-   * Setup event listeners
+   * Detect platform from button
+   */
+  detectPlatform(button) {
+    // Check data attributes first
+    if (button.dataset.platform) return button.dataset.platform;
+    if (button.dataset.share) return button.dataset.share;
+    
+    // Check class names
+    const platformClasses = Object.keys(this.options.platforms);
+    const foundClass = platformClasses.find(cls => 
+      button.classList.contains(cls) || 
+      button.classList.contains(`share-${cls}`)
+    );
+    
+    if (foundClass) return foundClass;
+    
+    // Default to clipboard
+    return 'clipboard';
+  }
+
+  /**
+   * Setup event listeners with better error handling
    */
   setupListeners() {
     shareLogger.time("Listener setup");
-    this.buttons.forEach((btn, index) => {
-      btn.addEventListener("click", (e) => {
+    
+    this.buttons.forEach((btnData, index) => {
+      const { element, platform } = btnData;
+      
+      // Remove existing listeners to avoid duplicates
+      element.removeEventListener('click', this.handleShare);
+      element.removeEventListener('keydown', this.handleKeyDown);
+      
+      // Add click listener
+      element.addEventListener('click', (e) => {
         e.preventDefault();
+        e.stopPropagation();
+        
         shareLogger.debug("Share button clicked", {
           index,
-          button: btn.className,
+          platform,
+          element: element.tagName,
+          classes: element.className
         });
-        this.handleShare(btn);
+        
+        this.handleShare(platform, element);
       });
-
-      btn.addEventListener("keydown", (e) => {
-        if (e.key === "Enter" || e.key === " ") {
+      
+      // Add keyboard listener
+      element.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ' || e.key === 'Spacebar') {
           e.preventDefault();
+          e.stopPropagation();
+          
           shareLogger.debug("Share button keyboard activated", {
             index,
-            key: e.key,
-            button: btn.className,
+            platform,
+            key: e.key
           });
-          this.handleShare(btn);
+          
+          this.handleShare(platform, element);
         }
       });
+      
+      // Add touch feedback for mobile
+      element.addEventListener('touchstart', () => {
+        element.classList.add('share-touch-active');
+      }, { passive: true });
+      
+      element.addEventListener('touchend', () => {
+        element.classList.remove('share-touch-active');
+      }, { passive: true });
     });
-    shareLogger.debug("Event listeners attached to share buttons");
+    
+    // Listen for page visibility changes to update share data
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden) {
+        this.shareData = this.prepareShareData();
+        shareLogger.debug("Share data refreshed on page visibility change");
+      }
+    });
+    
+    shareLogger.debug("Event listeners attached", {
+      totalButtons: this.buttons.length
+    });
+    
     shareLogger.timeEnd("Listener setup");
   }
 
   /**
-   * Handle share action
+   * Setup accessibility features
    */
-  handleShare(button) {
-    shareLogger.time("Share action");
-    this.animateButton(button);
-
-    const platform = Array.from(button.classList).find((cls) =>
-      ["whatsapp", "instagram", "facebook", "twitter", "telegram"].includes(cls)
-    );
-
-    shareLogger.debug("Share platform identified", { platform });
-
-    if (platform) {
-      this.shareToPlatform(platform);
-    } else {
-      shareLogger.warn("Unknown share platform", {
-        buttonClasses: button.className,
-      });
-    }
-    shareLogger.timeEnd("Share action");
-  }
-
-  /**
-   * Share to specific platform
-   */
-  shareToPlatform(platform) {
-    shareLogger.time(`Share to ${platform}`);
-    const pageUrl = encodeURIComponent(window.location.href);
-    const shareText = encodeURIComponent(
-      "Beautiful Graduation wishes! that was send to me you can also send to your loved ones using this website"
-    );
-
-    const shareConfig = {
-      whatsapp: `https://wa.me/?text=${shareText}%20${pageUrl}`,
-      instagram: "https://instagram.com/",
-      facebook: `https://www.facebook.com/sharer/sharer.php?u=${pageUrl}`,
-      twitter: `https://twitter.com/intent/tweet?text=${shareText}&url=${pageUrl}`,
-      telegram: `https://t.me/share/url?url=${pageUrl}&text=${shareText}`,
-    };
-
-    shareLogger.debug("Share configuration prepared", {
-      platform,
-      pageUrl: window.location.href,
-      shareConfig: shareConfig[platform] ? "available" : "missing",
+  setupAccessibility() {
+    shareLogger.time("Accessibility setup");
+    
+    this.buttons.forEach(btnData => {
+      const { element, platform } = btnData;
+      
+      // Ensure proper role
+      if (element.getAttribute('role') !== 'button') {
+        element.setAttribute('role', 'button');
+      }
+      
+      // Ensure tabindex
+      if (!element.hasAttribute('tabindex')) {
+        element.setAttribute('tabindex', '0');
+      }
+      
+      // Add platform-specific instructions
+      const platformConfig = this.options.platforms[platform];
+      if (platformConfig) {
+        const title = element.getAttribute('title') || 
+                     element.getAttribute('aria-label') || 
+                     `Share on ${platformConfig.label}`;
+        
+        element.setAttribute('title', title);
+        element.setAttribute('aria-label', title);
+      }
     });
-
-    if (shareConfig[platform]) {
-      shareLogger.info("Opening share dialog", { platform });
-      window.open(
-        shareConfig[platform],
-        "_blank",
-        "width=600,height=400,noopener,noreferrer"
-      );
-    } else {
-      shareLogger.error("No share configuration found for platform", {
-        platform,
-      });
-    }
-    shareLogger.timeEnd(`Share to ${platform}`);
+    
+    shareLogger.debug("Accessibility setup completed");
+    shareLogger.timeEnd("Accessibility setup");
   }
 
   /**
-   * Animate button on click
+   * Handle share action with improved logic
+   */
+  async handleShare(platform, buttonElement) {
+    shareLogger.time(`Share to ${platform}`);
+    
+    try {
+      // Animate button
+      this.animateButton(buttonElement);
+      
+      // Track analytics if enabled
+      if (this.options.enableAnalytics) {
+        this.trackShareEvent(platform);
+      }
+      
+      // Try native sharing first (if supported and not a specific platform)
+      if (this.nativeShareSupported && platform === 'native') {
+        await this.shareNative();
+        return;
+      }
+      
+      // Use platform-specific sharing
+      const success = await this.shareToPlatform(platform, buttonElement);
+      
+      if (success) {
+        this.showSuccessFeedback(buttonElement, platform);
+      } else {
+        this.showErrorFeedback(buttonElement, platform);
+      }
+      
+    } catch (error) {
+      shareLogger.error("Share action failed", {
+        platform,
+        error: error.message,
+        element: buttonElement?.tagName
+      });
+      
+      this.showErrorFeedback(buttonElement, platform);
+      
+      // Fallback to clipboard if enabled
+      if (this.options.enableClipboardFallback && this.clipboardSupported) {
+        setTimeout(() => {
+          this.shareToClipboard(buttonElement);
+        }, 500);
+      }
+      
+    } finally {
+      shareLogger.timeEnd(`Share to ${platform}`);
+    }
+  }
+
+  /**
+   * Handle keyboard navigation
+   */
+  handleKeyDown(e) {
+    // Allow space/enter to trigger share
+    if (e.key === ' ' || e.key === 'Enter' || e.key === 'Spacebar') {
+      e.preventDefault();
+      const button = e.target;
+      const platform = button.dataset.sharePlatform || 'clipboard';
+      this.handleShare(platform, button);
+    }
+  }
+
+  /**
+   * Share to specific platform with improved URL generation
+   */
+  async shareToPlatform(platform, buttonElement) {
+    shareLogger.time(`Platform share: ${platform}`);
+    
+    const shareUrls = {
+      whatsapp: `https://wa.me/?text=${encodeURIComponent(`${this.shareData.text} ${this.shareData.url}`)}`,
+      facebook: `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(this.shareData.url)}&quote=${encodeURIComponent(this.shareData.text)}`,
+      twitter: `https://twitter.com/intent/tweet?text=${encodeURIComponent(this.shareData.text)}&url=${encodeURIComponent(this.shareData.url)}&hashtags=${this.shareData.hashtags.join(',')}&via=${this.shareData.via}`,
+      telegram: `https://t.me/share/url?url=${encodeURIComponent(this.shareData.url)}&text=${encodeURIComponent(this.shareData.text)}`,
+      instagram: `https://www.instagram.com/`, // Instagram doesn't have direct share URLs
+      linkedin: `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(this.shareData.url)}`,
+      pinterest: `https://pinterest.com/pin/create/button/?url=${encodeURIComponent(this.shareData.url)}&description=${encodeURIComponent(this.shareData.text)}`,
+      reddit: `https://www.reddit.com/submit?url=${encodeURIComponent(this.shareData.url)}&title=${encodeURIComponent(this.shareData.text)}`
+    };
+    
+    const url = shareUrls[platform];
+    
+    if (!url) {
+      shareLogger.warn("No share URL for platform", { platform });
+      
+      // Fallback to clipboard
+      if (this.clipboardSupported) {
+        return await this.shareToClipboard(buttonElement);
+      }
+      
+      return false;
+    }
+    
+    // Special handling for Instagram (no direct sharing)
+    if (platform === 'instagram') {
+      this.showMessage("Open Instagram app to share", buttonElement);
+      return false;
+    }
+    
+    // Open share window
+    const shareWindow = window.open(
+      url,
+      'share-dialog',
+      `width=600,height=400,left=${window.screenX + 100},top=${window.screenY + 100},noopener,noreferrer`
+    );
+    
+    // Focus the window
+    if (shareWindow) {
+      shareWindow.focus();
+      
+      // Check if window was blocked
+      setTimeout(() => {
+        if (shareWindow.closed || !shareWindow.location.href) {
+          shareLogger.warn("Share window was blocked", { platform });
+          this.showMessage("Pop-up blocked. Please allow pop-ups to share.", buttonElement);
+        }
+      }, 1000);
+      
+      shareLogger.info("Share window opened", { platform, url });
+      return true;
+    }
+    
+    shareLogger.warn("Failed to open share window", { platform });
+    return false;
+  }
+
+  /**
+   * Native Web Share API
+   */
+  async shareNative() {
+    try {
+      if (!this.nativeShareSupported) {
+        throw new Error("Native sharing not supported");
+      }
+      
+      await navigator.share({
+        title: this.shareData.title,
+        text: this.shareData.text,
+        url: this.shareData.url
+      });
+      
+      shareLogger.info("Native share successful");
+      return true;
+      
+    } catch (error) {
+      if (error.name !== 'AbortError') {
+        shareLogger.error("Native share failed", error);
+      }
+      return false;
+    }
+  }
+
+  /**
+   * Copy to clipboard with fallback
+   */
+  async shareToClipboard(buttonElement) {
+    try {
+      // Try modern clipboard API first
+      if (this.clipboardSupported) {
+        await navigator.clipboard.writeText(this.shareData.url);
+        shareLogger.info("Clipboard write successful");
+        
+        this.showMessage(this.options.messages.copied, buttonElement, 'success');
+        return true;
+      }
+      
+      // Fallback to legacy method
+      const textArea = document.createElement('textarea');
+      textArea.value = this.shareData.url;
+      textArea.style.position = 'fixed';
+      textArea.style.opacity = '0';
+      document.body.appendChild(textArea);
+      textArea.select();
+      
+      const success = document.execCommand('copy');
+      document.body.removeChild(textArea);
+      
+      if (success) {
+        shareLogger.info("Legacy clipboard write successful");
+        this.showMessage(this.options.messages.copied, buttonElement, 'success');
+        return true;
+      }
+      
+      throw new Error("Clipboard write failed");
+      
+    } catch (error) {
+      shareLogger.error("Clipboard write failed", error);
+      this.showMessage(this.options.messages.copiedFailed, buttonElement, 'error');
+      return false;
+    }
+  }
+
+  /**
+   * Animate button with improved feedback
    */
   animateButton(button) {
-    shareLogger.debug("Animating share button");
-    button.style.transform = "scale(0.9)";
-
+    if (!button) return;
+    
+    shareLogger.debug("Animating button");
+    
+    // Store original transform
+    const originalTransform = button.style.transform;
+    const originalTransition = button.style.transition;
+    
+    // Apply animation
+    button.style.transition = `transform ${this.options.animation.duration}ms ease`;
+    button.style.transform = `scale(${this.options.animation.scale})`;
+    
+    // Reset after animation
     setTimeout(() => {
-      button.style.transform = "scale(1.1)";
-
+      button.style.transform = originalTransform;
+      
+      // Remove transition after reset
       setTimeout(() => {
-        button.style.transform = "";
-        shareLogger.debug("Share button animation completed");
-      }, 150);
-    }, 150);
+        button.style.transition = originalTransition;
+      }, this.options.animation.duration);
+    }, this.options.animation.duration);
+    
+    // Add visual feedback class
+    button.classList.add('share-active');
+    setTimeout(() => {
+      button.classList.remove('share-active');
+    }, this.options.animation.duration * 2);
   }
 
   /**
-   * Cleanup resources
+   * Show success feedback
+   */
+  showSuccessFeedback(button, platform) {
+    const platformConfig = this.options.platforms[platform];
+    if (!platformConfig) return;
+    
+    // Add success class
+    button.classList.add('share-success');
+    
+    // Temporarily change button content
+    const originalHTML = button.innerHTML;
+    button.innerHTML = `<i class="fas fa-check"></i> Shared!`;
+    
+    // Reset after delay
+    setTimeout(() => {
+      button.classList.remove('share-success');
+      button.innerHTML = originalHTML;
+    }, 2000);
+    
+    shareLogger.debug("Success feedback shown", { platform });
+  }
+
+  /**
+   * Show error feedback
+   */
+  showErrorFeedback(button, platform) {
+    button.classList.add('share-error');
+    
+    setTimeout(() => {
+      button.classList.remove('share-error');
+    }, 1000);
+    
+    shareLogger.debug("Error feedback shown", { platform });
+  }
+
+  /**
+   * Show temporary message
+   */
+  showMessage(message, element, type = 'info') {
+    // Create message element
+    const messageEl = document.createElement('div');
+    messageEl.className = `share-message share-message-${type}`;
+    messageEl.textContent = message;
+    messageEl.setAttribute('role', 'alert');
+    messageEl.setAttribute('aria-live', 'polite');
+    
+    // Position near the button
+    const rect = element.getBoundingClientRect();
+    messageEl.style.cssText = `
+      position: fixed;
+      top: ${rect.bottom + 10}px;
+      left: ${rect.left}px;
+      background: ${type === 'success' ? '#4CAF50' : type === 'error' ? '#F44336' : '#2196F3'};
+      color: white;
+      padding: 8px 16px;
+      border-radius: 4px;
+      font-size: 14px;
+      z-index: 10000;
+      animation: fadeInUp 0.3s ease;
+    `;
+    
+    document.body.appendChild(messageEl);
+    
+    // Remove after delay
+    setTimeout(() => {
+      if (messageEl.parentNode) {
+        messageEl.style.animation = 'fadeOut 0.3s ease';
+        setTimeout(() => {
+          if (messageEl.parentNode) {
+            messageEl.parentNode.removeChild(messageEl);
+          }
+        }, 300);
+      }
+    }, 3000);
+  }
+
+  /**
+   * Add native share hint
+   */
+  addNativeShareHint() {
+    // Check if we should show native share button
+    if (!this.nativeShareSupported || 
+        document.querySelector('.share-native') ||
+        !this.buttons.length) {
+      return;
+    }
+    
+    // Create native share button
+    const nativeButton = document.createElement('button');
+    nativeButton.className = 'share-btn share-native';
+    nativeButton.innerHTML = '<i class="fas fa-share-alt"></i> Share';
+    nativeButton.setAttribute('aria-label', 'Share using device options');
+    nativeButton.setAttribute('title', 'Share using device options');
+    
+    // Insert near other share buttons
+    const firstButton = this.buttons[0]?.element;
+    if (firstButton && firstButton.parentNode) {
+      firstButton.parentNode.insertBefore(nativeButton, firstButton.nextSibling);
+      
+      // Add to buttons array
+      this.buttons.push({
+        element: nativeButton,
+        platform: 'native',
+        originalHTML: nativeButton.innerHTML,
+        originalClasses: nativeButton.className
+      });
+      
+      // Add event listener
+      nativeButton.addEventListener('click', (e) => {
+        e.preventDefault();
+        this.handleShare('native', nativeButton);
+      });
+      
+      shareLogger.debug("Native share button added");
+    }
+  }
+
+  /**
+   * Track share events for analytics
+   */
+  trackShareEvent(platform) {
+    if (!this.options.enableAnalytics) return;
+    
+    const eventData = {
+      event: 'share',
+      platform: platform,
+      url: this.shareData.url,
+      timestamp: new Date().toISOString()
+    };
+    
+    // Google Analytics
+    if (typeof gtag !== 'undefined') {
+      gtag('event', 'share', {
+        method: platform,
+        content_type: 'page',
+        item_id: this.shareData.url
+      });
+    }
+    
+    // Custom event dispatch
+    const shareEvent = new CustomEvent('share', {
+      detail: eventData,
+      bubbles: true
+    });
+    
+    document.dispatchEvent(shareEvent);
+    
+    shareLogger.debug("Share event tracked", eventData);
+  }
+
+  /**
+   * Show error message
+   */
+  showErrorMessage(message) {
+    console.error('ShareManager Error:', message);
+    // Could implement a toast notification system here
+  }
+
+  /**
+   * Update share data dynamically
+   */
+  updateShareData(newData) {
+    this.shareData = { ...this.shareData, ...newData };
+    shareLogger.debug("Share data updated", this.shareData);
+  }
+
+  /**
+   * Get current share data
+   */
+  getShareData() {
+    return { ...this.shareData };
+  }
+
+  /**
+   * Get platform configuration
+   */
+  getPlatformConfig(platform) {
+    return this.options.platforms[platform] || null;
+  }
+
+  /**
+   * Cleanup resources with improved handling
    */
   destroy() {
     shareLogger.time("ShareManager cleanup");
-    this.buttons.forEach((btn, index) => {
-      btn.removeEventListener("click", this.handleShare);
-      btn.removeEventListener("keydown", this.handleShare);
-      shareLogger.debug("Event listeners removed", { index });
-    });
-
-    this.isInitialized = false;
-    shareLogger.info("ShareManager destroyed");
-    shareLogger.timeEnd("ShareManager cleanup");
+    
+    try {
+      // Remove all event listeners
+      this.buttons.forEach((btnData, index) => {
+        const { element } = btnData;
+        
+        // Remove listeners
+        element.removeEventListener('click', this.handleShare);
+        element.removeEventListener('keydown', this.handleKeyDown);
+        element.removeEventListener('touchstart', () => {});
+        element.removeEventListener('touchend', () => {});
+        
+        // Remove data attributes
+        delete element.dataset.sharePlatform;
+        delete element.dataset.shareInitialized;
+        
+        // Restore original state if modified
+        if (btnData.originalHTML) {
+          element.innerHTML = btnData.originalHTML;
+        }
+        if (btnData.originalClasses) {
+          element.className = btnData.originalClasses;
+        }
+        
+        shareLogger.debug("Button cleaned up", { index });
+      });
+      
+      // Remove native share button if added
+      const nativeButton = document.querySelector('.share-native');
+      if (nativeButton && nativeButton.parentNode) {
+        nativeButton.parentNode.removeChild(nativeButton);
+      }
+      
+      // Clear arrays
+      this.buttons = [];
+      
+      this.isInitialized = false;
+      
+      shareLogger.info("ShareManager destroyed successfully");
+      
+    } catch (error) {
+      shareLogger.error("Error during ShareManager cleanup", error);
+    } finally {
+      shareLogger.timeEnd("ShareManager cleanup");
+    }
   }
+}
+
+// Add CSS for share messages animation
+const shareStyles = document.createElement('style');
+shareStyles.textContent = `
+  @keyframes fadeInUp {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+  
+  @keyframes fadeOut {
+    from {
+      opacity: 1;
+      transform: translateY(0);
+    }
+    to {
+      opacity: 0;
+      transform: translateY(-10px);
+    }
+  }
+  
+  .share-active {
+    position: relative;
+    z-index: 1;
+  }
+  
+  .share-success {
+    background-color: #4CAF50 !important;
+    color: white !important;
+  }
+  
+  .share-error {
+    background-color: #F44336 !important;
+    color: white !important;
+    animation: shake 0.5s ease;
+  }
+  
+  .share-touch-active {
+    opacity: 0.8;
+  }
+  
+  @keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    25% { transform: translateX(-5px); }
+    75% { transform: translateX(5px); }
+  }
+`;
+
+// Add styles to document
+if (document.head) {
+  document.head.appendChild(shareStyles);
 }
 
 /**
