@@ -86,25 +86,101 @@ document.addEventListener("visibilitychange", () => {
 });
 
 /**
- * CONFETTI SYSTEM - Canvas-based particle effects
+ * CONFETTI SYSTEM - Enhanced canvas-based particle effects with multiple types and better physics
  * @class ConfettiSystem
  */
 class ConfettiSystem {
-  constructor(container) {
+  constructor(container, options = {}) {
     confettiLogger.time("ConfettiSystem constructor");
+    
     this.container = container;
+    
+    // Default configuration
+    this.config = {
+      // Particle settings
+      maxParticles: 1000,
+      particleLifetime: 3000, // ms
+      gravity: 0.1,
+      wind: 0,
+      drag: 0.01,
+      
+      // Explosion settings
+      explosionSpeed: { min: 2, max: 6 },
+      rotationSpeed: { min: -0.02, max: 0.02 },
+      opacityDecay: 0.005,
+      
+      // Visual settings
+      colors: ["#8E2DE2", "#4A00E0", "#FF6B6B", "#FECA57", "#1DD1A1", "#00B4D8", "#FF9E00"],
+      shapes: ["circle", "rect", "triangle", "star", "heart"],
+      shapeDistribution: { circle: 0.3, rect: 0.3, triangle: 0.2, star: 0.1, heart: 0.1 },
+      
+      // Performance settings
+      fpsLimit: 60,
+      batchSize: 50,
+      useRequestAnimationFrame: true,
+      
+      // Interaction settings
+      interactive: true,
+      followMouse: false,
+      mouseForce: 0.5,
+      autoTrigger: false,
+      autoTriggerInterval: 5000,
+      
+      // Debug settings
+      showStats: false,
+      showParticleCount: false
+    };
+    
+    // Merge user options
+    Object.assign(this.config, options);
+    
+    // Core properties
     this.canvas = null;
     this.ctx = null;
     this.particles = [];
     this.particleCount = 0;
     this.animationId = null;
-    this.colors = ["#8E2DE2", "#4A00E0", "#FF6B6B", "#FECA57", "#1DD1A1"];
     this.isActive = false;
-    this.mainPage = "memories";
-
+    this.lastFrameTime = 0;
+    this.frameInterval = 1000 / this.config.fpsLimit;
+    
+    // Performance tracking
+    this.performanceStats = {
+      fps: 0,
+      frameCount: 0,
+      lastFpsUpdate: 0,
+      maxParticlesReached: 0,
+      totalParticlesCreated: 0
+    };
+    
+    // Interaction state
+    this.mouse = { x: 0, y: 0, isDown: false };
+    this.touch = { x: 0, y: 0, isActive: false };
+    
+    // Auto trigger
+    this.autoTriggerTimer = null;
+    
+    // Bind methods
+    this.animate = this.animate.bind(this);
+    this.handleResize = this.handleResize.bind(this);
+    this.handleMouseMove = this.handleMouseMove.bind(this);
+    this.handleMouseDown = this.handleMouseDown.bind(this);
+    this.handleMouseUp = this.handleMouseUp.bind(this);
+    this.handleTouchStart = this.handleTouchStart.bind(this);
+    this.handleTouchMove = this.handleTouchMove.bind(this);
+    this.handleTouchEnd = this.handleTouchEnd.bind(this);
+    
+    // Validate container
+    if (!container || !(container instanceof HTMLElement)) {
+      throw new Error("ConfettiSystem requires a valid container element");
+    }
+    
     confettiLogger.debug("ConfettiSystem instance created", {
-      container: container?.className || "unknown",
+      container: container.className || container.tagName,
+      config: this.config
     });
+    
+    // Initialize
     this.init();
     confettiLogger.timeEnd("ConfettiSystem constructor");
   }
@@ -115,17 +191,32 @@ class ConfettiSystem {
   init() {
     try {
       confettiLogger.time("Confetti initialization");
+      
       this.createCanvas();
-      this.setupResizeListener();
-      this.animate = this.animate.bind(this);
-      this.isActive = true;
-
-      // Set up event listeners
+      this.setupCanvas();
       this.setupEventListeners();
-      confettiLogger.info("Confetti system initialized successfully");
+      this.setupResizeObserver();
+      
+      this.isActive = true;
+      
+      // Start auto trigger if enabled
+      if (this.config.autoTrigger) {
+        this.startAutoTrigger();
+      }
+      
+      // Start animation loop
+      this.startAnimation();
+      
+      confettiLogger.info("Confetti system initialized successfully", {
+        maxParticles: this.config.maxParticles,
+        interactive: this.config.interactive,
+        autoTrigger: this.config.autoTrigger
+      });
+      
       confettiLogger.timeEnd("Confetti initialization");
     } catch (error) {
       confettiLogger.error("Failed to initialize confetti system", error);
+      throw error;
     }
   }
 
@@ -135,19 +226,39 @@ class ConfettiSystem {
   createCanvas() {
     try {
       confettiLogger.time("Canvas creation");
+      
       this.canvas = document.createElement("canvas");
-      this.ctx = this.canvas.getContext("2d");
+      this.canvas.className = "confetti-canvas";
+      this.ctx = this.canvas.getContext("2d", { alpha: true });
 
       if (!this.ctx) {
         throw new Error("Canvas context not supported");
       }
 
-      this.setupCanvas();
+      // Setup canvas dimensions and styles
+      this.updateCanvasSize();
+      
+      Object.assign(this.canvas.style, {
+        position: "absolute",
+        top: "0",
+        left: "0",
+        width: "100%",
+        height: "100%",
+        pointerEvents: this.config.interactive ? "auto" : "none",
+        zIndex: "1000",
+        userSelect: "none",
+        touchAction: "none"
+      });
 
-      if (!this.canvas.parentNode) {
-        this.container.appendChild(this.canvas);
-      }
-      confettiLogger.debug("Canvas created and configured");
+      // Append to container
+      this.container.appendChild(this.canvas);
+      
+      confettiLogger.debug("Canvas created and configured", {
+        width: this.canvas.width,
+        height: this.canvas.height,
+        dpr: window.devicePixelRatio
+      });
+      
       confettiLogger.timeEnd("Canvas creation");
     } catch (error) {
       confettiLogger.error("Failed to create canvas", error);
@@ -155,25 +266,77 @@ class ConfettiSystem {
     }
   }
 
+
   /**
-   * Setup canvas dimensions and styles
+   * Setup canvas dimensions and get container background
    */
-  setupCanvas() {
-    const rect = this.container.getBoundingClientRect();
-    this.canvas.width = rect.width;
-    this.canvas.height = rect.height;
 
-    Object.assign(this.canvas.style, {
-      position: "absolute",
-      top: "0",
-      left: "0",
-      pointerEvents: "none",
-      zIndex: "10",
-    });
-
+ setupCanvas() {
+    confettiLogger.time("Canvas setup");
+    
+    // Update canvas size based on container and DPR
+    this.updateCanvasSize();
+    
+    // Get container background color for fade effect
+    const containerStyle = window.getComputedStyle(this.container);
+    this.containerBackground = containerStyle.backgroundColor || "rgba(255, 255, 255, 1)";
+    
     confettiLogger.debug("Canvas setup completed", {
+      width: this.canvas.width,
+      height: this.canvas.height,
+      containerBackground: this.containerBackground
+    });
+    
+    confettiLogger.timeEnd("Canvas setup");
+  }
+
+  /**
+   * Update canvas size based on container and device pixel ratio
+   */
+  updateCanvasSize() {
+    const rect = this.container.getBoundingClientRect();
+    const dpr = window.devicePixelRatio || 1;
+
+    // Store the original canvas dimensions (without DPR scaling)
+    this.canvasWidth = rect.width;
+    this.canvasHeight = rect.height;
+
+    // Set canvas dimensions with DPR scaling
+    this.canvas.width = rect.width * dpr;
+    this.canvas.height = rect.height * dpr;
+
+    // Reset transform and scale for high DPI displays
+    this.ctx.setTransform(1, 0, 0, 1, 0, 0);
+    this.ctx.scale(dpr, dpr);
+
+    confettiLogger.debug("Canvas size updated", {
       width: rect.width,
       height: rect.height,
+      dpr: dpr,
+      canvasWidth: this.canvas.width,
+      canvasHeight: this.canvas.height
+    });
+  }
+
+  /**
+   * Update canvas size based on container and device pixel ratio
+   */
+  updateCanvasSize() {
+    const rect = this.container.getBoundingClientRect();
+    const dpr = window.devicePixelRatio || 1;
+    
+    this.canvas.width = rect.width * dpr;
+    this.canvas.height = rect.height * dpr;
+    
+    // Scale context for high DPI displays
+    this.ctx.scale(dpr, dpr);
+    
+    confettiLogger.debug("Canvas size updated", {
+      width: rect.width,
+      height: rect.height,
+      dpr: dpr,
+      canvasWidth: this.canvas.width,
+      canvasHeight: this.canvas.height
     });
   }
 
@@ -182,172 +345,718 @@ class ConfettiSystem {
    */
   setupEventListeners() {
     confettiLogger.time("Event listeners setup");
-
-    // Image container click
-    /*const imageContainer = document.querySelector(".image-container");
-    if (imageContainer) {
-      imageContainer.addEventListener("click", () => {
-        confettiLogger.debug(
-          "Image container clicked, navigating to memories"
-        );
-        window.location.href = this.mainPage;
-      });
-    }*/
-
-    // Name highlight click
-    const nameHighlight = document.querySelector(".name-highlight");
-    if (nameHighlight) {
-      nameHighlight.addEventListener("click", () => {
-        confettiLogger.debug(
-          "Name highlight clicked, navigating to memories.html"
-        );
-        window.location.href = this.mainPage;
-      });
+    
+    if (this.config.interactive) {
+      // Mouse events
+      this.canvas.addEventListener("mousemove", this.handleMouseMove);
+      this.canvas.addEventListener("mousedown", this.handleMouseDown);
+      this.canvas.addEventListener("mouseup", this.handleMouseUp);
+      this.canvas.addEventListener("mouseleave", this.handleMouseUp);
+      
+      // Touch events
+      this.canvas.addEventListener("touchstart", this.handleTouchStart, { passive: true });
+      this.canvas.addEventListener("touchmove", this.handleTouchMove, { passive: true });
+      this.canvas.addEventListener("touchend", this.handleTouchEnd, { passive: true });
+      this.canvas.addEventListener("touchcancel", this.handleTouchEnd, { passive: true });
+      
+      // Click events for name highlight
+      const nameHighlight = document.querySelector(".name-highlight");
+      if (nameHighlight) {
+        nameHighlight.addEventListener("click", (e) => {
+          e.preventDefault();
+          confettiLogger.debug("Name highlight clicked");
+          this.triggerConfetti(100, { x: e.clientX, y: e.clientY });
+        });
+      }
     }
-
+    
+    confettiLogger.debug("Event listeners setup completed", {
+      interactive: this.config.interactive,
+      followMouse: this.config.followMouse
+    });
+    
     confettiLogger.timeEnd("Event listeners setup");
+  }
+
+  /**
+   * Setup Resize Observer for better performance
+   */
+  setupResizeObserver() {
+    if ('ResizeObserver' in window) {
+      this.resizeObserver = new ResizeObserver(this.handleResize);
+      this.resizeObserver.observe(this.container);
+      confettiLogger.debug("ResizeObserver setup");
+    } else {
+      // Fallback to resize event with debounce
+      window.addEventListener("resize", this.debounce(this.handleResize, 200));
+      confettiLogger.debug("Using resize event fallback");
+    }
+  }
+
+  /**
+   * Handle resize events
+   */
+  handleResize() {
+    confettiLogger.debug("Container resized, updating canvas");
+    this.updateCanvasSize();
+  }
+
+  /**
+   * Handle mouse movement
+   */
+  handleMouseMove(e) {
+    const rect = this.canvas.getBoundingClientRect();
+    this.mouse.x = e.clientX - rect.left;
+    this.mouse.y = e.clientY - rect.top;
+    
+    // Create particles on mouse move if following
+    if (this.config.followMouse && this.mouse.isDown) {
+      this.triggerConfetti(5, { x: this.mouse.x, y: this.mouse.y });
+    }
+  }
+
+  /**
+   * Handle mouse down
+   */
+  handleMouseDown(e) {
+    this.mouse.isDown = true;
+    const rect = this.canvas.getBoundingClientRect();
+    this.mouse.x = e.clientX - rect.left;
+    this.mouse.y = e.clientY - rect.top;
+    
+    // Trigger confetti on click
+    this.triggerConfetti(30, { x: this.mouse.x, y: this.mouse.y });
+  }
+
+  /**
+   * Handle mouse up
+   */
+  handleMouseUp() {
+    this.mouse.isDown = false;
+  }
+
+  /**
+   * Handle touch start
+   */
+  handleTouchStart(e) {
+    e.preventDefault();
+    this.touch.isActive = true;
+    const touch = e.touches[0];
+    const rect = this.canvas.getBoundingClientRect();
+    this.touch.x = touch.clientX - rect.left;
+    this.touch.y = touch.clientY - rect.top;
+    
+    // Trigger confetti on touch
+    this.triggerConfetti(30, { x: this.touch.x, y: this.touch.y });
+  }
+
+  /**
+   * Handle touch move
+   */
+  handleTouchMove(e) {
+    if (!this.touch.isActive) return;
+    
+    const touch = e.touches[0];
+    const rect = this.canvas.getBoundingClientRect();
+    this.touch.x = touch.clientX - rect.left;
+    this.touch.y = touch.clientY - rect.top;
+    
+    // Create particles on touch move if following
+    if (this.config.followMouse) {
+      this.triggerConfetti(5, { x: this.touch.x, y: this.touch.y });
+    }
+  }
+
+  /**
+   * Handle touch end
+   */
+  handleTouchEnd() {
+    this.touch.isActive = false;
+  }
+
+  /**
+   * Start auto trigger
+   */
+  startAutoTrigger() {
+    if (this.autoTriggerTimer) {
+      clearInterval(this.autoTriggerTimer);
+    }
+    
+    this.autoTriggerTimer = setInterval(() => {
+      if (this.particleCount < this.config.maxParticles * 0.7) {
+        this.triggerRandomExplosion();
+      }
+    }, this.config.autoTriggerInterval);
+    
+    confettiLogger.debug("Auto trigger started", {
+      interval: this.config.autoTriggerInterval
+    });
+  }
+
+  /**
+   * Stop auto trigger
+   */
+  stopAutoTrigger() {
+    if (this.autoTriggerTimer) {
+      clearInterval(this.autoTriggerTimer);
+      this.autoTriggerTimer = null;
+      confettiLogger.debug("Auto trigger stopped");
+    }
+  }
+
+  /**
+   * Start animation loop
+   */
+  startAnimation() {
+    if (this.animationId) {
+      cancelAnimationFrame(this.animationId);
+    }
+    
+    this.lastFrameTime = performance.now();
+    this.animationId = requestAnimationFrame(this.animate);
+    confettiLogger.debug("Animation started");
+  }
+
+  /**
+   * Stop animation loop
+   */
+  stopAnimation() {
+    if (this.animationId) {
+      cancelAnimationFrame(this.animationId);
+      this.animationId = null;
+      confettiLogger.debug("Animation stopped");
+    }
+  }
+
+  /**
+   * Create a new particle with enhanced properties
+   */
+  createParticle(x, y, options = {}) {
+    if (this.particleCount >= this.config.maxParticles) {
+      confettiLogger.debug("Max particles reached, skipping creation");
+      return null;
+    }
+    
+    // Determine shape based on distribution
+    let shape = options.shape;
+    if (!shape) {
+      const rand = Math.random();
+      let cumulative = 0;
+      for (const [shapeType, probability] of Object.entries(this.config.shapeDistribution)) {
+        cumulative += probability;
+        if (rand <= cumulative) {
+          shape = shapeType;
+          break;
+        }
+      }
+    }
+    
+    const particle = {
+      id: this.performanceStats.totalParticlesCreated,
+      x: x || Math.random() * this.canvas.width,
+      y: y || -20 - Math.random() * 100,
+      size: options.size || Math.random() * 12 + 5,
+      color: options.color || this.config.colors[Math.floor(Math.random() * this.config.colors.length)],
+      speedX: options.speedX || (Math.random() - 0.5) * (this.config.explosionSpeed.max - this.config.explosionSpeed.min) + this.config.explosionSpeed.min,
+      speedY: options.speedY || Math.random() * (this.config.explosionSpeed.max - this.config.explosionSpeed.min) + this.config.explosionSpeed.min,
+      angle: options.angle || Math.random() * Math.PI * 2,
+      rotationSpeed: options.rotationSpeed || (Math.random() * (this.config.rotationSpeed.max - this.config.rotationSpeed.min) + this.config.rotationSpeed.min),
+      shape: shape,
+      opacity: options.opacity || 1,
+      gravity: options.gravity || this.config.gravity,
+      wind: options.wind || this.config.wind,
+      drag: options.drag || this.config.drag,
+      createdAt: performance.now(),
+      lifetime: options.lifetime || this.config.particleLifetime,
+      trail: options.trail || [],
+      maxTrailLength: 5,
+      isSpecial: options.isSpecial || false
+    };
+    
+    this.particles.push(particle);
+    this.particleCount++;
+    this.performanceStats.totalParticlesCreated++;
+    this.performanceStats.maxParticlesReached = Math.max(this.performanceStats.maxParticlesReached, this.particleCount);
+    
+    return particle;
   }
 
   /**
    * Trigger confetti explosion
    * @param {number} count - Number of particles
+   * @param {Object} origin - Explosion origin point
+   * @param {Object} options - Additional particle options
    */
-  triggerConfetti(count = 50) {
+  triggerConfetti(count = 50, origin = null, options = {}) {
     if (!this.isActive) {
       confettiLogger.warn("Confetti system not active, cannot trigger");
       return;
     }
-
-    confettiLogger.debug("Triggering confetti", { particleCount: count });
-    const rect = this.container.getBoundingClientRect();
-
-    for (let i = 0; i < count; i++) {
-      this.particles.push({
-        x: Math.random() * rect.width,
-        y: -20 - Math.random() * 100,
-        size: Math.random() * 12 + 5,
-        color: this.colors[Math.floor(Math.random() * this.colors.length)],
-        speed: Math.random() * 4 + 2,
-        angle: Math.random() * Math.PI * 2,
-        rotation: Math.random() * 0.2 - 0.1,
-        rotationSpeed: Math.random() * 0.02 - 0.01,
-        shape: Math.random() > 0.5 ? "circle" : "rect",
-        opacity: 1,
-        gravity: 0.1,
-      });
+    
+    if (this.particleCount + count > this.config.maxParticles) {
+      count = Math.max(0, this.config.maxParticles - this.particleCount);
+      confettiLogger.debug("Reducing particle count due to limit", { newCount: count });
     }
-
-    this.particleCount += count;
-    confettiLogger.debug("Particles added to system", {
-      totalParticles: this.particleCount,
+    
+    confettiLogger.debug("Triggering confetti", { 
+      particleCount: count,
+      origin: origin,
+      currentParticles: this.particleCount
     });
-
-    if (!this.animationId) {
-      this.animationId = requestAnimationFrame(this.animate);
-      confettiLogger.debug("Animation frame requested");
+    
+    const rect = this.container.getBoundingClientRect();
+    const baseX = origin ? origin.x : Math.random() * rect.width;
+    const baseY = origin ? origin.y : -20;
+    
+    // Create particles in batches for performance
+    const batchSize = Math.min(count, this.config.batchSize);
+    const batches = Math.ceil(count / batchSize);
+    
+    for (let batch = 0; batch < batches; batch++) {
+      const batchCount = Math.min(batchSize, count - (batch * batchSize));
+      
+      // Use setTimeout to spread creation over multiple frames
+      setTimeout(() => {
+        for (let i = 0; i < batchCount; i++) {
+          const angle = (i / batchCount) * Math.PI * 2;
+          const distance = Math.random() * 50;
+          
+          this.createParticle(
+            baseX + Math.cos(angle) * distance,
+            baseY + Math.sin(angle) * distance,
+            {
+              ...options,
+              speedX: Math.cos(angle) * (Math.random() * 4 + 2),
+              speedY: Math.sin(angle) * (Math.random() * 4 + 2),
+              angle: Math.random() * Math.PI * 2
+            }
+          );
+        }
+      }, batch * 16); // ~60fps spacing
     }
+    
+    // Ensure animation is running
+    if (!this.animationId) {
+      this.startAnimation();
+    }
+  }
+
+  /**
+   * Trigger random explosion at random position
+   */
+  triggerRandomExplosion() {
+    const rect = this.container.getBoundingClientRect();
+    const x = Math.random() * rect.width;
+    const y = Math.random() * rect.height * 0.3; // Top 30% of container
+    
+    this.triggerConfetti(
+      Math.floor(Math.random() * 30) + 20,
+      { x, y },
+      { gravity: Math.random() * 0.2 + 0.05 }
+    );
+  }
+
+  /**
+   * Create special effect (hearts, stars, etc.)
+   */
+  triggerSpecialEffect(effectType, count = 20, origin = null) {
+    const effects = {
+      hearts: {
+        shape: "heart",
+        colors: ["#FF6B6B", "#FF9E9E", "#FF5252"],
+        gravity: 0.05,
+        lifetime: 4000
+      },
+      stars: {
+        shape: "star",
+        colors: ["#FECA57", "#FFD700", "#FFEAA7"],
+        rotationSpeed: { min: -0.05, max: 0.05 },
+        lifetime: 3500
+      },
+      fireworks: {
+        colors: ["#FF6B6B", "#FF9E00", "#FECA57", "#1DD1A1"],
+        explosionSpeed: { min: 3, max: 8 },
+        gravity: 0.08,
+        lifetime: 2000
+      }
+    };
+    
+    const effect = effects[effectType];
+    if (!effect) {
+      confettiLogger.warn("Unknown effect type", { effectType });
+      return;
+    }
+    
+    this.triggerConfetti(count, origin, {
+      ...effect,
+      isSpecial: true
+    });
   }
 
   /**
    * Animation loop
    */
-  animate() {
-    if (!this.isActive || this.particleCount === 0) {
-      confettiLogger.debug("Animation stopped - no particles or inactive");
+  animate(currentTime) {
+    if (!this.isActive) {
       this.animationId = null;
       return;
     }
+    
+    // Calculate delta time
+    const deltaTime = currentTime - this.lastFrameTime;
+    
+    // Skip frame if too soon (for FPS limiting)
+    if (deltaTime < this.frameInterval) {
+      this.animationId = requestAnimationFrame(this.animate);
+      return;
+    }
+    
+    this.lastFrameTime = currentTime - (deltaTime % this.frameInterval);
+    
+    // Update performance stats
+    this.updatePerformanceStats(currentTime);
 
-    this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+     // a line that executed onece per frame to create fading trail effect
+      if (this.particleCount > 0) {
+          // Create fading trail effect when particles exist
+          this.ctx.globalCompositeOperation = "source-over";
+          this.ctx.fillStyle = this.containerBackground.replace(/[\d.]+\)$/, "0.0005)");
+          this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+      } else {
+          // Fully clear canvas when no particles remain
+          this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+      }
 
+    
+    // Update and draw particles
+    this.updateParticles(deltaTime);
+    
+    // Draw performance stats if enabled
+    if (this.config.showStats) {
+      this.drawPerformanceStats();
+    }
+    
+    // Continue animation
+    this.animationId = requestAnimationFrame(this.animate);
+  }
+
+  /**
+   * Update particles physics
+   */
+  updateParticles(deltaTime) {
+    const delta = deltaTime / 16; // Normalize to ~60fps
+    
     let particlesRemoved = 0;
+    
     for (let i = this.particles.length - 1; i >= 0; i--) {
       const p = this.particles[i];
-
-      // Update physics
-      p.y += p.speed;
-      p.speed += p.gravity;
-      p.angle += p.rotationSpeed;
-      p.opacity -= 0.005;
-
-      // Remove dead particles efficiently
-      if (p.y > this.canvas.height || p.opacity <= 0) {
+      
+      // Calculate age
+      const age = performance.now() - p.createdAt;
+      
+      // Remove old particles
+      if (age > p.lifetime || p.opacity <= 0) {
         this.particles.splice(i, 1);
         this.particleCount--;
         particlesRemoved++;
         continue;
       }
+      
+      // Update trail (for special effects)
+      if (p.isSpecial && p.trail) {
+        p.trail.push({ x: p.x, y: p.y });
+        if (p.trail.length > p.maxTrailLength) {
+          p.trail.shift();
+        }
+      }
+      
+      // Update physics
+      p.speedY += p.gravity * delta;
+      p.speedX += (p.wind - p.speedX * p.drag) * delta;
+      p.speedY -= p.speedY * p.drag * delta;
+      
+      p.x += p.speedX * delta;
+      p.y += p.speedY * delta;
+      p.angle += p.rotationSpeed * delta;
+      
+      // Apply mouse force if following
+      if (this.config.followMouse && (this.mouse.isDown || this.touch.isActive)) {
+        const target = this.mouse.isDown ? this.mouse : this.touch;
+        const dx = target.x - p.x;
+        const dy = target.y - p.y;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+        
+        if (distance < 100) {
+          const force = this.config.mouseForce * (1 - distance / 100);
+          p.speedX += (dx / distance) * force * delta;
+          p.speedY += (dy / distance) * force * delta;
+        }
+      }
+      
+      // Opacity decay based on lifetime
+      p.opacity = Math.max(0, 1 - (age / p.lifetime));
+      
+      // Boundary checking with bounce
+      if (p.x < 0 || p.x > this.canvas.width) {
+        p.speedX *= -0.8; // Bounce with energy loss
+        p.x = Math.max(0, Math.min(this.canvas.width, p.x));
+      }
+      
+      if (p.y > this.canvas.height) {
+        p.speedY *= -0.6; // Bounce with more energy loss
+        p.y = this.canvas.height;
+      }
+      
       // Draw particle
-      this.drawParticles(p);
+      this.drawParticle(p);
     }
-
-    /*if (particlesRemoved > 0) {
-      confettiLogger.debug("Particles cleaned up", {
-        removed: particlesRemoved,
-      });
-    }
-*/
-    if (this.particleCount > 0) {
-      this.animationId = requestAnimationFrame(this.animate);
-    } else {
-      confettiLogger.debug("All particles expired, stopping animation");
-      this.animationId = null;
+    
+    // Clean up if no particles
+    if (this.particleCount === 0) {
+      this.stopAnimation();
+      confettiLogger.debug("All particles expired, animation stopped");
     }
   }
 
-  drawParticles(p) {
+  /**
+   * Draw particle with enhanced visuals
+   */
+  drawParticle(p) {
     this.ctx.save();
     this.ctx.translate(p.x, p.y);
     this.ctx.rotate(p.angle);
-    this.ctx.globalAlpha = Math.max(0, p.opacity);
-    this.ctx.fillStyle = p.color;
-
-    if (p.shape === "circle") {
+    this.ctx.globalAlpha = p.opacity;
+    
+    // Draw trail for special particles
+    if (p.isSpecial && p.trail.length > 1) {
       this.ctx.beginPath();
-      this.ctx.arc(0, 0, p.size / 2, 0, Math.PI * 2);
-      this.ctx.fill();
-    } else {
-      this.ctx.fillRect(-p.size / 2, -p.size / 2, p.size, p.size);
+      this.ctx.moveTo(0, 0);
+      
+      for (let j = p.trail.length - 1; j >= 0; j--) {
+        const point = p.trail[j];
+        const trailX = point.x - p.x;
+        const trailY = point.y - p.y;
+        
+        // Rotate trail point to match particle rotation
+        const rotatedX = trailX * Math.cos(-p.angle) - trailY * Math.sin(-p.angle);
+        const rotatedY = trailX * Math.sin(-p.angle) + trailY * Math.cos(-p.angle);
+        
+        this.ctx.lineTo(rotatedX, rotatedY);
+      }
+      
+      this.ctx.strokeStyle = p.color;
+      this.ctx.lineWidth = p.size / 4;
+      this.ctx.lineCap = "round";
+      this.ctx.stroke();
     }
-
+    
+    // Draw particle shape
+    this.ctx.fillStyle = p.color;
+    
+    switch (p.shape) {
+      case "circle":
+        this.ctx.beginPath();
+        this.ctx.arc(0, 0, p.size / 2, 0, Math.PI * 2);
+        this.ctx.fill();
+        break;
+        
+      case "rect":
+        this.ctx.fillRect(-p.size / 2, -p.size / 2, p.size, p.size);
+        break;
+        
+      case "triangle":
+        this.ctx.beginPath();
+        this.ctx.moveTo(0, -p.size / 2);
+        this.ctx.lineTo(p.size / 2, p.size / 2);
+        this.ctx.lineTo(-p.size / 2, p.size / 2);
+        this.ctx.closePath();
+        this.ctx.fill();
+        break;
+        
+      case "star":
+        this.drawStar(0, 0, 5, p.size / 2, p.size / 4);
+        break;
+        
+      case "heart":
+        this.drawHeart(0, 0, p.size);
+        break;
+    }
+    
+    // Add highlight for 3D effect
+    if (p.shape === "circle" || p.shape === "rect") {
+      this.ctx.fillStyle = "rgba(255, 255, 255, 0.3)";
+      this.ctx.beginPath();
+      
+      if (p.shape === "circle") {
+        this.ctx.arc(-p.size / 4, -p.size / 4, p.size / 4, 0, Math.PI * 2);
+      } else {
+        this.ctx.fillRect(-p.size / 2 + 2, -p.size / 2 + 2, p.size / 2, p.size / 2);
+      }
+      
+      this.ctx.fill();
+    }
+    
     this.ctx.restore();
   }
 
   /**
-   * Setup resize listener with debounce
+   * Draw star shape
    */
-  setupResizeListener() {
-    confettiLogger.debug("Setting up resize listener");
-    const debouncedResize = this.debounce(() => {
-      confettiLogger.debug("Window resized, updating canvas");
-      this.setupCanvas();
-    }, 200);
-
-    window.addEventListener("resize", debouncedResize);
+  drawStar(cx, cy, spikes, outerRadius, innerRadius) {
+    let rot = Math.PI / 2 * 3;
+    let x = cx;
+    let y = cy;
+    const step = Math.PI / spikes;
+    
+    this.ctx.beginPath();
+    this.ctx.moveTo(cx, cy - outerRadius);
+    
+    for (let i = 0; i < spikes; i++) {
+      x = cx + Math.cos(rot) * outerRadius;
+      y = cy + Math.sin(rot) * outerRadius;
+      this.ctx.lineTo(x, y);
+      rot += step;
+      
+      x = cx + Math.cos(rot) * innerRadius;
+      y = cy + Math.sin(rot) * innerRadius;
+      this.ctx.lineTo(x, y);
+      rot += step;
+    }
+    
+    this.ctx.lineTo(cx, cy - outerRadius);
+    this.ctx.closePath();
+    this.ctx.fill();
   }
 
   /**
-   * Cleanup resources
+   * Draw heart shape
    */
-  destroy() {
-    confettiLogger.time("Confetti system cleanup");
-    this.isActive = false;
+  drawHeart(x, y, size) {
+    const height = size * 0.8;
+    const width = size * 0.9;
+    
+    this.ctx.beginPath();
+    this.ctx.moveTo(x, y + height / 4);
+    
+    // Top left curve
+    this.ctx.bezierCurveTo(
+      x, y,
+      x - width / 2, y,
+      x - width / 2, y + height / 4
+    );
+    
+    // Bottom left curve
+    this.ctx.bezierCurveTo(
+      x - width / 2, y + height / 2,
+      x, y + height * 0.75,
+      x, y + height
+    );
+    
+    // Bottom right curve
+    this.ctx.bezierCurveTo(
+      x, y + height * 0.75,
+      x + width / 2, y + height / 2,
+      x + width / 2, y + height / 4
+    );
+    
+    // Top right curve
+    this.ctx.bezierCurveTo(
+      x + width / 2, y,
+      x, y,
+      x, y + height / 4
+    );
+    
+    this.ctx.closePath();
+    this.ctx.fill();
+  }
 
-    if (this.animationId) {
-      cancelAnimationFrame(this.animationId);
-      this.animationId = null;
-      confettiLogger.debug("Animation frames cancelled");
+  /**
+   * Update performance statistics
+   */
+  updatePerformanceStats(currentTime) {
+    this.performanceStats.frameCount++;
+    
+    // Update FPS every second
+    if (currentTime - this.performanceStats.lastFpsUpdate >= 1000) {
+      this.performanceStats.fps = Math.round(
+        (this.performanceStats.frameCount * 1000) / (currentTime - this.performanceStats.lastFpsUpdate)
+      );
+      this.performanceStats.frameCount = 0;
+      this.performanceStats.lastFpsUpdate = currentTime;
     }
+  }
 
-    window.removeEventListener("resize", this.debounce);
+  /**
+   * Draw performance statistics
+   */
+  drawPerformanceStats() {
+    this.ctx.save();
+    this.ctx.font = "12px monospace";
+    this.ctx.fillStyle = "white";
+    this.ctx.textAlign = "left";
+    this.ctx.textBaseline = "top";
+    this.ctx.fillText(`FPS: ${this.performanceStats.fps}`, 10, 10);
+    this.ctx.fillText(`Particles: ${this.particleCount}`, 10, 30);
+    this.ctx.fillText(`Max: ${this.performanceStats.maxParticlesReached}`, 10, 50);
+    this.ctx.restore();
+  }
 
-    if (this.canvas && this.canvas.parentNode) {
-      this.canvas.parentNode.removeChild(this.canvas);
-      confettiLogger.debug("Canvas removed from DOM");
+  /**
+   * Clear all particles
+   */
+  clearParticles() {
+    this.particles = [];
+    this.particleCount = 0;
+    confettiLogger.debug("All particles cleared");
+  }
+
+  /**
+   * Reset the system
+   */
+  reset() {
+    this.clearParticles();
+    this.stopAutoTrigger();
+    this.stopAnimation();
+    this.performanceStats = {
+      fps: 0,
+      frameCount: 0,
+      lastFpsUpdate: 0,
+      maxParticlesReached: 0,
+      totalParticlesCreated: 0
+    };
+    
+    confettiLogger.debug("System reset");
+  }
+
+  /**
+   * Update configuration
+   */
+  updateConfig(newConfig) {
+    Object.assign(this.config, newConfig);
+    
+    // Restart auto trigger if changed
+    if (newConfig.autoTrigger !== undefined) {
+      if (newConfig.autoTrigger) {
+        this.startAutoTrigger();
+      } else {
+        this.stopAutoTrigger();
+      }
     }
+    
+    confettiLogger.debug("Configuration updated", { newConfig });
+  }
 
-    confettiLogger.info("Confetti system destroyed");
-    confettiLogger.timeEnd("Confetti system cleanup");
+  /**
+   * Get current system state
+   */
+  getState() {
+    return {
+      isActive: this.isActive,
+      particleCount: this.particleCount,
+      maxParticles: this.config.maxParticles,
+      performance: { ...this.performanceStats },
+      config: { ...this.config }
+    };
   }
 
   /**
@@ -363,6 +1072,52 @@ class ConfettiSystem {
       clearTimeout(timeout);
       timeout = setTimeout(later, wait);
     };
+  }
+
+  /**
+   * Cleanup resources
+   */
+  destroy() {
+    confettiLogger.time("Confetti system cleanup");
+    
+    this.isActive = false;
+    this.stopAutoTrigger();
+    this.stopAnimation();
+    
+    // Remove event listeners
+    if (this.canvas) {
+      this.canvas.removeEventListener("mousemove", this.handleMouseMove);
+      this.canvas.removeEventListener("mousedown", this.handleMouseDown);
+      this.canvas.removeEventListener("mouseup", this.handleMouseUp);
+      this.canvas.removeEventListener("mouseleave", this.handleMouseUp);
+      this.canvas.removeEventListener("touchstart", this.handleTouchStart);
+      this.canvas.removeEventListener("touchmove", this.handleTouchMove);
+      this.canvas.removeEventListener("touchend", this.handleTouchEnd);
+      this.canvas.removeEventListener("touchcancel", this.handleTouchEnd);
+    }
+    
+    // Remove resize observer
+    if (this.resizeObserver) {
+      this.resizeObserver.disconnect();
+    } else {
+      window.removeEventListener("resize", this.debounce(this.handleResize, 200));
+    }
+    
+    // Remove canvas from DOM
+    if (this.canvas && this.canvas.parentNode) {
+      this.canvas.parentNode.removeChild(this.canvas);
+    }
+    
+    // Clear arrays
+    this.particles = [];
+    this.particleCount = 0;
+    
+    confettiLogger.info("Confetti system destroyed", {
+      totalParticlesCreated: this.performanceStats.totalParticlesCreated,
+      maxParticlesReached: this.performanceStats.maxParticlesReached
+    });
+    
+    confettiLogger.timeEnd("Confetti system cleanup");
   }
 }
 
@@ -2909,6 +3664,7 @@ class ShareManager {
     });
     
     shareLogger.timeEnd("ShareManager constructor");
+    this.init();
   }
 
   /**
@@ -3895,7 +4651,9 @@ class GraduationApp {
           this.elements.imagePlaceholder
         ),
         scrollAnimator: this.createModuleWithFallback(ScrollAnimator),
-        shareManager: this.createModuleWithFallback(ShareManager),
+        shareManager: this.createModuleWithFallback(ShareManager,{shareText: "Check out these graduation wishes!",
+          enableAnalytics: true
+        }),
       };
       if (this.modules.imageLoader && !this.modules.imageLoader.navigationController) {
       this.modules.imageLoader.navigationController = new ImageNavigationController(this.modules.imageLoader);
