@@ -1270,6 +1270,49 @@ left: -90px;
 animation: orbitReverse 15s linear infinite;
 }
 
+.share-btn:hover::before {
+  opacity: 1;
+  transform: scale(1.2);
+  animation: shimmer 1.5s linear infinite;
+}
+  
+  @keyframes fadeOut {
+    from {
+      opacity: 1;
+      transform: translateY(0);
+    }
+    to {
+      opacity: 0;
+      transform: translateY(-10px);
+    }
+  }
+  
+  .share-active {
+    position: relative;
+    z-index: 1;
+  }
+  
+  .share-success {
+    background-color: #4CAF50 !important;
+    color: white !important;
+  }
+  
+  .share-error {
+    background-color: #F44336 !important;
+    color: white !important;
+    animation: shake 0.5s ease;
+  }
+  
+  .share-touch-active {
+    opacity: 0.8;
+  }
+  
+  @keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    25% { transform: translateX(-5px); }
+    75% { transform: translateX(5px); }
+  }
+
 /* ===== Animations ===== */
 @keyframes float {
   0%,

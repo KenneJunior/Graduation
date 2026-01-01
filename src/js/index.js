@@ -244,7 +244,10 @@ class ConfettiSystem {
         left: "0",
         width: "100%",
         height: "100%",
-        pointerEvents: this.config.interactive ? "auto" : "none",
+        // Make the canvas visually present but not intercept pointer events.
+        // Input handling is moved to the container so interactive elements
+        // (links, buttons, inputs) underneath stay usable.
+        pointerEvents: "none",
         zIndex: "1000",
         userSelect: "none",
         touchAction: "none"
@@ -302,11 +305,14 @@ class ConfettiSystem {
     this.canvasHeight = rect.height;
 
     // Set canvas dimensions with DPR scaling
-    this.canvas.width = rect.width * dpr;
-    this.canvas.height = rect.height * dpr;
+    this.canvas.width = this.canvasWidth * dpr;
+    this.canvas.height = this.canvasHeight * dpr;
+
+    this.canvas.style.width = `${this.canvasWidth}px`;
+    this.canvas.style.height = `${this.canvasHeight}px`;
 
     // Reset transform and scale for high DPI displays
-    this.ctx.setTransform(1, 0, 0, 1, 0, 0);
+    this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     this.ctx.scale(dpr, dpr);
 
     confettiLogger.debug("Canvas size updated", {
@@ -347,23 +353,35 @@ class ConfettiSystem {
     confettiLogger.time("Event listeners setup");
     
     if (this.config.interactive) {
+      // Bind interactions on the container instead of the canvas so the canvas
+      // doesn't block clicks on interactive elements that live above it.
       // Mouse events
-      this.canvas.addEventListener("mousemove", this.handleMouseMove);
-      this.canvas.addEventListener("mousedown", this.handleMouseDown);
-      this.canvas.addEventListener("mouseup", this.handleMouseUp);
-      this.canvas.addEventListener("mouseleave", this.handleMouseUp);
-      
+      this.container.addEventListener("mousemove", this.handleMouseMove);
+      this.container.addEventListener("mousedown", this.handleMouseDown);
+      this.container.addEventListener("mouseup", this.handleMouseUp);
+      this.container.addEventListener("mouseleave", this.handleMouseUp);
+
       // Touch events
-      this.canvas.addEventListener("touchstart", this.handleTouchStart, { passive: true });
-      this.canvas.addEventListener("touchmove", this.handleTouchMove, { passive: true });
-      this.canvas.addEventListener("touchend", this.handleTouchEnd, { passive: true });
-      this.canvas.addEventListener("touchcancel", this.handleTouchEnd, { passive: true });
+      // touchstart is non-passive so we can prevent default only when interacting
+      // with non-interactive areas (confetti), while still allowing scrolling
+      // when the user touches interactive UI.
+      this.container.addEventListener("touchstart", this.handleTouchStart, { passive: false });
+      this.container.addEventListener("touchmove", this.handleTouchMove, { passive: true });
+      this.container.addEventListener("touchend", this.handleTouchEnd, { passive: true });
+      this.container.addEventListener("touchcancel", this.handleTouchEnd, { passive: true });
       
       // Click events for name highlight
       const nameHighlight = document.querySelector(".name-highlight");
       if (nameHighlight) {
         nameHighlight.addEventListener("click", (e) => {
-          e.preventDefault();
+          // If the nameHighlight contains a link or button, let the normal
+          // interaction occur; otherwise trigger confetti.
+          const target = e.target;
+          if (target.closest("a, button")) {
+            confettiLogger.debug("Click event on link or button inside name highlight, skipping confetti");
+            return;
+          }
+          // Allow the click to proceed normally (no preventDefault) and trigger confetti
           confettiLogger.debug("Name highlight clicked");
           this.triggerConfetti(100, { x: e.clientX, y: e.clientY });
         });
@@ -416,15 +434,43 @@ class ConfettiSystem {
   }
 
   /**
+   * Heuristic to determine whether an element is interactive/clickable.
+   */
+  isInteractiveElement(el) {
+    if (!el || el === document.body || el === document.documentElement || el === this.container) return false;
+    try {
+      if (el.closest && el.closest("a, button, input, textarea, select, label, [role=button], [role=link], [data-action], .btn, .clickable")) return true;
+      if (el.hasAttribute && (el.hasAttribute("onclick") || el.hasAttribute("href") || el.hasAttribute("role"))) return true;
+      // Elements with a tabbable index are often interactive
+      if (typeof el.tabIndex === "number" && el.tabIndex >= 0) return true;
+    } catch (err) {
+      // Defensive: if any error occurs, assume not interactive
+    }
+    return false;
+  }
+
+  /**
    * Handle mouse down
    */
   handleMouseDown(e) {
+    // Determine what element was clicked and skip confetti if it's interactive
+    const underlying = document.elementFromPoint(e.clientX, e.clientY);
+    const isInteractive = this.isInteractiveElement(underlying) || this.isInteractiveElement(e.target);
+    confettiLogger.debug("Mouse down detected", { x: e.clientX, y: e.clientY, target: underlying && underlying.tagName, targetElement: e.target && e.target.tagName, isInteractive });
+    if (isInteractive) {
+      confettiLogger.debug("Mouse down on interactive element, skipping confetti");
+      // Record last interaction for debugging
+      this.lastInteraction = { type: "mouse", target: (underlying && underlying.tagName) || (e.target && e.target.tagName), interactive: true };
+      return;
+    }
+
     this.mouse.isDown = true;
     const rect = this.canvas.getBoundingClientRect();
     this.mouse.x = e.clientX - rect.left;
     this.mouse.y = e.clientY - rect.top;
-    
-    // Trigger confetti on click
+
+    // Record last interaction and trigger confetti on click
+    this.lastInteraction = { type: "mouse", target: underlying && underlying.tagName, interactive: false, x: this.mouse.x, y: this.mouse.y };
     this.triggerConfetti(30, { x: this.mouse.x, y: this.mouse.y });
   }
 
@@ -439,14 +485,28 @@ class ConfettiSystem {
    * Handle touch start
    */
   handleTouchStart(e) {
-    e.preventDefault();
-    this.touch.isActive = true;
+    // For touch we only prevent default if the touch starts on the canvas area
+    // and not on an interactive element behind it (links/buttons/etc.)
     const touch = e.touches[0];
+    const underlying = document.elementFromPoint(touch.clientX, touch.clientY);
+    const isInteractive = this.isInteractiveElement(underlying) || this.isInteractiveElement(e.target);
+    confettiLogger.debug("Touch start detected", { x: touch.clientX, y: touch.clientY, target: underlying && underlying.tagName, targetElement: e.target && e.target.tagName, isInteractive });
+    if (isInteractive) {
+      confettiLogger.debug("Touch start on interactive element, skipping confetti");
+      this.lastInteraction = { type: "touch", target: (underlying && underlying.tagName) || (e.target && e.target.tagName), interactive: true };
+      return;
+    }
+
+    // Prevent the default scroll/gesture behavior when interacting with confetti
+    if (e.cancelable) e.preventDefault();
+
+    this.touch.isActive = true;
     const rect = this.canvas.getBoundingClientRect();
     this.touch.x = touch.clientX - rect.left;
     this.touch.y = touch.clientY - rect.top;
-    
-    // Trigger confetti on touch
+
+    // Record last interaction and trigger confetti on touch
+    this.lastInteraction = { type: "touch", target: underlying && underlying.tagName, interactive: false, x: this.touch.x, y: this.touch.y };
     this.triggerConfetti(30, { x: this.touch.x, y: this.touch.y });
   }
 
@@ -592,6 +652,15 @@ class ConfettiSystem {
       confettiLogger.warn("Confetti system not active, cannot trigger");
       return;
     }
+
+    // Debugging: log when confetti is triggered and recent interaction context
+    const stack = new Error().stack ? new Error().stack.split("\n").slice(1, 6) : [];
+    confettiLogger.debug("triggerConfetti invoked", {
+      count,
+      origin,
+      lastInteraction: this.lastInteraction,
+      stack
+    });
     
     if (this.particleCount + count > this.config.maxParticles) {
       count = Math.max(0, this.config.maxParticles - this.particleCount);
@@ -723,7 +792,6 @@ class ConfettiSystem {
           this.ctx.fillStyle = this.containerBackground.replace(/[\d.]+\)$/, "0.0005)");
           this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
       } else {
-          // Fully clear canvas when no particles remain
           this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
       }
 
@@ -4356,62 +4424,6 @@ class ShareManager {
   }
 }
 
-// Add CSS for share messages animation
-const shareStyles = document.createElement('style');
-shareStyles.textContent = `
-  @keyframes fadeInUp {
-    from {
-      opacity: 0;
-      transform: translateY(10px);
-    }
-    to {
-      opacity: 1;
-      transform: translateY(0);
-    }
-  }
-  
-  @keyframes fadeOut {
-    from {
-      opacity: 1;
-      transform: translateY(0);
-    }
-    to {
-      opacity: 0;
-      transform: translateY(-10px);
-    }
-  }
-  
-  .share-active {
-    position: relative;
-    z-index: 1;
-  }
-  
-  .share-success {
-    background-color: #4CAF50 !important;
-    color: white !important;
-  }
-  
-  .share-error {
-    background-color: #F44336 !important;
-    color: white !important;
-    animation: shake 0.5s ease;
-  }
-  
-  .share-touch-active {
-    opacity: 0.8;
-  }
-  
-  @keyframes shake {
-    0%, 100% { transform: translateX(0); }
-    25% { transform: translateX(-5px); }
-    75% { transform: translateX(5px); }
-  }
-`;
-
-// Add styles to document
-if (document.head) {
-  document.head.appendChild(shareStyles);
-}
 
 /**
  * PERFORMANCE MONITOR - Monitors and logs performance metrics
