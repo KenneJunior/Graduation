@@ -1,54 +1,171 @@
-document.addEventListener("DOMContentLoaded", () => {
-  const interBubble = document.querySelector(".interactive");
-  const card = document.getElementById("proposalCard");
-  const cursor_follower = document.querySelector(".cursor-follower");
-  const nopeBtn = document.getElementById("nope-btn");
-  const yesBtn = document.getElementById("yes-btn");
-  const maybeBtn = document.getElementById("maybe-btn");
+document.addEventListener('DOMContentLoaded', () => {
+    // Configuration
+    const config = {
+        smoothing: 0.05,
+        movementThreshold: 0.5,
+        resizeDebounce: 250
+    };
 
-  let curX = 0;
-  let curY = 0;
-  let tgX = 0;
-  let tgY = 0;
+    // State management
+    const state = {
+        curX: 0,
+        curY: 0,
+        tgX: 0,
+        tgY: 0,
+        isMoving: false,
+        windowWidth: window.innerWidth,
+        windowHeight: window.innerHeight,
+        resizeTimeout: null
+    };
 
-  const move = () => {
-    curX += (tgX - curX) / 20;
-    curY += (tgY - curY) / 20;
-    interBubble.style.transform = `translate(${Math.round(
-      curX
-    )}px, ${Math.round(curY)}px)`;
-    requestAnimationFrame(move);
-  };
+    // Cache DOM elements
+    const elements = {
+        interBubble: document.querySelector('.interactive'),
+        gradientContainer: document.querySelector('.gradients-container'),
+        card: document.querySelector('.card'),
+        LogOutBtn: document.querySelector('#LogoutBtn')
+    };
 
-  window.addEventListener("mousemove", (event) => {
-    tgX = event.clientX;
-    tgY = event.clientY;
+    // Check if required elements exist
+    if (!elements.interBubble) {
+        console.error('Interactive element not found');
+        return;
+    }
 
-    const hue = Math.round((tgX / window.innerWidth) * 360);
-    interBubble.style.background = `radial-gradient(circle, hsla(${hue}, 80%, 65%, 0.8) 0%, hsla(${hue}, 80%, 65%, 0) 60%)`;
-    cursor_follower.style.transform = `translate(${event.clientX}px, ${event.clientY}px)`;
-    const xTilt = (event.clientX / window.innerWidth - 0.5) * 20;
-    const yTilt = (event.clientY / window.innerHeight - 0.5) * 20;
-  });
-  const responses = {
-    yes: "Yes!! I’d love to 💕 You’ve been on my mind too, and honestly this just made my day. When and where are we going? 👀✨",
-    maybe:
-      "Hmm… I don’t know just yet 🙈. I really value what we have, and I need a little time to think. But the fact you asked me this way already means a lot. 💖",
-    no: "I really appreciate you being this open with me 🥹. You’re amazing, and I don’t want to hurt you — but I don’t see us that way. I hope this doesn’t change the bond we already share. 🤍",
-  };
+    // Initialize animation
+    const initAnimation = () => {
+        // Set initial position to center
+        state.tgX = state.windowWidth / 2;
+        state.tgY = state.windowHeight / 2;
+        state.curX = state.tgX;
+        state.curY = state.tgY;
 
-  const phoneNumber = "237670852835";
-  function sendToWhatsApp(message) {
-    const url = `https://wa.me/${phoneNumber}?text=${encodeURIComponent(
-      message
-    )}`;
-    window.open(url, "_blank"); // opens WhatsApp in new tab/app
-  }
+        updateBubblePosition();
+        requestAnimationFrame(animate);
+    };
 
-  // Bind events
-  yesBtn.addEventListener("click", () => sendToWhatsApp(responses.yes));
-  maybeBtn.addEventListener("click", () => sendToWhatsApp(responses.maybe));
-  nopeBtn.addEventListener("click", () => sendToWhatsApp(responses.no));
+    // Main animation loop
+    const animate = () => {
+        const dx = state.tgX - state.curX;
+        const dy = state.tgY - state.curY;
 
-  move();
+        // Check if movement is significant
+        const distance = Math.sqrt(dx * dx + dy * dy);
+        state.isMoving = distance > config.movementThreshold;
+
+        // Apply smooth movement
+        state.curX += dx * config.smoothing;
+        state.curY += dy * config.smoothing;
+
+        updateBubblePosition();
+
+        // Apply movement class based on state
+        document.body.classList.toggle('is-moving', state.isMoving);
+
+        requestAnimationFrame(animate);
+    };
+
+    // Update bubble position
+    const updateBubblePosition = () => {
+        elements.interBubble.style.transform = `translate(${Math.round(state.curX)}px, ${Math.round(state.curY)}px)`;
+    };
+
+    // Handle mouse movement
+    const handleMouseMove = (event) => {
+        state.tgX = event.clientX;
+        state.tgY = event.clientY;
+    };
+
+    // Handle touch movement
+    const handleTouchMove = (event) => {
+        event.preventDefault();
+        if (event.touches.length > 0) {
+            state.tgX = event.touches[0].clientX;
+            state.tgY = event.touches[0].clientY;
+        }
+    };
+
+    // Handle window resize
+    const handleResize = () => {
+        clearTimeout(state.resizeTimeout);
+        state.resizeTimeout = setTimeout(() => {
+            state.windowWidth = window.innerWidth;
+            state.windowHeight = window.innerHeight;
+
+            // Adjust position if needed after resize
+            if (state.tgX > state.windowWidth) state.tgX = state.windowWidth;
+            if (state.tgY > state.windowHeight) state.tgY = state.windowHeight;
+        }, config.resizeDebounce);
+    };
+
+    // Handle visibility change
+    const handleVisibilityChange = () => {
+        if (document.hidden) {
+            // Pause animation when tab is not visible
+            cancelAnimationFrame(animate);
+        } else {
+            // Resume animation when tab is visible
+            requestAnimationFrame(animate);
+        }
+    };
+
+    // Add event listeners with options
+    const addEventListeners = () => {
+        window.addEventListener('mousemove', handleMouseMove, { passive: true });
+        window.addEventListener('touchmove', handleTouchMove, { passive: false });
+        window.addEventListener('resize', handleResize, { passive: true });
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+        elements.LogOutBtn.addEventListener('click',handleLogout);
+
+        // Detect initial mouse movement
+        const initialMoveHandler = () => {
+            document.body.classList.add('has-mouse-movement');
+            window.removeEventListener('mousemove', initialMoveHandler);
+        };
+        window.addEventListener('mousemove', initialMoveHandler);
+    };
+
+    const handleLogout = ()=>{
+      localStorage.removeItem("last_visited");
+      window.location.href = 'login.html'
+    }
+
+    // Remove event listeners (for cleanup)
+    const removeEventListeners = () => {
+        window.removeEventListener('mousemove', handleMouseMove);
+        window.removeEventListener('touchmove', handleTouchMove);
+        window.removeEventListener('resize', handleResize);
+        document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+
+    // Initialize everything
+    const init = () => {
+        addEventListeners();
+        initAnimation();
+        // Add loaded class to body for CSS transitions
+        setTimeout(() => {
+            document.body.classList.add('loaded');
+        }, 1000);
+    };
+
+    // Clean up function
+    const destroy = () => {
+        removeEventListeners();
+        cancelAnimationFrame(animate);
+    };
+
+    // Expose public methods (useful if you need to control this from other scripts)
+    window.interactiveBackground = {
+        init,
+        destroy,
+        updateConfig: (newConfig) => {
+            Object.assign(config, newConfig);
+        }
+    };
+
+    // Initialize
+    init();
+
+    // Clean up if needed when page is unloading
+    window.addEventListener('beforeunload', destroy);
 });

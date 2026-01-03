@@ -7,6 +7,12 @@
   </head>
   <link rel="stylesheet" href="/src/css/logout.css" />
   <link rel="stylesheet" href="/src/css/loading.css" />
+  <link
+    rel="stylesheet"
+    href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css"
+    crossorigin="anonymous"
+    referrerpolicy="no-referrer"
+  />
 
   <script type="application/ld+json">
     {
@@ -81,94 +87,32 @@
           <div class="content">
             <header class="content-header">
               <h1 id="greeting-heading" class="greeting-title">
-                <span class="title-word">God's logoutur</span>
+                <span class="title-word">Thank You for Using this Graduation site</span>
                 <span class="title-punctuation">!</span>
               </h1>
               <div class="decoration-line" aria-hidden="true"></div>
             </header>
             <div class="message-content" id="proposalCard">
               <p class="message-text">
-                you’ve been on my mind way more than I ever planned.<br />
-                🥺 I kept telling myself to chill, but my heart didn’t get the
-                memo. <br />
-                What I really want… is to take you out, spend time with you, and
-                make memories that are just ours. <br />
-                would you give me the honor of a real date with you? 💕
+                I hope you had a great experience exploring the features and
+                functionalities of this site. If you have any feedback or
+                suggestions, feel free to share them. Wishing you all the best<br/>
+                in your future endeavors!
               </p>
             </div>
 
             <footer class="content-footer">
-              <div class="interaction-buttons">
+              <div class="interaction-buttons" >
                 <button
                   class="cta-button primary"
-                  id="yes-btn"
+                  id="LogoutBtn"
                   aria-label="Continue to next experience"
+                  title="Logout"
                 >
-                  <span class="button-text">Im happy to </span>
+                  <span class="button-text"></span>
                   <span class="button-icon" aria-hidden="true">
-                    <svg
-                      width="20"
-                      height="20"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      xmlns="http://www.w3.org/2000/svg"
-                    >
-                      <path
-                        d="M5 12H19M19 12L12 5M19 12L12 19"
-                        stroke="currentColor"
-                        stroke-width="2"
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                      />
-                    </svg>
-                  </span>
-                </button>
-                <button
-                  class="cta-button primary"
-                  id="maybe-btn"
-                  aria-label="Continue to next experience"
-                >
-                  <span class="button-text">i will think about it</span>
-                  <span class="button-icon" aria-hidden="true">
-                    <svg
-                      width="20"
-                      height="20"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      xmlns="http://www.w3.org/2000/svg"
-                    >
-                      <path
-                        d="M5 12H19M19 12L12 5M19 12L12 19"
-                        stroke="currentColor"
-                        stroke-width="2"
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                      />
-                    </svg>
-                  </span>
-                </button>
-                <button
-                  class="cta-button primary"
-                  id="nope-btn"
-                  aria-label="Continue to next experience"
-                >
-                  <span class="button-text">No But thanks </span>
-                  <span class="button-icon" aria-hidden="true">
-                    <svg
-                      width="20"
-                      height="20"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      xmlns="http://www.w3.org/2000/svg"
-                    >
-                      <path
-                        d="M5 12H19M19 12L12 5M19 12L12 19"
-                        stroke="currentColor"
-                        stroke-width="2"
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                      />
-                    </svg>
+                    <!-- use a logout icon here -->
+                    <i class="fas fa-sign-out-alt fa-2x"></i>
                   </span>
                 </button>
               </div>
@@ -244,22 +188,17 @@
   import { getAuthManager } from "/src/auth-check.js";
 
   async function initializeProtectedPage() {
+    const authManager = await getAuthManager();
     try {
-      const authManager = await getAuthManager();
       authManager.showLoading();
+      // wait after 3 seconds to simulate loading
+      await new Promise((resolve) => setTimeout(resolve, 3000));
+      authManager.hideLoading()
 
-      const authResult = await authManager.setupAuthProtection();
-      
-      if (authResult.authenticated) {
-        // Hide loading with smooth transition
-        authManager.hideLoading()
-      
-      }
     } catch (error) {
-      const authManager = await getAuthManager();
       authManager.hideLoading();
       logger.error("Authentication failed:", error);
-      window.location.href = "/login.html";
+     // window.location.href = "/login.html";
     }
   }
   if (document.readyState === "loading") {

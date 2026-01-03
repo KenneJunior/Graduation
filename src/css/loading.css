@@ -293,6 +293,495 @@
   mask: radial-gradient(transparent 30%, black 31%);
 }
 
+/* ============================================
+   DROPDOWN MANAGER - ENHANCED CSS STYLES
+   ============================================ */
+
+/* Floating Dropdown Container */
+.floating-dropdown {
+  position: fixed;
+  z-index: 1000;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+}
+
+/* Floating Button */
+.floating-dropdown-btn {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--primary-color, #667eea) 0%, var(--secondary-color, #764ba2) 100%);
+  border: none;
+  color: white;
+  font-size: 20px;
+  cursor: pointer;
+  box-shadow: 0 4px 20px rgba(var(--primary-rgb, 102, 126, 234), 0.4);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  overflow: hidden;
+  outline: none;
+}
+
+.floating-dropdown-btn:hover {
+  transform: scale(1.1) rotate(5deg);
+  box-shadow: 0 8px 25px rgba(var(--primary-rgb, 102, 126, 234), 0.6);
+}
+
+.floating-dropdown-btn:active {
+  transform: scale(0.95);
+  transition: transform 0.1s ease;
+}
+
+.floating-dropdown-btn:focus-visible {
+  outline: 3px solid rgba(var(--primary-rgb, 102, 126, 234), 0.5);
+  outline-offset: 4px;
+}
+
+.floating-dropdown-btn .dropdown-btn-icon {
+  transition: transform 0.3s ease;
+}
+
+.floating-dropdown-btn[aria-expanded="true"] .dropdown-btn-icon {
+  transform: rotate(90deg);
+}
+
+/* Dropdown Menu */
+.dropdown-menu {
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 0;
+  background: var(--dropdown-bg, white);
+  border-radius: 16px;
+  box-shadow: 
+    0 10px 40px rgba(0, 0, 0, 0.1),
+    0 0 0 1px rgba(0, 0, 0, 0.05);
+  min-width: 240px;
+  max-width: 320px;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(-20px) scale(0.95);
+  transform-origin: top right;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  z-index: 1001;
+  overflow: hidden;
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.dropdown-menu.show {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0) scale(1);
+  animation: dropdownBounce 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+}
+
+/* Dropdown Items */
+.dropdown-item {
+  padding: 16px 20px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  transition: all 0.2s ease;
+  border-bottom: 1px solid var(--dropdown-divider, rgba(0, 0, 0, 0.08));
+  color: var(--dropdown-text, #333);
+  text-decoration: none;
+  background: none;
+  border: none;
+  width: 100%;
+  text-align: left;
+  font-size: 15px;
+  font-weight: 500;
+  position: relative;
+  overflow: hidden;
+  outline: none;
+}
+
+.dropdown-item:last-child {
+  border-bottom: none;
+}
+
+.dropdown-item:hover {
+  background-color: var(--dropdown-hover, rgba(0, 0, 0, 0.04));
+  transform: translateX(4px);
+}
+
+.dropdown-item:focus-visible {
+  background-color: var(--dropdown-focus, rgba(0, 0, 0, 0.06));
+  outline: 2px solid var(--primary-color, #667eea);
+  outline-offset: -2px;
+}
+
+.dropdown-item:active {
+  background-color: var(--dropdown-active, rgba(0, 0, 0, 0.08));
+  transform: translateX(2px) scale(0.98);
+}
+
+.dropdown-item-icon {
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  color: var(--dropdown-icon, #666);
+  transition: transform 0.3s ease;
+}
+
+.dropdown-item:hover .dropdown-item-icon {
+  transform: scale(1.2) rotate(5deg);
+  color: var(--primary-color, #667eea);
+}
+
+.dropdown-item-label {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dropdown-item-shortcut {
+  font-size: 12px;
+  color: var(--dropdown-shortcut, #999);
+  background: var(--dropdown-shortcut-bg, rgba(0, 0, 0, 0.05));
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+}
+
+/* Special Item Styles */
+.dropdown-item.logout {
+  color: var(--logout-color, #e74c3c);
+  font-weight: 600;
+}
+
+.dropdown-item.logout:hover {
+  background-color: var(--logout-hover, rgba(231, 76, 60, 0.1));
+  color: var(--logout-hover-color, #c0392b);
+}
+
+.dropdown-item.logout .dropdown-item-icon {
+  color: inherit;
+}
+
+.dropdown-item.theme-toggle {
+  color: var(--theme-toggle-color, #f39c12);
+}
+
+.dropdown-item.theme-toggle:hover {
+  background-color: var(--theme-toggle-hover, rgba(243, 156, 18, 0.1));
+}
+
+.dropdown-item.theme-toggle .dropdown-item-icon {
+  transition: transform 0.5s ease;
+}
+
+.dropdown-item.theme-toggle:hover .dropdown-item-icon {
+  transform: rotate(180deg);
+}
+
+/* Dropdown Divider */
+.dropdown-divider {
+  height: 1px;
+  background: var(--dropdown-divider, rgba(0, 0, 0, 0.08));
+  margin: 8px 0;
+  position: relative;
+  overflow: hidden;
+}
+
+.dropdown-divider::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, 
+    transparent, 
+    var(--primary-color, #667eea), 
+    transparent
+  );
+  animation: shimmer 2s infinite;
+}
+
+/* Dropdown Backdrop */
+.dropdown-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: var(--backdrop-bg, rgba(0, 0, 0, 0.4));
+  z-index: 999;
+  opacity: 0;
+  visibility: hidden;
+  transition: all 0.3s ease;
+  backdrop-filter: blur(3px);
+  -webkit-backdrop-filter: blur(3px);
+}
+
+.dropdown-backdrop.show {
+  opacity: 1;
+  visibility: visible;
+}
+
+/* Toast Notifications */
+.dropdown-toast {
+  position: fixed;
+  bottom: 100px;
+  right: 20px;
+  background: var(--toast-bg, #2196F3);
+  color: white;
+  padding: 16px 24px;
+  border-radius: 12px;
+  z-index: 10001;
+  animation: toastSlideIn 0.3s ease;
+  max-width: 320px;
+  box-shadow: 
+    0 8px 32px rgba(0, 0, 0, 0.1),
+    0 0 0 1px rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  font-weight: 500;
+}
+
+.dropdown-toast::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: linear-gradient(90deg, 
+    var(--toast-progress-start, rgba(255, 255, 255, 0.3)), 
+    var(--toast-progress-end, rgba(255, 255, 255, 0.1))
+  );
+  animation: toastProgress 3s linear forwards;
+}
+
+.dropdown-toast-success {
+  background: linear-gradient(135deg, var(--success-color, #4CAF50), #45a049);
+  --toast-progress-start: rgba(255, 255, 255, 0.4);
+  --toast-progress-end: rgba(255, 255, 255, 0.2);
+}
+
+.dropdown-toast-error {
+  background: linear-gradient(135deg, var(--error-color, #F44336), #e53935);
+  --toast-progress-start: rgba(255, 255, 255, 0.4);
+  --toast-progress-end: rgba(255, 255, 255, 0.2);
+}
+
+.dropdown-toast-warning {
+  background: linear-gradient(135deg, var(--warning-color, #FF9800), #f57c00);
+  --toast-progress-start: rgba(255, 255, 255, 0.4);
+  --toast-progress-end: rgba(255, 255, 255, 0.2);
+}
+
+.dropdown-toast-info {
+  background: linear-gradient(135deg, var(--info-color, #2196F3), #1976D2);
+  --toast-progress-start: rgba(255, 255, 255, 0.4);
+  --toast-progress-end: rgba(255, 255, 255, 0.2);
+}
+
+/* Animations */
+@keyframes dropdownBounce {
+  0% {
+    transform: translateY(-20px) scale(0.95);
+    opacity: 0;
+  }
+  70% {
+    transform: translateY(5px) scale(1.02);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(0) scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    left: -100%;
+  }
+  100% {
+    left: 100%;
+  }
+}
+
+@keyframes toastSlideIn {
+  from {
+    transform: translateX(100%) translateY(20px);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0) translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes toastSlideOut {
+  from {
+    transform: translateX(0) translateY(0);
+    opacity: 1;
+  }
+  to {
+    transform: translateX(100%) translateY(20px);
+    opacity: 0;
+  }
+}
+
+@keyframes toastProgress {
+  from {
+    width: 100%;
+  }
+  to {
+    width: 0%;
+  }
+}
+
+@keyframes pulse {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.05);
+    opacity: 0.8;
+  }
+}
+
+/* Mobile Optimizations */
+@media (max-width: 768px) {
+  .floating-dropdown {
+    bottom: env(safe-area-inset-bottom, 20px) !important;
+    right: env(safe-area-inset-right, 20px) !important;
+  }
+  
+  .floating-dropdown-btn {
+    width: 64px;
+    height: 64px;
+    font-size: 24px;
+  }
+  
+  .dropdown-menu {
+    position: fixed;
+    top: auto;
+    bottom: calc(100% + 20px);
+    right: 20px;
+    left: 20px;
+    width: calc(100vw - 40px);
+    max-width: none;
+    transform-origin: bottom right;
+  }
+  
+  .dropdown-menu.show {
+    animation: mobileDropdownBounce 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+  }
+  
+  .dropdown-backdrop {
+    background: var(--mobile-backdrop, rgba(0, 0, 0, 0.6));
+  }
+  
+  .dropdown-toast {
+    left: 20px;
+    right: 20px;
+    max-width: none;
+  }
+}
+
+@keyframes mobileDropdownBounce {
+  0% {
+    transform: translateY(20px) scale(0.95);
+    opacity: 0;
+  }
+  70% {
+    transform: translateY(-5px) scale(1.02);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(0) scale(1);
+    opacity: 1;
+  }
+}
+
+/* Dark Mode Variables */
+[data-theme="dark"] {
+  --dropdown-bg: rgba(30, 30, 40, 0.95);
+  --dropdown-text: #e0e0e0;
+  --dropdown-hover: rgba(255, 255, 255, 0.08);
+  --dropdown-focus: rgba(255, 255, 255, 0.12);
+  --dropdown-active: rgba(255, 255, 255, 0.16);
+  --dropdown-divider: rgba(255, 255, 255, 0.12);
+  --dropdown-icon: #aaa;
+  --dropdown-shortcut: #888;
+  --dropdown-shortcut-bg: rgba(255, 255, 255, 0.08);
+  --logout-color: #ff6b6b;
+  --logout-hover: rgba(255, 107, 107, 0.15);
+  --logout-hover-color: #ff5252;
+  --theme-toggle-color: #ffd166;
+  --theme-toggle-hover: rgba(255, 209, 102, 0.15);
+  --backdrop-bg: rgba(0, 0, 0, 0.6);
+  --mobile-backdrop: rgba(0, 0, 0, 0.7);
+  --toast-bg: rgba(40, 40, 50, 0.9);
+}
+
+/* Reduced Motion */
+@media (prefers-reduced-motion: reduce) {
+  .floating-dropdown-btn,
+  .dropdown-menu,
+  .dropdown-item,
+  .dropdown-backdrop,
+  .dropdown-toast {
+    transition: none !important;
+    animation: none !important;
+  }
+  
+  .dropdown-menu.show {
+    animation: none;
+  }
+}
+
+/* High Contrast Mode */
+@media (prefers-contrast: high) {
+  .floating-dropdown-btn {
+    border: 2px solid currentColor;
+  }
+  
+  .dropdown-menu {
+    border: 2px solid currentColor;
+  }
+  
+  .dropdown-item {
+    border-bottom: 2px solid currentColor;
+  }
+  
+  .dropdown-divider {
+    height: 2px;
+    background: currentColor;
+  }
+}
+
+/* Touch Device Optimizations */
+@media (hover: none) and (pointer: coarse) {
+  .dropdown-item:hover {
+    transform: none;
+  }
+  
+  .floating-dropdown-btn:hover {
+    transform: none;
+  }
+  
+  .dropdown-item {
+    padding: 20px 24px;
+    min-height: 60px;
+  }
+}
+
+
 /* ===== ADVANCED ANIMATIONS ===== */
 @keyframes spin-pulse {
   0%, 100% { 

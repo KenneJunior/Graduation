@@ -8,7 +8,7 @@ export class ThemeManager {
     // Default config
     this.config = Object.freeze({
       defaultTheme: "light",
-      storageKey: "theme",
+      storageKey: "myapp-theme",
       selector: "body",
       buttonSelector: "#mode-toggle",
       iconSelector: ".mode-icon",
@@ -61,6 +61,14 @@ export class ThemeManager {
     modeLogger.debug("ThemeManager initialized with theme:", this.currentTheme);
   }
 
+  getSystemTheme() {
+    const prefersDark = window.matchMedia(
+      "(prefers-color-scheme: dark)"
+    ).matches;
+    this.updateButton(prefersDark ? "dark" : "light");
+    return prefersDark ? "dark" : "light";
+  }
+
   // Load theme from localStorage or default/system
   loadTheme() {
     let theme = localStorage.getItem(this.config.storageKey);
@@ -88,9 +96,13 @@ export class ThemeManager {
       return;
     }
 
+    //this.element ? '' : this.init(); // Ensure element is initialized
     this.element.setAttribute("data-theme", theme);
     localStorage.setItem(this.config.storageKey, theme);
     this.currentTheme = theme;
+
+    this.dispatchAppEvent('themeChanged', { theme });
+
 
     // Update button visuals
     this.updateButton(theme);
@@ -106,7 +118,7 @@ export class ThemeManager {
   updateButton(theme) {
     if (!this.icon || !this.text) return;
 
-    if (theme === "dark") {
+    if (theme === "light") {
       this.icon.textContent = "☀️";
       this.text.textContent = "Light Mode";
     } else {
@@ -125,6 +137,14 @@ export class ThemeManager {
       }
     });
   }
+  dispatchAppEvent(eventName, detail = {}) {
+    const event = new CustomEvent(`graduationapp:${eventName}`, {
+      detail,
+      bubbles: true,
+      cancelable: true
+    });
+    document.dispatchEvent(event);
+  }
 
   // Get current theme
   getCurrentTheme() {
@@ -134,6 +154,10 @@ export class ThemeManager {
   // Set theme directly (bypasses toggle)
   setTheme(theme) {
     this.applyTheme(theme);
+  }
+
+  manaullyUpdateBtnLabel() {
+    this.updateButton(this.currentTheme);
   }
 
   // Destroy: Remove listeners (for cleanup if needed)

@@ -1,6 +1,7 @@
 import logger from "../js/utility/logger.js";
+import DropdownManager from "./utility/DropdownManager.js";
+import { ThemeManager } from "./utility/Mode.js";
 import { loadMediaData } from "./utility/utils.js";
-
 
 const appLogger = logger.withContext({
   module: "GraduationApp",
@@ -1227,7 +1228,7 @@ class ImageLoader {
         this.currentIndex = 0;
         this.rotationTimer = null;        // Single timer reference
         this.isLoaded = false;
-        this.rotationEnabled = false;     // Whether rotation system is active
+        this.rotationEnabled = true;     // Whether rotation system is active
         this.isHoverPaused = false;       // Separate state for hover pausing
         this.isVisibilityPaused = false;  // Separate state for visibility pausing
         this.isManualPaused = true;      // Separate state for manual pausing
@@ -1877,12 +1878,12 @@ class ImageLoader {
         this.rotationStartTime = performance.now();
         this.scheduledRotationTime = this.rotationStartTime + this.config.rotationDelay;
 
-      /*  if (this.rotationTimer) {
+        if (this.rotationTimer) {
             clearTimeout(this.rotationTimer);
             this.rotationTimer = null;
         }
 
-        this.scheduleNextRotation();*/
+        this.scheduleNextRotation();
 
         imageLogger.info("Image rotation started", {
             rotationDelay: this.config.rotationDelay,
@@ -1911,6 +1912,7 @@ class ImageLoader {
         this.rotationTimer = setTimeout(() => {
             this.performScheduledRotation();
         }, timeUntilNext);
+        this.backuptimer = this.rotationTimer;
 
         imageLogger.debug("Next rotation scheduled", {
             delay: timeUntilNext.toFixed(0),
@@ -1972,7 +1974,7 @@ class ImageLoader {
             return;
         }
 
-        this.rotationEnabled = false;
+       // this.rotationEnabled = false;
 
         if (this.rotationTimer) {
             clearTimeout(this.rotationTimer);
@@ -1991,7 +1993,7 @@ class ImageLoader {
      * Pause rotation (manual pause - separate from hover/visibility)
      */
     pauseRotation() {
-        if (!this.rotationEnabled || this.isManualPaused) {
+        if (!this.rotationEnabled) {
             return;
         }
 
@@ -2169,8 +2171,8 @@ class ImageLoader {
     handleVisibilityChange() {
         if (document.hidden) {
             this.isVisibilityPaused = true;
-
-            if (this.rotationEnabled && this.rotationTimer) {
+            this.rotationTimer ? this.rotationTimer = this.backuptimer : this.rotationTimer = this.backuptimer;
+            if (this.rotationEnabled && (this.rotationTimer|| this.backuptimer)) {
                 const now = performance.now();
                 this.remainingRotationTime = Math.max(0, this.config.rotationDelay - (now - this.rotationStartTime));
 
@@ -2437,6 +2439,12 @@ class ImageLoader {
         return false;
     }
 
+     updateConfig(newConfig) {
+    console.debug("Updating navigation config", newConfig);
+    this.config = { ...this.config, ...newConfig };
+    this.scheduleNextRotation();
+  }
+
     /**
      * Detect low bandwidth
      * @returns {boolean}
@@ -2468,7 +2476,7 @@ class ImageLoader {
             rotationEnabled: this.rotationEnabled,
             automaticRotate: this.config.automaticRotate,
             rotationDelay: this.config.rotationDelay,
-            isHoverPaused: this.isHoverPaused,
+            pauseOnHover: this.isHoverPaused,
             isVisibilityPaused: this.isVisibilityPaused,
             isManualPaused: this.isManualPaused,
             currentIndex: this.currentIndex,
@@ -3389,25 +3397,25 @@ class ImageNavigationController {
       return;
     }
     
-    const wasRotating = this.rotationEnabled;
+    const wasRotating = this.imageLoader.rotationEnabled;
     
     // Stop current rotation
     if (wasRotating) {
-      this.stopRotation();
+      this.imageLoader.stopRotation();
     }
     
     // Update config
-    this.config.rotationDelay = speed;
+    this.imageLoader.config.rotationDelay = speed;
     
     // Restart if it was rotating
-    if (wasRotating && this.config.automaticRotate) {
-      this.startRotation();
+    if (wasRotating &&  this.imageLoader.config.automaticRotate) {
+      this.imageLoader.startRotation();
     }
     
     imageLogger.info("Rotation speed updated", {
       newSpeed: speed,
       wasRotating,
-      isRotating: this.rotationEnabled
+      isRotating: this.imageLoader.rotationEnabled
     });
   }
   
@@ -3442,9 +3450,13 @@ class ImageNavigationController {
       currentIndex: this.currentIndex,
       totalImages: this.totalImages,
       isPlaying: this.isPlaying,
+      automaticRotate: this.imageLoader?.config?.automaticRotate || false,
+      pauseOnHover: this.imageLoader?.config?.pauseOnHover || false,
+      rotationDelay: this.imageLoader?.config?.rotationDelay || 4000,
       rotationSpeed: this.rotationSpeed,
       playbackSpeed: this.playbackSpeed,
-      progress: this.progress
+      progress: this.progress,
+      
     };
   }
   
@@ -4024,7 +4036,7 @@ class ShareManager {
       e.preventDefault();
       const button = e.target;
       const platform = button.dataset.sharePlatform || 'clipboard';
-      this.handleShare(platform, button);
+       this.handleShare(platform, button);
     }
   }
 
@@ -4509,6 +4521,18 @@ class GraduationApp {
     this.performanceMonitor = new PerformanceMonitor();
     this.isInitialized = false;
     this.eventHandlers = {};
+    // Dropdown and Theme Managers
+    this.dropdownManager = null;
+    this.themeManager = null;
+    
+    // App state
+    this.state = {
+      userAuthenticated: false,
+      currentPage: 'home',
+      preferences: this.loadPreferences(),
+      sessionStartTime: Date.now()
+    };
+    
     appLogger.debug("GraduationApp instance created");
     appLogger.timeEnd("GraduationApp constructor");
   }
@@ -4528,14 +4552,44 @@ class GraduationApp {
 
     this.performanceMonitor.start();
 
-    try {         
+try {
+      // Check authentication
+      await this.checkAuthentication();
+      
+      // Initialize modules
       await this.initializeModules();
-      this.startApp();
+      
+      // Setup dropdown and theme
+      this.initDropdownManager();
+      
+      // Setup event listeners
       this.setupEventListeners();
-      this.       animateMessagesOneByOne();
+
+      this.setupKeyboardShortcuts();
+      
+      // Start the app
+      this.startApp();
+
+      this.updateMenuItems();
+      
+      // Start animations
+      this.animateMessagesOneByOne();
       this.changeTitleName();
+      
+      // Mark as initialized
       this.isInitialized = true;
-      appLogger.info("GraduationApp initialized successfully");
+      
+      // Track successful initialization
+      this.trackEvent("app_startup_complete", {
+        loadTime: performance.now(),
+        moduleCount: Object.keys(this.modules).length
+      });
+      
+      appLogger.info("GraduationApp initialized successfully", {
+        userAuthenticated: this.state.userAuthenticated,
+        preferences: this.state.preferences
+      });
+      
     } catch (error) {
       appLogger.error("Failed to initialize GraduationApp", error);
       this.handleInitializationError(error);
@@ -4544,7 +4598,1870 @@ class GraduationApp {
       appLogger.timeEnd("GraduationApp initialization");
     }
   }
+   /**
+   * Check user authentication
+   */
+  async checkAuthentication() {
+    appLogger.time("Authentication check");
+    
+    try {
+      const authString = localStorage.getItem("GraduationAppPassword");
+      if (authString) {
+        const auth = JSON.parse(authString);
+        this.state.userAuthenticated = !!auth?.name;
+        this.state.userName = auth.name || "Friend";
+        
+        appLogger.debug("User authenticated", {
+          name: this.state.userName,
+          timestamp: auth.timestamp
+        });
+      } else {
+        this.state.userAuthenticated = false;
+        appLogger.debug("No authentication found");
+      }
+    } catch (error) {
+      appLogger.error("Authentication check failed", error);
+      this.state.userAuthenticated = false;
+    } finally {
+      appLogger.timeEnd("Authentication check");
+    }
+  }
 
+  /**
+   * Load user preferences
+   */
+  loadPreferences() {
+    try {
+      const preferences = localStorage.getItem("graduation_app_preferences");
+      return preferences ? JSON.parse(preferences) : {
+        theme: 'auto',
+        animations: true,
+        sound: false,
+        notifications: true,
+        autoRotateImages: false
+      };
+    } catch (error) {
+      appLogger.error("Failed to load preferences", error);
+      return {
+        theme: 'auto',
+        animations: true,
+        sound: false,
+        notifications: true,
+        autoRotateImages: false
+      };
+    }
+  }
+
+  /**
+   * Save user preferences
+   */
+  savePreferences() {
+    try {
+      localStorage.setItem(
+        "graduation_app_preferences",
+        JSON.stringify(this.state.preferences)
+      );
+      appLogger.debug("Preferences saved", this.state.preferences);
+    } catch (error) {
+      appLogger.error("Failed to save preferences", error);
+    }
+  }
+
+  /**
+   * Initialize DropdownManager with ThemeManager
+   */
+  initDropdownManager() {
+    appLogger.time("DropdownManager initialization");
+    
+    try {
+      // Create ThemeManager instance
+      this.themeManager = new ThemeManager();
+      this.themeManager.init();
+      this.state.preferences.theme === 'auto' ? this.state.preferences.theme = this.themeManager.getCurrentTheme() : null;
+
+      this.themeManager.applyTheme(this.state.preferences.theme);
+      
+      // Custom menu items based on app state
+      const menuItems = [
+        { 
+          label: 'Toggle Theme', 
+          icon: 'fas fa-moon', 
+          action: 'theme', 
+          className: 'theme-toggle',
+          dynamicLabel: true 
+        },
+        { 
+          label: 'Image Settings', 
+          icon: 'fas fa-images', 
+          action: 'image-settings' 
+        },
+        { 
+          label: 'Confetti Settings', 
+          icon: 'fas fa-birthday-cake', 
+          action: 'confetti-settings' 
+        },
+        { 
+          label: 'Share App', 
+          icon: 'fas fa-share-alt', 
+          action: 'share' 
+        },
+        { 
+          label: 'About', 
+          icon: 'fas fa-info-circle', 
+          action: 'about' 
+        },
+        { type: 'divider' },
+        { 
+          label: 'Logout', 
+          icon: 'fas fa-sign-out-alt', 
+          action: 'logout', 
+          className: 'logout' 
+        }
+      ];
+       if (this.state.userAuthenticated) {
+      menuItems.splice(5, 0, 
+        { type: 'divider' },
+        { 
+          label: 'Export Data', 
+          icon: 'fas fa-download', 
+          action: 'export' 
+        },
+        { 
+          label: 'Import Data', 
+          icon: 'fas fa-upload', 
+          action: 'import' 
+        }
+      );
+    }
+      
+      // Create DropdownManager
+      this.dropdownManager = new DropdownManager({
+        position: 'top-right',
+        showBackdrop: true,
+        autoClose: true,
+        animationDuration: 300,
+        themeManager: this.themeManager,
+        menuItems: menuItems,
+        enableKeyboardNav: true,
+        enableRippleEffect: this.state.preferences.animations
+      });
+      
+      // Listen to dropdown events
+      this.setupDropdownListeners();
+      
+      // Apply initial theme to components
+      this.applyThemeToComponents(this.themeManager.getCurrentTheme());
+      
+      appLogger.info("DropdownManager initialized successfully");
+      
+    } catch (error) {
+      appLogger.error("Failed to initialize DropdownManager", error);
+      this.showErrorMessage("Failed to initialize menu system becuase of "+ error.message);
+    } finally {
+      appLogger.timeEnd("DropdownManager initialization");
+    }
+  }
+
+/**
+ * Setup dropdown event listeners (updated version)
+ */
+setupDropdownListeners() {
+  // Logout handler
+  document.addEventListener('user:logout', () => {
+    this.handleLogout();
+  });
+  
+  // Theme change handler
+  document.addEventListener('theme:change', (e) => {
+    this.handleThemeChange(e.detail?.theme);
+  });
+  
+  // Custom action handlers
+  document.addEventListener('dropdown:action', (e) => {
+    this.handleDropdownAction(e.detail?.action, e.detail?.data);
+  });
+  
+  // Setup custom actions for built-in functionality
+  this.setupBuiltinCustomActions();
+}
+
+/**
+ * Setup built-in custom actions
+ */
+setupBuiltinCustomActions() {
+  if (!this.dropdownManager) return;
+  
+  // Image settings
+  this.dropdownManager.addCustomAction('image-settings', () => {
+    this.openImageSettings();
+  });
+  
+  // Confetti settings
+  this.dropdownManager.addCustomAction('confetti-settings', () => {
+    this.openConfettiSettings();
+  });
+  
+  // About
+  this.dropdownManager.addCustomAction('about', () => {
+    this.showAboutDialog();
+  });
+  
+  // Refresh
+  this.dropdownManager.addCustomAction('refresh', () => {
+    this.refreshApp();
+  });
+  
+  // Export
+  this.dropdownManager.addCustomAction('export', () => {
+    this.exportData();
+  });
+  
+  // Import
+  this.dropdownManager.addCustomAction('import', () => {
+    this.importData();
+  });
+}
+
+/**
+ * Handle dropdown action (consolidated handler)
+ */
+handleDropdownAction(action, data) {
+  appLogger.debug("Dropdown action received", { action, data });
+  
+  // Route to appropriate handler
+  const actionHandlers = {
+    'image-settings': () => this.openImageSettings(),
+    'confetti-settings': () => this.openConfettiSettings(),
+    'about': () => this.showAboutDialog(),
+    'refresh': () => this.refreshApp(),
+    'export': () => this.exportData(),
+    'import': () => this.importData(),
+    'share': () => this.handleShare(),
+    'settings': () => this.handleSettings(),
+    'help': () => this.handleHelp()
+  };
+  
+  const handler = actionHandlers[action];
+  if (handler) {
+    handler();
+  } else {
+    appLogger.warn("Unknown dropdown action", { action });
+    this.showToast(`Action "${action}" not implemented`, 'warning');
+  }
+}
+
+/**
+ * Handle settings action
+ */
+handleSettings() {
+  this.showToast('Settings feature coming soon', 'info');
+}
+
+/**
+ * Handle help action
+ */
+handleHelp() {
+  this.showToast('Help & Support coming soon', 'info');
+}
+
+/**
+ * Handle share action
+ */
+handleShare() {
+  this.dispatchAppEvent('share:open');
+  
+  // Use Web Share API if available
+  if (navigator.share) {
+    navigator.share({
+      title: document.title,
+      text: 'Check out this amazing graduation app!',
+      url: window.location.href
+    }).then(() => {
+      this.showToast('Shared successfully!', 'success');
+    }).catch((error) => {
+      if (error.name !== 'AbortError') {
+        this.showToast('Sharing failed', 'error');
+      }
+    });
+  } else {
+    // Fallback to clipboard
+    this.copyToClipboard(window.location.href);
+    this.showToast('Link copied to clipboard!', 'success');
+  }
+}
+
+/**
+ * Copy to clipboard utility
+ */
+copyToClipboard(text) {
+  navigator.clipboard.writeText(text)
+    .then(() => {
+      appLogger.debug('Copied to clipboard:', text);
+    })
+    .catch(err => {
+      appLogger.error('Copy failed:', err);
+      // Fallback for older browsers
+      const textArea = document.createElement('textarea');
+      textArea.value = text;
+      document.body.appendChild(textArea);
+      textArea.select();
+      document.execCommand('copy');
+      document.body.removeChild(textArea);
+    });
+}
+
+  /**
+   * Handle theme changes
+   */
+  handleThemeChange(theme) {
+    appLogger.info("Theme changed", { theme });
+    
+    // Update preferences
+    this.state.preferences.theme = theme === 'light' ? 'light' : 
+                                  theme === 'dark' ? 'dark' : 'auto';
+    this.savePreferences();
+    
+    // Apply theme to all components
+    this.applyThemeToComponents(theme);
+    
+    // Update confetti colors if needed
+    if (this.modules.confetti) {
+      this.updateConfettiForTheme(theme);
+    }
+    
+    // Dispatch app-wide theme change event
+    this.dispatchAppEvent('themeChanged', { theme });
+  }
+
+  /**
+   * Apply theme to all components
+   */
+  applyThemeToComponents(theme) {
+    // Update CSS variables
+    this.updateThemeVariables(theme);
+    
+    // Update image loader if exists
+    if (this.modules.imageLoader) {
+      this.modules.imageLoader.updateTheme?.(theme);
+    }
+    
+    // Update navigation controller if exists
+    if (this.modules.imageLoader?.navigationController) {
+      this.modules.imageLoader.navigationController.updateTheme?.(theme);
+    }
+    
+    // Update share buttons
+    this.updateShareButtonsTheme(theme);
+    
+    // Update any other theme-aware components
+    document.querySelectorAll('[data-theme-aware]').forEach(element => {
+      element.classList.toggle('dark-mode', theme === 'dark');
+    });
+  }
+
+  /**
+   * Update CSS theme variables
+   */
+  updateThemeVariables(theme) {
+    const root = document.documentElement;
+    
+    if (theme === 'dark') {
+      root.style.setProperty('--primary-color', '#8E2DE2');
+      root.style.setProperty('--secondary-color', '#4A00E0');
+      root.style.setProperty('--primary-rgb', '142, 45, 226');
+    } else {
+      root.style.setProperty('--primary-color', '#667eea');
+      root.style.setProperty('--secondary-color', '#764ba2');
+      root.style.setProperty('--primary-rgb', '102, 126, 234');
+    }
+  }
+
+  /**
+   * Update confetti for theme
+   */
+  updateConfettiForTheme(theme) {
+    if (this.modules.confetti?.updateConfig) {
+      const colors = theme === 'dark' 
+        ? ["#8E2DE2", "#4A00E0", "#FF6B6B", "#FECA57", "#1DD1A1", "#00B4D8"]
+        : ["#667eea", "#764ba2", "#f093fb", "#f5576c", "#4facfe", "#00f2fe"];
+      
+      this.modules.confetti.updateConfig({ colors });
+      
+      appLogger.debug("Confetti colors updated for theme", { theme, colors });
+    }
+  }
+
+  /**
+   * Update share buttons theme
+   */
+  updateShareButtonsTheme(theme) {
+    const shareButtons = document.querySelectorAll('.share-btn');
+    shareButtons.forEach(btn => {
+      if (theme === 'dark') {
+        btn.classList.add('dark-mode');
+        btn.classList.remove('light-mode');
+      } else {
+        btn.classList.add('light-mode');
+        btn.classList.remove('dark-mode');
+      }
+    });
+  }
+
+  /**
+   * Handle logout
+   */
+  handleLogout() {
+    appLogger.info("User initiated logout");
+    
+    // Show confirmation
+    const confirmed = window.confirm(
+      'Are you sure you want to logout? You will need to re-enter the password.'
+    );
+    
+    if (!confirmed) {
+      appLogger.debug("Logout cancelled by user");
+      return;
+    }
+    
+    // Show logout animation
+    this.showLogoutAnimation();
+    
+    // Clear all app data
+    this.clearAppData();
+
+    
+    // Track logout event
+    this.trackEvent("user_logout", {
+      sessionDuration: Date.now() - this.state.sessionStartTime
+    });
+    
+    // Redirect to login page
+    setTimeout(() => {
+      window.location.href = '/logout.html';
+    }, 2000);
+  }
+
+  /**
+   * Clear all app data
+   */
+  clearAppData() {
+    try {
+      // Clear authentication
+      localStorage.removeItem("GraduationAppPassword"); 
+     
+      // Clear any other app-specific data
+      localStorage.removeItem("pwa-prompt-dismissal");
+      localStorage.removeItem("pwa-prompt-display-history");
+      localStorage.removeItem("Welcome_Notification");
+      localStorage.removeItem("last_visited");
+      
+      // Clear session cookies
+      document.cookie.split(";").forEach((c) => {
+        document.cookie = c
+          .replace(/^ +/, "")
+          .replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/");
+      });
+      
+      appLogger.info("App data cleared successfully");
+      
+    } catch (error) {
+      appLogger.error("Failed to clear app data", error);
+    }
+  }
+
+/**
+ * Show enhanced logout animation
+ */
+showLogoutAnimation() {
+    // Remove any existing logout overlay
+    const existingOverlay = document.querySelector('.logout-overlay');
+    if (existingOverlay) existingOverlay.remove();
+    
+    // Create backdrop overlay
+    const overlay = document.createElement('div');
+    overlay.className = 'logout-overlay';
+    overlay.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: linear-gradient(
+            135deg,
+            var(--primary-color, #667eea) 0%,
+            var(--secondary-color, #764ba2) 50%,
+            var(--accent-color, #f093fb) 100%
+        );
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        z-index: 99999;
+        opacity: 0;
+        animation: fadeInOverlay 0.8s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+        overflow: hidden;
+    `;
+    
+    // Create animated background elements
+    const particles = document.createElement('div');
+    particles.className = 'logout-particles';
+    particles.style.cssText = `
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+    `;
+    
+    // Create floating particles
+    for (let i = 0; i < 15; i++) {
+        const particle = document.createElement('div');
+        particle.style.cssText = `
+            position: absolute;
+            width: ${6 + Math.random() * 8}px;
+            height: ${6 + Math.random() * 8}px;
+            background: rgba(255, 255, 255, ${0.2 + Math.random() * 0.3});
+            border-radius: 50%;
+            left: ${Math.random() * 100}%;
+            top: ${Math.random() * 100}%;
+            animation: floatParticle ${3 + Math.random() * 4}s ease-in-out infinite;
+            animation-delay: ${Math.random() * 2}s;
+            filter: blur(${Math.random() * 2}px);
+        `;
+        particles.appendChild(particle);
+    }
+    
+    // Create animated wave
+    const wave = document.createElement('div');
+    wave.className = 'logout-wave';
+    wave.style.cssText = `
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        height: 100px;
+        background: linear-gradient(
+            to top,
+            rgba(255, 255, 255, 0.2) 0%,
+            rgba(255, 255, 255, 0.1) 50%,
+            transparent 100%
+        );
+        border-radius: 100% 100% 0 0;
+        animation: waveMove 8s ease-in-out infinite;
+    `;
+    
+    overlay.innerHTML = `
+        <div class="logout-content" style="
+            text-align: center;
+            padding: 50px;
+            position: relative;
+            z-index: 2;
+            max-width: 500px;
+            width: 90%;
+        ">
+            <!-- Animated ring spinner -->
+            <div class="logout-spinner-container" style="
+                position: relative;
+                width: 120px;
+                height: 120px;
+                margin: 0 auto 40px;
+            ">
+                <!-- Outer ring -->
+                <div class="logout-ring-outer" style="
+                    position: absolute;
+                    inset: 0;
+                    border: 3px solid rgba(255, 255, 255, 0.1);
+                    border-radius: 50%;
+                "></div>
+                
+                <!-- Middle ring -->
+                <div class="logout-ring-middle" style="
+                    position: absolute;
+                    inset: 15px;
+                    border: 3px solid rgba(255, 255, 255, 0.2);
+                    border-radius: 50%;
+                    animation: spin 2s linear infinite;
+                "></div>
+                
+                <!-- Inner ring -->
+                <div class="logout-ring-inner" style="
+                    position: absolute;
+                    inset: 30px;
+                    border: 3px solid rgba(255, 255, 255, 0.3);
+                    border-radius: 50%;
+                    animation: spin 1.5s linear infinite reverse;
+                "></div>
+                
+                <!-- Center icon -->
+                <div class="logout-icon" style="
+                    position: absolute;
+                    inset: 45px;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    font-size: 28px;
+                    animation: pulse 2s ease-in-out infinite;
+                ">
+                    👋
+                </div>
+            </div>
+            
+            <!-- Main message -->
+            <div class="logout-message" style="
+                margin-bottom: 30px;
+                opacity: 0;
+                animation: fadeInUp 0.8s ease 0.3s forwards;
+            ">
+                <h2 style="
+                    margin: 0 0 15px 0;
+                    font-size: 36px;
+                    font-weight: 800;
+                    letter-spacing: -0.5px;
+                    background: linear-gradient(45deg, #ffffff, #e0e0ff);
+                    -webkit-background-clip: text;
+                    -webkit-text-fill-color: transparent;
+                    background-clip: text;
+                    text-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+                ">
+                    Until Next Time!
+                </h2>
+                
+                <p style="
+                    margin: 0 0 10px 0;
+                    font-size: 18px;
+                    opacity: 0.9;
+                    line-height: 1.5;
+                ">
+                    Thank you for celebrating with Graduation App
+                </p>
+                
+                <p style="
+                    margin: 0;
+                    font-size: 16px;
+                    opacity: 0.7;
+                ">
+                    Your moments are saved for next time
+                </p>
+            </div>
+            
+            <!-- Progress indicator -->
+            <div class="logout-progress" style="
+                width: 200px;
+                height: 4px;
+                background: rgba(255, 255, 255, 0.2);
+                border-radius: 2px;
+                margin: 40px auto 0;
+                overflow: hidden;
+                opacity: 0;
+                animation: fadeIn 0.5s ease 0.6s forwards;
+            ">
+                <div class="logout-progress-bar" style="
+                    width: 0%;
+                    height: 100%;
+                    background: linear-gradient(90deg, #ffffff, #e0e0ff);
+                    border-radius: 2px;
+                    animation: progressFill 2s ease-in-out forwards;
+                "></div>
+            </div>
+            
+            <!-- Countdown text -->
+            <div class="logout-countdown" style="
+                margin-top: 20px;
+                font-size: 14px;
+                opacity: 0.6;
+                letter-spacing: 1px;
+                opacity: 0;
+                animation: fadeIn 0.5s ease 0.8s forwards;
+            ">
+                Redirecting in <span class="countdown-number">3</span> seconds
+            </div>
+            
+            <!-- Decorative elements -->
+            <div class="logout-decoration" style="
+                position: absolute;
+                bottom: -40px;
+                left: 50%;
+                transform: translateX(-50%);
+                opacity: 0.2;
+                font-size: 64px;
+                animation: floatDecoration 4s ease-in-out infinite;
+            ">
+                🎓
+            </div>
+        </div>
+    `;
+    
+    // Add elements to overlay
+    overlay.appendChild(particles);
+    overlay.appendChild(wave);
+    document.body.appendChild(overlay);
+    
+    // Add CSS animations
+    if (!document.querySelector('#logout-animation-styles')) {
+        const style = document.createElement('style');
+        style.id = 'logout-animation-styles';
+        style.textContent = `
+            @keyframes fadeInOverlay {
+                from { 
+                    opacity: 0; 
+                    backdrop-filter: blur(0px);
+                }
+                to { 
+                    opacity: 1; 
+                    backdrop-filter: blur(10px);
+                }
+            }
+            
+            @keyframes fadeInUp {
+                from { 
+                    opacity: 0; 
+                    transform: translateY(20px); 
+                }
+                to { 
+                    opacity: 1; 
+                    transform: translateY(0); 
+                }
+            }
+            
+            @keyframes fadeIn {
+                from { opacity: 0; }
+                to { opacity: 1; }
+            }
+            
+            @keyframes spin {
+                from { transform: rotate(0deg); }
+                to { transform: rotate(360deg); }
+            }
+            
+            @keyframes pulse {
+                0%, 100% { 
+                    transform: scale(1); 
+                    opacity: 1;
+                }
+                50% { 
+                    transform: scale(1.1); 
+                    opacity: 0.8;
+                }
+            }
+            
+            @keyframes progressFill {
+                0% { width: 0%; }
+                100% { width: 100%; }
+            }
+            
+            @keyframes floatParticle {
+                0%, 100% { 
+                    transform: translateY(0) rotate(0deg); 
+                }
+                50% { 
+                    transform: translateY(-30px) rotate(180deg); 
+                }
+            }
+            
+            @keyframes waveMove {
+                0%, 100% { 
+                    transform: translateY(0) scaleX(1);
+                }
+                50% { 
+                    transform: translateY(-20px) scaleX(1.2);
+                }
+            }
+            
+            @keyframes floatDecoration {
+                0%, 100% { 
+                    transform: translateX(-50%) translateY(0) rotate(0deg);
+                }
+                50% { 
+                    transform: translateX(-50%) translateY(-20px) rotate(10deg);
+                }
+            }
+            
+            /* Remove overlay animation */
+            @keyframes fadeOutOverlay {
+                from { 
+                    opacity: 1;
+                    transform: scale(1);
+                }
+                to { 
+                    opacity: 0;
+                    transform: scale(1.1);
+                }
+            }
+            
+            .logout-overlay {
+                transition: opacity 0.5s ease;
+            }
+            
+            /* Dark theme adjustments */
+            @media (prefers-color-scheme: dark) {
+                .logout-overlay {
+                    background: linear-gradient(
+                        135deg,
+                        #1a1a2e 0%,
+                        #16213e 50%,
+                        #0f3460 100%
+                    );
+                }
+                
+                .logout-progress-bar {
+                    background: linear-gradient(90deg, #4cc9f0, #4361ee);
+                }
+            }
+        `;
+        document.head.appendChild(style);
+    }
+    
+    // Add countdown functionality
+    const countdownNumber = overlay.querySelector('.countdown-number');
+    let countdown = 3;
+    
+    const countdownInterval = setInterval(() => {
+        countdown--;
+        if (countdownNumber) {
+            countdownNumber.textContent = countdown;
+            
+            // Add animation to number change
+            countdownNumber.style.animation = 'none';
+            countdownNumber.offsetHeight; // Trigger reflow
+            countdownNumber.style.animation = 'pulse 0.5s ease';
+            
+            if (countdown <= 0) {
+                clearInterval(countdownInterval);
+                
+                // Fade out animation before redirect
+                overlay.style.animation = 'fadeOutOverlay 0.8s ease forwards';
+                
+                setTimeout(() => {
+                    overlay.remove();
+                    // Add your redirect logic here
+                    // window.location.href = '/login';
+                }, 800);
+            }
+        }
+    }, 1000);
+    
+    // Add click to skip functionality
+    overlay.addEventListener('click', (e) => {
+        if (e.target === overlay || e.target.classList.contains('logout-content')) {
+            clearInterval(countdownInterval);
+            overlay.style.animation = 'fadeOutOverlay 0.5s ease forwards';
+            
+            setTimeout(() => {
+                overlay.remove();
+                // Add your redirect logic here
+                // window.location.href = '/login';
+            }, 500);
+        }
+    });
+    
+    // Add keyboard support (Escape to skip)
+    const handleKeyDown = (e) => {
+        if (e.key === 'Escape') {
+            clearInterval(countdownInterval);
+            overlay.style.animation = 'fadeOutOverlay 0.5s ease forwards';
+            
+            setTimeout(() => {
+                overlay.remove();
+                // Add your redirect logic here
+                // window.location.href = '/login';
+            }, 500);
+            
+            document.removeEventListener('keydown', handleKeyDown);
+        }
+    };
+    
+    document.addEventListener('keydown', handleKeyDown);
+    
+    // Cleanup event listener on remove
+    const observer = new MutationObserver((mutations) => {
+        mutations.forEach((mutation) => {
+            if (mutation.removedNodes.length > 0) {
+                mutation.removedNodes.forEach((node) => {
+                    if (node === overlay) {
+                        document.removeEventListener('keydown', handleKeyDown);
+                        clearInterval(countdownInterval);
+                    }
+                });
+            }
+        });
+    });
+    
+    observer.observe(document.body, { childList: true });
+}
+
+  /**
+   * Open image settings dialog
+   */
+  openImageSettings() {
+    if (!this.modules.imageLoader) {
+      this.showToast('Image loader not available', 'error');
+      return;
+    }
+    
+    // Create settings dialog
+    const dialog = document.createElement('div');
+    dialog.className = 'settings-dialog';
+    dialog.style.cssText = `
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: var(--dropdown-bg, white);
+      padding: 30px;
+      border-radius: 20px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+      z-index: 10002;
+      min-width: 300px;
+      max-width: 90vw;
+    `;
+    
+    const state = this.modules.imageLoader.getRotationState?.() || {};
+    dialog.innerHTML = `
+      <h3 style="margin: 0 0 20px 0; color: var(--dropdown-text, #333);">Image Settings</h3>
+      
+      <div class="setting-item" style="margin-bottom: 20px;">
+        <label style="display: block; margin-bottom: 8px; color: var(--dropdown-text, #666);">
+          Rotation Speed
+        </label>
+        <input type="range" id="rotation-speed" min="1000" max="10000" step="500" 
+               value="${state.rotationDelay || 5000}" 
+               style="width: 100%;">
+        <div style="display: flex; justify-content: space-between; margin-top: 5px;">
+          <span style="font-size: 12px; color: var(--dropdown-text, #999);">Slow</span>
+          <span id="speed-value" style="font-size: 14px; color: var(--primary-color, #667eea);">
+            ${(state.rotationDelay || 5000) / 1000}s
+          </span>
+          <span style="font-size: 12px; color: var(--dropdown-text, #999);">Fast</span>
+        </div>
+      </div>
+      
+      <div class="setting-item" style="margin-bottom: 20px;">
+        <label style="display: flex; align-items: center; gap: 10px; color: var(--dropdown-text, #666);">
+          <input type="checkbox" id="auto-rotate" ${state.automaticRotate ? 'checked' : ''}>
+          Auto Rotate Images
+        </label>
+      </div>
+
+            <div class="setting-item" style="margin-bottom: 20px;">
+        <label style="display: flex; align-items: center; gap: 10px; color: var(--dropdown-text, #666);">
+          <input type="checkbox" id="EnableRotation" ${state.rotationEnabled ? 'checked' : ''}>
+          Enable Image Rotation
+        </label>
+      </div>
+      
+      <div class="setting-item" style="margin-bottom: 30px;">
+        <label style="display: flex; align-items: center; gap: 10px; color: var(--dropdown-text, #666);">
+          <input type="checkbox" id="pause-on-hover" ${state.pauseOnHover ? 'checked' : ''}>
+          Pause on Hover
+        </label>
+      </div>
+      
+      <div style="display: flex; gap: 10px; justify-content: flex-end;">
+        <button class="btn-secondary" style="
+          padding: 10px 20px;
+          border: none;
+          background: var(--dropdown-hover, #f5f5f5);
+          color: var(--dropdown-text, #666);
+          border-radius: 8px;
+          cursor: pointer;
+        ">Cancel</button>
+        <button class="btn-primary" style="
+          padding: 10px 20px;
+          border: none;
+          background: var(--primary-color, #667eea);
+          color: white;
+          border-radius: 8px;
+          cursor: pointer;
+        ">Save</button>
+      </div>
+    `;
+    
+    document.body.appendChild(dialog);
+    
+    // Add backdrop
+    const backdrop = document.createElement('div');
+    backdrop.className = 'dialog-backdrop';
+    backdrop.style.cssText = `
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0,0,0,0.5);
+      z-index: 10001;
+      backdrop-filter: blur(5px);
+    `;
+    document.body.appendChild(backdrop);
+    
+    // Add event listeners
+    const speedInput = dialog.querySelector('#rotation-speed');
+    const speedValue = dialog.querySelector('#speed-value');
+    
+    speedInput.addEventListener('input', (e) => {
+      speedValue.textContent = `${e.target.value / 1000}s`;
+    });
+    
+    dialog.querySelector('.btn-primary').addEventListener('click', () => {
+      const newSpeed = parseInt(speedInput.value);
+      const autoRotate = dialog.querySelector('#auto-rotate').checked;
+      const pauseOnHover = dialog.querySelector('#pause-on-hover').checked;
+      const rotationEnabled = dialog.querySelector('#EnableRotation').checked;
+
+      if (this.modules.imageLoader.updateConfig) {
+        this.modules.imageLoader.updateConfig({
+          automaticRotate: autoRotate,
+          pauseOnHover: pauseOnHover,
+          rotationEnabled: rotationEnabled
+        });
+      }   
+
+      // Apply settings
+      if (this.modules.imageLoader.setRotationSpeed) {
+        this.modules.imageLoader.setRotationSpeed(newSpeed);
+      }
+         
+      // Save to preferences
+      this.state.preferences.automaticRotate = autoRotate;
+      this.state.preferences.isHoverPaused = pauseOnHover;
+      this.state.preferences.rotationEnabled = rotationEnabled;
+      this.state.preferences.rotationDelay = newSpeed;
+      this.savePreferences();
+      
+      // Close dialog
+      dialog.remove();
+      backdrop.remove();
+      
+      this.showToast('Image settings saved', 'success');
+    });
+    
+    dialog.querySelector('.btn-secondary').addEventListener('click', () => {
+      dialog.remove();
+      backdrop.remove();
+    });
+    
+    backdrop.addEventListener('click', () => {
+      dialog.remove();
+      backdrop.remove();
+    });
+  }
+
+  /**
+   * Open confetti settings dialog
+   */
+  openConfettiSettings() {
+    if (!this.modules.confetti) {
+      this.showToast('Confetti system not available', 'error');
+      return;
+    }
+    
+    // Similar implementation to image settings
+    this.showToast('Confetti settings dialog would open here', 'info');
+  }
+
+  /**
+   * Show about dialog
+   */
+showAboutDialog() {
+    // Create backdrop with animation
+    const backdrop = document.createElement('div');
+    backdrop.className = 'about-dialog-backdrop';
+    backdrop.style.cssText = `
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.7);
+      z-index: 10001;
+      backdrop-filter: blur(8px);
+      opacity: 0;
+      transition: opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    `;
+    
+    // Create dialog container
+    const dialog = document.createElement('div');
+    dialog.className = 'about-dialog';
+    dialog.setAttribute('role', 'dialog');
+    dialog.setAttribute('aria-modal', 'true');
+    dialog.setAttribute('aria-labelledby', 'about-dialog-title');
+    dialog.style.cssText = `
+      position: relative;
+      background: var(--dropdown-bg, #ffffff);
+      padding: 0;
+      border-radius: 24px;
+      box-shadow: 
+        0 32px 64px rgba(0, 0, 0, 0.2),
+        0 16px 32px rgba(0, 0, 0, 0.1),
+        inset 0 1px 0 rgba(255, 255, 255, 0.1);
+      z-index: 10002;
+      max-width: 440px;
+      width: 100%;
+      max-height: 90vh;
+      overflow: hidden;
+      transform: translateY(20px) scale(0.95);
+      opacity: 0;
+      transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    `;
+    
+    // Dialog content with improved design
+    dialog.innerHTML = `
+      <!-- Decorative gradient border -->
+      <div class="dialog-gradient-border" style="
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 4px;
+        background: linear-gradient(90deg, 
+          #667eea, 
+          #764ba2, 
+          #f093fb, 
+          #f5576c, 
+          #ffd166
+        );
+        opacity: 0.8;
+        z-index: 2;
+      "></div>
+      
+      <!-- Close button -->
+      <button class="dialog-close-btn" aria-label="Close dialog" style="
+        position: absolute;
+        top: 16px;
+        right: 16px;
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        background: rgba(0, 0, 0, 0.05);
+        border: none;
+        color: var(--dropdown-text, #666);
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 18px;
+        z-index: 3;
+        transition: all 0.2s ease;
+        backdrop-filter: blur(10px);
+      ">
+        <span style="display: block; transform: rotate(45deg);">+</span>
+      </button>
+      
+      <!-- Main content -->
+      <div class="dialog-content" style="padding: 40px 35px 35px 35px; overflow-y: auto; max-height: 88vh;">
+        <!-- Header -->
+        <div class="dialog-header" style="text-align: center; margin-bottom: 35px;">
+          <!-- Animated logo -->
+          <div class="logo-container" style="
+            width: 100px;
+            height: 100px;
+            margin: 0 auto 25px;
+            position: relative;
+            cursor: pointer;
+          ">
+            <div class="logo-outer-ring" style="
+              position: absolute;
+              inset: -6px;
+              border-radius: 50%;
+              background: conic-gradient(
+                from 0deg,
+                #667eea,
+                #764ba2,
+                #f093fb,
+                #f5576c,
+                #ffd166,
+                #667eea
+              );
+              animation: rotate 8s linear infinite;
+              filter: blur(8px);
+              opacity: 0.4;
+            "></div>
+            
+            <div class="logo-main" style="
+              width: 100%;
+              height: 100%;
+              background: linear-gradient(135deg, 
+                var(--primary-color, #667eea) 0%, 
+                var(--secondary-color, #764ba2) 100%
+              );
+              border-radius: 24px;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              color: white;
+              font-size: 48px;
+              position: relative;
+              box-shadow: 
+                0 10px 30px rgba(102, 126, 234, 0.3),
+                inset 0 1px 0 rgba(255, 255, 255, 0.3);
+              transition: all 0.3s ease;
+              overflow: hidden;
+            ">
+              🎓
+              <div class="logo-shine" style="
+                position: absolute;
+                top: -50%;
+                left: -50%;
+                width: 200%;
+                height: 200%;
+                background: linear-gradient(
+                  45deg,
+                  transparent 30%,
+                  rgba(255, 255, 255, 0.1) 50%,
+                  transparent 70%
+                );
+                transform: rotate(45deg);
+                transition: transform 0.6s ease;
+              "></div>
+            </div>
+          </div>
+          
+          <h2 id="about-dialog-title" style="
+            margin: 0 0 8px 0;
+            color: var(--dropdown-text, #333);
+            font-size: 32px;
+            font-weight: 800;
+            letter-spacing: -0.5px;
+            background: linear-gradient(135deg, 
+              var(--primary-color, #667eea), 
+              var(--secondary-color, #764ba2)
+            );
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            line-height: 1.2;
+          ">
+            Graduation App
+          </h2>
+          
+          <div class="version-badge" style="
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 16px;
+            background: linear-gradient(135deg, 
+              rgba(102, 126, 234, 0.1), 
+              rgba(118, 75, 162, 0.1)
+            );
+            color: var(--primary-color, #667eea);
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+            border: 1px solid rgba(102, 126, 234, 0.2);
+            margin-bottom: 15px;
+          ">
+            <span style="font-size: 12px;">⚡</span>
+            v2.0.0
+          </div>
+          
+          <p class="tagline" style="
+            margin: 0;
+            color: var(--dropdown-text, #666);
+            font-size: 15px;
+            line-height: 1.4;
+            max-width: 320px;
+            margin: 0 auto;
+          ">
+            Celebrate achievements with style
+          </p>
+        </div>
+        
+        <!-- Features grid -->
+        <div class="features-grid" style="
+          display: grid;
+          grid-template-columns: repeat(2, 1fr);
+          gap: 12px;
+          margin-bottom: 30px;
+        ">
+          <div class="feature-item" style="
+            padding: 16px;
+            background: rgba(102, 126, 234, 0.05);
+            border-radius: 16px;
+            text-align: center;
+            border: 1px solid rgba(102, 126, 234, 0.1);
+            transition: all 0.2s ease;
+          ">
+            <div style="
+              font-size: 24px;
+              margin-bottom: 10px;
+              color: var(--primary-color, #667eea);
+            ">🎉</div>
+            <div style="
+              font-size: 12px;
+              font-weight: 600;
+              color: var(--dropdown-text, #333);
+              line-height: 1.3;
+            ">Confetti Effects</div>
+          </div>
+          
+          <div class="feature-item" style="
+            padding: 16px;
+            background: rgba(118, 75, 162, 0.05);
+            border-radius: 16px;
+            text-align: center;
+            border: 1px solid rgba(118, 75, 162, 0.1);
+            transition: all 0.2s ease;
+          ">
+            <div style="
+              font-size: 24px;
+              margin-bottom: 10px;
+              color: var(--secondary-color, #764ba2);
+            ">🖼️</div>
+            <div style="
+              font-size: 12px;
+              font-weight: 600;
+              color: var(--dropdown-text, #333);
+              line-height: 1.3;
+            ">Image Slideshow</div>
+          </div>
+          
+          <div class="feature-item" style="
+            padding: 16px;
+            background: rgba(240, 147, 251, 0.05);
+            border-radius: 16px;
+            text-align: center;
+            border: 1px solid rgba(240, 147, 251, 0.1);
+            transition: all 0.2s ease;
+          ">
+            <div style="
+              font-size: 24px;
+              margin-bottom: 10px;
+              color: #f093fb;
+            ">📤</div>
+            <div style="
+              font-size: 12px;
+              font-weight: 600;
+              color: var(--dropdown-text, #333);
+              line-height: 1.3;
+            ">Sharing Features</div>
+          </div>
+          
+          <div class="feature-item" style="
+            padding: 16px;
+            background: rgba(255, 209, 102, 0.05);
+            border-radius: 16px;
+            text-align: center;
+            border: 1px solid rgba(255, 209, 102, 0.1);
+            transition: all 0.2s ease;
+          ">
+            <div style="
+              font-size: 24px;
+              margin-bottom: 10px;
+              color: #ffd166;
+            ">🎨</div>
+            <div style="
+              font-size: 12px;
+              font-weight: 600;
+              color: var(--dropdown-text, #333);
+              line-height: 1.3;
+            ">Custom Themes</div>
+          </div>
+        </div>
+        
+        <!-- Description -->
+        <div class="description" style="
+          margin-bottom: 30px;
+          text-align: center;
+        ">
+          <p style="
+            margin: 0 0 15px 0;
+            color: var(--dropdown-text, #666);
+            font-size: 15px;
+            line-height: 1.6;
+          ">
+            A beautifully crafted graduation celebration app that helps you 
+            create memorable moments with interactive features.
+          </p>
+          
+          <div style="
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 12px 20px;
+            background: linear-gradient(135deg, 
+              rgba(102, 126, 234, 0.08), 
+              rgba(118, 75, 162, 0.08)
+            );
+            border-radius: 50px;
+            margin-top: 10px;
+          ">
+            <span style="color: #f5576c;">❤️</span>
+            <span style="
+              color: var(--dropdown-text, #666);
+              font-size: 14px;
+              font-weight: 500;
+            ">
+              Made for graduates everywhere
+            </span>
+          </div>
+        </div>
+        
+        <!-- Action buttons -->
+        <div class="action-buttons" style="
+          display: flex;
+          gap: 12px;
+          margin-top: 25px;
+          padding-top: 25px;
+          border-top: 1px solid var(--dropdown-divider, rgba(0, 0, 0, 0.08));
+        ">
+          <button class="btn-secondary" style="
+            padding: 14px 20px;
+            border: 1px solid var(--dropdown-divider, #e0e0e0);
+            background: transparent;
+            color: var(--dropdown-text, #666);
+            border-radius: 12px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 14px;
+            flex: 1;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+          ">
+            <span style="font-size: 16px;">📘</span>
+            Learn More
+          </button>
+          
+          <button class="btn-primary btn-close" style="
+            padding: 14px 20px;
+            border: none;
+            background: linear-gradient(135deg, 
+              var(--primary-color, #667eea), 
+              var(--secondary-color, #764ba2)
+            );
+            color: white;
+            border-radius: 12px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 14px;
+            flex: 1;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+            position: relative;
+            overflow: hidden;
+          ">
+            <span class="btn-glow" style="
+              position: absolute;
+              inset: 0;
+              background: linear-gradient(90deg, 
+                transparent, 
+                rgba(255, 255, 255, 0.2), 
+                transparent
+              );
+              transform: translateX(-100%);
+              transition: transform 0.6s ease;
+            "></span>
+            <span style="font-size: 16px;">✨</span>
+            Continue
+          </button>
+        </div>
+        
+        <!-- Footer -->
+        <div class="dialog-footer" style="
+          margin-top: 25px;
+          text-align: center;
+        ">
+          <p style="
+            margin: 0;
+            color: var(--dropdown-text-muted, #999);
+            font-size: 12px;
+            line-height: 1.4;
+          ">
+            © ${new Date().getFullYear()} Graduation App
+            <span style="color: rgba(0, 0, 0, 0.2); margin: 0 8px;">•</span>
+            All rights reserved
+          </p>
+        </div>
+      </div>
+    `;
+    
+    // Append to document
+    document.body.appendChild(backdrop);
+    backdrop.appendChild(dialog);
+    
+    // Animate in
+    setTimeout(() => {
+      backdrop.style.opacity = '1';
+      dialog.style.opacity = '1';
+      dialog.style.transform = 'translateY(0) scale(1)';
+    }, 10);
+    
+    // Add dynamic styles
+    const style = document.createElement('style');
+    style.textContent = `
+      @keyframes rotate {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+      }
+      
+      @keyframes pulse {
+        0%, 100% { transform: scale(1); }
+        50% { transform: scale(1.05); }
+      }
+      
+      .logo-container:hover .logo-main {
+        animation: pulse 0.6s ease;
+      }
+      
+      .logo-container:hover .logo-shine {
+        transform: rotate(45deg) translateX(100%);
+      }
+      
+      .feature-item:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+        border-color: rgba(102, 126, 234, 0.3) !important;
+      }
+      
+      .btn-primary:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
+      }
+      
+      .btn-primary:hover .btn-glow {
+        transform: translateX(100%);
+      }
+      
+      .btn-secondary:hover {
+        background: var(--dropdown-divider, #f5f5f5);
+        border-color: var(--primary-color, #667eea);
+        color: var(--primary-color, #667eea);
+      }
+      
+      .dialog-close-btn:hover {
+        background: rgba(0, 0, 0, 0.1);
+        transform: rotate(90deg);
+        color: var(--dropdown-text, #333);
+      }
+      
+      /* Dark theme support */
+      @media (prefers-color-scheme: dark) {
+        .about-dialog-backdrop {
+          background: rgba(0, 0, 0, 0.85);
+        }
+        
+        .about-dialog {
+          background: #1a1a1a;
+          border-color: rgba(255, 255, 255, 0.05);
+        }
+        
+        .dialog-close-btn {
+          background: rgba(255, 255, 255, 0.05);
+          color: rgba(255, 255, 255, 0.6);
+        }
+        
+        .dialog-close-btn:hover {
+          background: rgba(255, 255, 255, 0.1);
+        }
+      }
+      
+      /* Responsive */
+      @media (max-width: 480px) {
+        .features-grid {
+          grid-template-columns: 1fr;
+        }
+        
+        .action-buttons {
+          flex-direction: column;
+        }
+        
+        .dialog-content {
+          padding: 30px 25px 25px 25px;
+        }
+      }
+    `;
+    document.head.appendChild(style);
+    
+    // Close functionality
+    const closeBtn = dialog.querySelector('.dialog-close-btn');
+    const closeDialogBtn = dialog.querySelector('.btn-close');
+    
+    const closeDialog = () => {
+      dialog.style.opacity = '0';
+      dialog.style.transform = 'translateY(20px) scale(0.95)';
+      backdrop.style.opacity = '0';
+      
+      setTimeout(() => {
+        dialog.remove();
+        backdrop.remove();
+        style.remove();
+      }, 300);
+    };
+    
+    closeBtn.addEventListener('click', closeDialog);
+    closeDialogBtn.addEventListener('click', closeDialog);
+    
+    backdrop.addEventListener('click', (e) => {
+      if (e.target === backdrop) {
+        closeDialog();
+      }
+    });
+    
+    // Keyboard support
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        closeDialog();
+      }
+    };
+    
+    document.addEventListener('keydown', handleKeyDown);
+    
+    // Focus trap for accessibility
+    const focusableElements = dialog.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])');
+    const firstElement = focusableElements[0];
+    const lastElement = focusableElements[focusableElements.length - 1];
+    
+    dialog.addEventListener('keydown', (e) => {
+      if (e.key === 'Tab') {
+        if (e.shiftKey && document.activeElement === firstElement) {
+          e.preventDefault();
+          lastElement.focus();
+        } else if (!e.shiftKey && document.activeElement === lastElement) {
+          e.preventDefault();
+          firstElement.focus();
+        }
+      }
+    });
+    
+    // Focus first element
+    setTimeout(() => {
+      dialog.querySelector('button').focus();
+    }, 100);
+    
+    // Logo click celebration
+    const logoContainer = dialog.querySelector('.logo-container');
+    logoContainer.addEventListener('click', () => {
+      const logoMain = logoContainer.querySelector('.logo-main');
+      logoMain.style.animation = 'pulse 0.6s ease';
+      
+      // Create confetti effect
+      for (let i = 0; i < 8; i++) {
+        const confetti = document.createElement('div');
+        confetti.textContent = ['🎉', '✨', '🎓', '🥳'][Math.floor(Math.random() * 4)];
+        confetti.style.cssText = `
+          position: absolute;
+          font-size: 20px;
+          z-index: 1000;
+          pointer-events: none;
+          animation: confetti-fly 1s ease-out forwards;
+          left: 50%;
+          top: 50%;
+          transform: translate(-50%, -50%) rotate(${Math.random() * 360}deg);
+        `;
+        
+        // Add confetti animation
+        const style = document.createElement('style');
+        style.textContent = `
+          @keyframes confetti-fly {
+            0% {
+              transform: translate(-50%, -50%) scale(1) rotate(0deg);
+              opacity: 1;
+            }
+            100% {
+              transform: 
+                translate(
+                  calc(-50% + ${(Math.random() - 0.5) * 200}px), 
+                  calc(-50% - ${100 + Math.random() * 100}px)
+                ) 
+                scale(0) rotate(${360 + Math.random() * 360}deg);
+              opacity: 0;
+            }
+          }
+        `;
+        document.head.appendChild(style);
+        
+        dialog.appendChild(confetti);
+        setTimeout(() => {
+          confetti.remove();
+          style.remove();
+        }, 1000);
+      }
+      
+      setTimeout(() => {
+        logoMain.style.animation = '';
+      }, 600);
+    });
+  }
+
+  /**
+   * Handle custom dropdown actions
+   */
+  handleCustomDropdownAction(action, data) {
+    appLogger.debug("Custom dropdown action", { action, data });
+    
+    switch (action) {
+      case 'refresh':
+        this.refreshApp();
+        break;
+      case 'export':
+        this.exportData();
+        break;
+      case 'import':
+        this.importData();
+        break;
+      default:
+        appLogger.warn("Unknown dropdown action", { action });
+    }
+  }
+
+  /**
+   * Refresh the app
+   */
+  refreshApp() {
+    this.showToast('Refreshing app...', 'info');
+    setTimeout(() => {
+      window.location.reload();
+    }, 1000);
+  }
+
+  /**
+   * Export app data
+   */
+  exportData() {
+    // Implementation for data export
+    this.showToast('Export feature coming soon', 'info');
+  }
+
+  /**
+   * Import app data
+   */
+  importData() {
+    // Implementation for data import
+    this.showToast('Import feature coming soon', 'info');
+  }
+
+  /**
+   * Show toast message
+   */
+  showToast(message, type = 'info') {
+    if (this.dropdownManager?.showToast) {
+      this.dropdownManager.showToast(message, type);
+    } else {
+      // Fallback toast
+      console.log(`[${type.toUpperCase()}] ${message}`);
+    }
+  }
+
+  /**
+   * Dispatch app-wide event
+   */
+  dispatchAppEvent(eventName, detail = {}) {
+    const event = new CustomEvent(`graduationapp:${eventName}`, {
+      detail,
+      bubbles: true,
+      cancelable: true
+    });
+    document.dispatchEvent(event);
+  }
+
+  /**
+   * Cleanup resources
+   */
+  destroy() {
+    appLogger.time("GraduationApp cleanup");
+    
+    // Destroy modules
+    Object.entries(this.modules).forEach(([name, module]) => {
+      if (module && typeof module.destroy === "function") {
+        appLogger.debug(`Destroying module: ${name}`);
+        module.destroy();
+      }
+    });
+    
+    // Destroy dropdown manager
+    if (this.dropdownManager) {
+      this.dropdownManager.destroy();
+    }
+    
+    // Destroy theme manager
+    if (this.themeManager) {
+      this.themeManager.destroy();
+    }
+    
+    // Remove event listeners
+    if (this.eventHandlers.resize) {
+      window.removeEventListener("resize", this.eventHandlers.resize);
+    }
+    
+    // Clear state
+    this.isInitialized = false;
+    this.modules = {};
+    this.state = {};
+    
+    appLogger.info("GraduationApp destroyed successfully");
+    appLogger.timeEnd("GraduationApp cleanup");
+  }
+setupKeyboardShortcuts() {
+  document.addEventListener('keydown', (e) => {
+    // Don't trigger if user is typing in an input
+    if (e.target.tagName === 'INPUT' || 
+        e.target.tagName === 'TEXTAREA' || 
+        e.target.isContentEditable) {
+      return;
+    }
+    
+    // F5 to refresh
+    if (e.key === 'F5') {
+      e.preventDefault();
+      this.refreshApp();
+    }
+    
+    // Ctrl/Cmd + Shift + D to open dropdown
+    if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'D') {
+      e.preventDefault();
+      if (this.dropdownManager) {
+        this.dropdownManager.openDropdown();
+      }
+    }
+    
+    // Escape to close dropdown
+    if (e.key === 'Escape' && this.dropdownManager) {
+      const state = this.dropdownManager.getState();
+      if (state.isOpen) {
+        this.dropdownManager.closeDropdown();
+      }
+    }
+  });
+}
+
+/**
+ * Update menu items based on app state
+ */
+updateMenuItems() {
+  if (!this.dropdownManager) return;
+  
+  // Update theme button label
+  const themeItem = this.dropdownManager.elements?.dropdown?.querySelector('[data-action="theme"]');
+  if (themeItem) {
+    const label = themeItem.querySelector('.dropdown-item-label');
+    const currentTheme = this.themeManager?.getCurrentTheme() || 'light';
+    
+    this.themeManager.manaullyUpdateBtnLabel();
+    if (label) {
+      label.textContent = currentTheme === 'dark' ? 'Light Mode' : 'Dark Mode';
+    }
+  }
+  
+  // Show/hide export/import based on authentication
+  const exportItem = this.dropdownManager.elements?.dropdown?.querySelector('[data-action="export"]');
+  const importItem = this.dropdownManager.elements?.dropdown?.querySelector('[data-action="import"]');
+  
+  if (exportItem) {
+    exportItem.style.display = this.state.userAuthenticated ? 'flex' : 'none';
+  }
+  if (importItem) {
+    importItem.style.display = this.state.userAuthenticated ? 'flex' : 'none';
+  }
+}
 
   showMediaLoading(){
       appLogger.time('show media loading animation');
@@ -4756,7 +6673,8 @@ class GraduationApp {
       },
       resize: this.debounce(() => this.handleResize(), 200),
     };
-
+    this.modules.imageLoader.pauseRotation();
+    this.modules.imageLoader.updateConfig(this.state.preferences)
     if (this.elements.imageContainer) {
       this.elements.imageContainer.addEventListener(
         "mouseenter",
@@ -4772,7 +6690,13 @@ class GraduationApp {
       appLogger.warn("Image container not found for event listeners");
     }
     this.elements.GraduationImage.addEventListener('load',()=>{this.hideMediaLoading()})
+
+    window.addEventListener('dropdown:close', this.handleDropdownEvent);
+    window.addEventListener('dropdown:open', this.handleDropdownEvent);
     window.addEventListener("resize", this.eventHandlers.resize);
+    window.addEventListener('themechanged', () => {
+      this.updateMenuItems();
+    });
     appLogger.debug("Window resize listener attached");
 
     appLogger.timeEnd("Event listener setup");
@@ -4898,6 +6822,18 @@ class GraduationApp {
     animateNext();
   }
 
+  handleDropdownEvent = (e) => {
+    appLogger.debug("Dropdown event received", e.type);
+    if (e.type === "dropdown:close") {
+      this.modules.imageLoader.resumeRotation();
+      appLogger.debug("Image rotation paused due to dropdown close");
+    }
+    if (e.type === "dropdown:open") {
+      this.modules.imageLoader.pauseRotation();
+      appLogger.debug("Image rotation resumed due to dropdown open");
+    }
+  }
+
   /**
   * Change the name of the title 
   */
@@ -4950,7 +6886,7 @@ class GraduationApp {
    */
   destroy() {
     appLogger.time("GraduationApp cleanup");
-
+      appLogger.info("GraduationApp destroyed successfully");
     // Destroy all modules
     Object.entries(this.modules).forEach(([name, module]) => {
       if (module && typeof module.destroy === "function") {
@@ -4961,6 +6897,14 @@ class GraduationApp {
       if (this.modules.imageLoader?.navigationController) {
     this.modules.imageLoader.navigationController.destroy();
   }
+      // Destroy dropdown manager
+      if (this.dropdownManager) {
+          this.dropdownManager.destroy();
+      }
+      // Destroy theme manager
+      if (this.themeManager) {
+          this.themeManager.destroy();
+      }
 
     // Remove event listeners
     if (this.elements.imageContainer) {
@@ -4981,7 +6925,14 @@ class GraduationApp {
     this.isInitialized = false;
     appLogger.info("GraduationApp destroyed successfully");
     appLogger.timeEnd("GraduationApp cleanup");
+
+    // Clear state
+      this.isInitialized = false;
+      this.modules = {};
+      this.state = {};
   }
+
+
 }
 
 // Initialize the application when DOM is ready
@@ -5005,3 +6956,97 @@ if (typeof module !== "undefined" && module.exports) {
 }
 
 export default GraduationApp;
+
+// Add CSS animations
+const dropdownStyles = document.createElement('style');
+dropdownStyles.textContent = `
+  /* Dropdown animations */
+  @keyframes dropdownFadeIn {
+    from {
+      opacity: 0;
+      transform: translateY(-10px) scale(0.95);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+  }
+  
+  @keyframes dropdownFadeOut {
+    from {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+    to {
+      opacity: 0;
+      transform: translateY(-10px) scale(0.95);
+    }
+  }
+  
+  @keyframes backdropFadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+  
+  @keyframes backdropFadeOut {
+    from { opacity: 1; }
+    to { opacity: 0; }
+  }
+  
+  @keyframes toastSlideIn {
+    from {
+      transform: translateX(100%);
+      opacity: 0;
+    }
+    to {
+      transform: translateX(0);
+      opacity: 1;
+    }
+  }
+  
+  @keyframes toastSlideOut {
+    from {
+      transform: translateX(0);
+      opacity: 1;
+    }
+    to {
+      transform: translateX(100%);
+      opacity: 0;
+    }
+  }
+  
+  @keyframes ripple {
+    to {
+      transform: scale(4);
+      opacity: 0;
+    }
+  }
+  
+  /* Ripple effect */
+  .ripple-effect {
+    position: relative;
+    overflow: hidden;
+  }
+  
+  .ripple {
+    position: absolute;
+    border-radius: 50%;
+    transform: scale(0);
+    animation: ripple 0.6s linear;
+    pointer-events: none;
+  }
+  
+  /* Screen reader only */
+  .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+`;
+document.head.appendChild(dropdownStyles);

@@ -211,7 +211,7 @@ const PasswordConfig = {
   MIN_PASSWORD_LENGTH: 8,
   NOTIFICATION_DURATION: 3000,
   THROTTLE_DELAY: 250,
-  SECURE_INPUT_TIMEOUT: 3000,
+  SECURE_INPUT_TIMEOUT: 5000,
   REDIRECT_DELAY: 3000,
 };
 
@@ -890,6 +890,7 @@ const PasswordManager = (() => {
           passwordLogger.debug("Auto-hiding password for security");
           _togglePasswordVisibility();
           _showNotification("Password hidden for security", "info");
+          PasswordConfig.SECURE_INPUT_TIMEOUT += 2000; 
         }
       }, PasswordConfig.SECURE_INPUT_TIMEOUT);
     }
