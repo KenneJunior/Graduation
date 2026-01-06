@@ -10,7 +10,7 @@
     "build:sw": "node src/scripts/build-offline-page.js",
     "prebuild": "node src/scripts/pre-build.js",
     "build": "vite build && node src/scripts/copy-sw.js && npm run build:sw",
-    "dev": "vite",
+    "dev": "vite --port 4000",
     "preview": "vite preview"
   },
   "devDependencies": {
@@ -28,6 +28,7 @@
     "error-stack-parser": "^2.1.4",
     "hammerjs": "^2.0.8",
     "pwa-asset-generator": "^8.1.2",
-    "sharp": "^0.34.4"
+    "sharp": "^0.34.4",
+    "swiper": "^12.0.3"
   }
 }

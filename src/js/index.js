@@ -326,28 +326,6 @@ class ConfettiSystem {
   }
 
   /**
-   * Update canvas size based on container and device pixel ratio
-   */
-  updateCanvasSize() {
-    const rect = this.container.getBoundingClientRect();
-    const dpr = window.devicePixelRatio || 1;
-    
-    this.canvas.width = rect.width * dpr;
-    this.canvas.height = rect.height * dpr;
-    
-    // Scale context for high DPI displays
-    this.ctx.scale(dpr, dpr);
-    
-    confettiLogger.debug("Canvas size updated", {
-      width: rect.width,
-      height: rect.height,
-      dpr: dpr,
-      canvasWidth: this.canvas.width,
-      canvasHeight: this.canvas.height
-    });
-  }
-
-  /**
    * Setup event listeners
    */
   setupEventListeners() {
@@ -1190,6 +1168,7 @@ class ConfettiSystem {
   }
 }
 
+//todo fix the roatational problem usiong the libaries online
 class ImageLoader {
     /**
      * Create an ImageLoader instance
@@ -3510,155 +3489,575 @@ class ImageNavigationController {
  * SCROLL ANIMATOR - Handles scroll-triggered animations
  * @class ScrollAnimator
  */
+/**
+ * SCROLL ANIMATOR - Lightweight, performant scroll-triggered animations
+ * Focuses on smooth performance, minimal overhead, and perfect integration with existing CSS
+ * @class ScrollAnimator
+ */
 class ScrollAnimator {
-  constructor() {
-    scrollLogger.time("ScrollAnimator constructor");
-    this.animatedElements = [];
-    this.threshold = 0.1;
-    this.observer = null;
-    this.isInitialized = false;
+    constructor(options = {}) {
+        scrollLogger.time("ScrollAnimator constructor");
 
-    scrollLogger.debug("ScrollAnimator instance created");
-    scrollLogger.timeEnd("ScrollAnimator constructor");
-  }
+        // Lightweight configuration
+        this.config = {
+            // Core settings
+            threshold: 0.1,               // When to trigger (0-1)
+            rootMargin: '0px 0px -50px 0px', // Offset from viewport
+            triggerOnce: true,            // Animate only once
+            staggerDelay: 100,            // Delay between elements
 
-  /**
-   * Initialize scroll animations
-   */
-  init() {
-    if (this.isInitialized) {
-      scrollLogger.debug("ScrollAnimator already initialized");
-      return;
-    }
+            // Performance
+            useIntersectionObserver: true, // Use IO if available
+            debounceScroll: true,          // Debounce scroll events
+            debounceDelay: 100,            // Debounce delay in ms
 
-    try {
-      scrollLogger.time("ScrollAnimator initialization");
-      this.cacheElements();
-      this.setupObserver();
-      this.isInitialized = true;
-      scrollLogger.info("ScrollAnimator initialized successfully");
-      scrollLogger.timeEnd("ScrollAnimator initialization");
-    } catch (error) {
-      scrollLogger.error("Failed to initialize scroll animator", error);
-    }
-  }
+            // Animation control
+            enableProgressBar: true,       // Show scroll progress
+            enableStagger: true,           // Enable staggered animations
 
-  /**
-   * Cache DOM elements for animation
-   */
-  cacheElements() {
-    scrollLogger.time("Element caching");
-    this.animatedElements = [
-      ...document.querySelectorAll("[data-animate]"),
-      ...document.querySelectorAll(".message-item"),
-      document.querySelector(".Graduation-title"),
-      document.querySelector(".Graduation-wishes"),
-    ].filter(Boolean);
+            // Default animation mappings
+            animationMap: {
+                'fade': 'fadeIn',
+                'fade-up': 'fadeInUp',
+                'fade-down': 'fadeInDown',
+                'fade-left': 'fadeInLeft',
+                'fade-right': 'fadeInRight',
+                'slide-up': 'slideInBottom',
+                'slide-left': 'slideInLeft',
+                'slide-right': 'slideInRight',
+                'scale': 'fadeInScale',
+                'zoom': 'zoomIn',
+                'bounce': 'bounceIn',
+                'flip-x': 'flipInX',
+                'flip-y': 'flipInY',
+                'rotate': 'rotateIn',
+                'blur': 'fadeInBlur'
+            },
 
-    scrollLogger.debug("Elements cached for animation", {
-      count: this.animatedElements.length,
-      elements: this.animatedElements.map((el) => el.className || el.tagName),
-    });
-    scrollLogger.timeEnd("Element caching");
-  }
+            // Merge user options
+            ...options
+        };
 
-  /**
-   * Setup Intersection Observer
-   */
-  setupObserver() {
-    scrollLogger.time("Observer setup");
-    if (!("IntersectionObserver" in window)) {
-      scrollLogger.warn("IntersectionObserver not supported, using fallback");
-      this.animateAllElements();
-      scrollLogger.timeEnd("Observer setup");
-      return;
-    }
+        // Core state
+        this.elements = [];
+        this.observer = null;
+        this.isInitialized = false;
+        this.lastScrollY = 0;
+        this.scrollDirection = 'down';
+        this.animatedCount = 0;
 
-    this.observer = new IntersectionObserver(
-      (entries) => {
-        scrollLogger.debug("Intersection observed", {
-          entriesCount: entries.length,
+        // Performance tracking
+        this.performance = {
+            totalElements: 0,
+            animatedElements: 0,
+            startTime: 0
+        };
+
+        // Bind methods (only essential ones)
+        this.handleIntersection = this.handleIntersection.bind(this);
+        this.handleScroll = this.handleScroll.bind(this);
+        this.debouncedScroll = this.debounce(this.handleScroll, this.config.debounceDelay);
+
+        scrollLogger.debug("ScrollAnimator created", {
+            useIO: this.config.useIntersectionObserver,
+            threshold: this.config.threshold
         });
-        entries.forEach((entry) => {
-          if (entry.isIntersecting) {
-            scrollLogger.debug("Element entering viewport", {
-              element: entry.target.className || entry.target.tagName,
-              intersectionRatio: entry.intersectionRatio,
+
+        scrollLogger.timeEnd("ScrollAnimator constructor");
+    }
+
+    /**
+     * Initialize with minimal overhead
+     */
+    init() {
+        if (this.isInitialized) {
+            scrollLogger.debug("Already initialized");
+            return;
+        }
+
+        scrollLogger.time("ScrollAnimator init");
+
+        try {
+            this.performance.startTime = performance.now();
+
+            // Setup essentials
+            this.setupElements();
+            this.setupObserver();
+            this.setupProgressBar();
+
+            // Initial visibility check
+            this.checkInitialViewport();
+
+            this.isInitialized = true;
+
+            scrollLogger.info("ScrollAnimator ready", {
+                elements: this.elements.length,
+                observerActive: !!this.observer
             });
-            this.animateElement(entry.target);
-            this.observer.unobserve(entry.target);
-          }
-        });
-      },
-      {
-        threshold: this.threshold,
-        rootMargin: "0px 0px -50px 0px",
-      }
-    );
 
-    this.animatedElements.forEach((el) => this.observer.observe(el));
-    scrollLogger.debug("Observer setup completed", {
-      observedElements: this.animatedElements.length,
-      threshold: this.threshold,
-    });
-    scrollLogger.timeEnd("Observer setup");
-  }
-
-  /**
-   * Animate element when it comes into view
-   */
-  animateElement(element) {
-    const animationClass = element.dataset.animate || "fadeInUp";
-    scrollLogger.debug("Animating element", {
-      element: element.className || element.tagName,
-      animationClass,
-    });
-
-    element.style.visibility = "visible";
-    element.classList.add("animate__animated", `animate__${animationClass}`);
-
-    // Clean up after animation
-    element.addEventListener(
-      "animationend",
-      () => {
-        scrollLogger.debug("Element animation completed", {
-          element: element.className || element.tagName,
-        });
-        element.style.visibility = "";
-      },
-      { once: true }
-    );
-  }
-
-  /**
-   * Fallback: animate all elements if IntersectionObserver is not supported
-   */
-  animateAllElements() {
-    scrollLogger.warn("Using fallback animation (no IntersectionObserver)");
-    this.animatedElements.forEach((element, index) => {
-      setTimeout(() => {
-        scrollLogger.debug("Fallback animation triggered", {
-          element: element.className || element.tagName,
-          index,
-        });
-        this.animateElement(element);
-      }, index * 150);
-    });
-  }
-
-  /**
-   * Cleanup resources
-   */
-  destroy() {
-    scrollLogger.time("ScrollAnimator cleanup");
-    if (this.observer) {
-      this.observer.disconnect();
-      scrollLogger.debug("IntersectionObserver disconnected");
+        } catch (error) {
+            scrollLogger.error("Init failed", error);
+            this.fallbackSetup();
+        } finally {
+            scrollLogger.timeEnd("ScrollAnimator init");
+        }
     }
-    this.isInitialized = false;
-    scrollLogger.info("ScrollAnimator destroyed");
-    scrollLogger.timeEnd("ScrollAnimator cleanup");
-  }
+
+    /**
+     * Setup elements with minimal processing
+     */
+    setupElements() {
+        scrollLogger.time("Setup elements");
+
+        // Select elements with data attributes
+        const selectors = [
+            '[data-scroll-animate]',
+            '.scroll-animate',
+            '[data-animate]'
+        ];
+
+        // Combine selectors
+        const selectorString = selectors.join(', ');
+        const foundElements = document.querySelectorAll(selectorString);
+
+        // Process elements
+        this.elements = Array.from(foundElements)
+            .filter(el => {
+                // Skip hidden elements
+                const style = window.getComputedStyle(el);
+                return style.display !== 'none' && style.visibility !== 'hidden';
+            })
+            .map((el, index) => {
+                // Get animation type
+                let animationType = el.dataset.scrollAnimate ||
+                    el.dataset.animate ||
+                    'fade-up';
+
+                // Map to actual animation class
+                animationType = this.config.animationMap[animationType] || 'fadeInUp';
+
+                // Add base animation class
+                el.classList.add('scroll-animate');
+
+                return {
+                    element: el,
+                    index: index,
+                    animation: animationType,
+                    delay: parseInt(el.dataset.animationDelay) ||
+                        (this.config.enableStagger ? index * this.config.staggerDelay : 0),
+                    threshold: parseFloat(el.dataset.threshold) || this.config.threshold,
+                    animated: false,
+                    priority: el.dataset.priority || 'normal'
+                };
+            });
+
+        // Sort by priority if needed
+        if (this.elements.some(el => el.priority !== 'normal')) {
+            this.elements.sort((a, b) => {
+                const order = { high: 0, normal: 1, low: 2 };
+                return order[a.priority] - order[b.priority];
+            });
+        }
+
+        this.performance.totalElements = this.elements.length;
+
+        scrollLogger.debug("Elements prepared", {
+            count: this.elements.length,
+            hasStagger: this.config.enableStagger
+        });
+
+        scrollLogger.timeEnd("Setup elements");
+    }
+
+    /**
+     * Setup Intersection Observer (if available and enabled)
+     */
+    setupObserver() {
+        if (!this.config.useIntersectionObserver || !('IntersectionObserver' in window)) {
+            scrollLogger.debug("Using scroll fallback");
+            this.setupScrollFallback();
+            return;
+        }
+
+        try {
+            this.observer = new IntersectionObserver(
+                this.handleIntersection,
+                {
+                    threshold: [0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1],
+                    rootMargin: this.config.rootMargin
+                }
+            );
+
+            // Observe each element
+            this.elements.forEach(el => {
+                this.observer.observe(el.element);
+            });
+
+            scrollLogger.debug("Observer active", {
+                elements: this.elements.length,
+                threshold: this.config.threshold
+            });
+
+        } catch (error) {
+            scrollLogger.error("Observer failed", error);
+            this.setupScrollFallback();
+        }
+    }
+
+    /**
+     * Setup scroll fallback for older browsers
+     */
+    setupScrollFallback() {
+        if (this.config.debounceScroll) {
+            window.addEventListener('scroll', this.debouncedScroll, { passive: true });
+        } else {
+            window.addEventListener('scroll', this.handleScroll, { passive: true });
+        }
+
+        scrollLogger.debug("Scroll fallback active");
+    }
+
+    /**
+     * Setup progress bar if enabled
+     */
+    setupProgressBar() {
+        if (!this.config.enableProgressBar) return;
+
+        // Check if already exists
+        if (document.querySelector('.scroll-progress-bar')) return;
+
+        const progressBar = document.createElement('div');
+        progressBar.className = 'scroll-progress-bar';
+        progressBar.style.cssText = `
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 0%;
+            height: 3px;
+            background: linear-gradient(90deg, var(--primary-color, #667eea), var(--secondary-color, #764ba2));
+            z-index: 9999;
+            transition: width 0.1s ease;
+        `;
+
+        document.body.appendChild(progressBar);
+
+        // Update on scroll
+        const updateProgress = () => {
+            const scrollTop = window.pageYOffset;
+            const scrollHeight = document.documentElement.scrollHeight - window.innerHeight;
+            const progress = (scrollTop / scrollHeight) * 100;
+
+            progressBar.style.width = `${progress}%`;
+        };
+
+        window.addEventListener('scroll', this.debounce(updateProgress, 16), { passive: true });
+
+        scrollLogger.debug("Progress bar added");
+    }
+
+    /**
+     * Handle intersection events
+     */
+    handleIntersection(entries) {
+        entries.forEach(entry => {
+            const element = entry.target;
+            const elementData = this.elements.find(el => el.element === element);
+
+            if (!elementData || elementData.animated) return;
+
+            if (entry.isIntersecting && entry.intersectionRatio >= elementData.threshold) {
+                this.triggerAnimation(elementData);
+
+                // Unobserve if triggerOnce is true
+                if (this.config.triggerOnce) {
+                    this.observer.unobserve(element);
+                }
+            }
+        });
+    }
+
+    /**
+     * Handle scroll events (fallback)
+     */
+    handleScroll() {
+        const currentScrollY = window.pageYOffset;
+        this.scrollDirection = currentScrollY > this.lastScrollY ? 'down' : 'up';
+        this.lastScrollY = currentScrollY;
+
+        const viewportHeight = window.innerHeight;
+        const scrollPosition = currentScrollY;
+
+        this.elements.forEach(elementData => {
+            if (elementData.animated) return;
+
+            const rect = elementData.element.getBoundingClientRect();
+            const elementTop = rect.top + scrollPosition;
+            const elementBottom = rect.bottom + scrollPosition;
+
+            // Check if element is in viewport
+            if (elementBottom > scrollPosition && elementTop < scrollPosition + viewportHeight) {
+                const visibleHeight = Math.min(elementBottom, scrollPosition + viewportHeight) -
+                    Math.max(elementTop, scrollPosition);
+                const visibilityRatio = visibleHeight / rect.height;
+
+                if (visibilityRatio >= elementData.threshold) {
+                    this.triggerAnimation(elementData);
+                }
+            }
+        });
+    }
+
+    /**
+     * Trigger animation with delay
+     */
+    triggerAnimation(elementData) {
+        if (elementData.animated) return;
+
+        elementData.animated = true;
+        this.performance.animatedElements++;
+
+        // Apply animation with delay
+        setTimeout(() => {
+            this.applyAnimation(elementData);
+        }, elementData.delay);
+    }
+
+    /**
+     * Apply animation to element (minimal DOM manipulation)
+     */
+    applyAnimation(elementData) {
+        const { element, animation } = elementData;
+
+        // Add animation classes
+        element.classList.add('animated', 'in-viewport');
+
+        // Add specific animation class if not using CSS transitions
+        if (animation && !element.dataset.useCssTransition) {
+            element.classList.add(animation);
+        }
+
+        // Dispatch event
+        this.dispatchAnimationEvent(element, 'animation:start');
+
+        // Track completion
+        const handleEnd = () => {
+            element.classList.add('animation-completed');
+            this.dispatchAnimationEvent(element, 'animation:end');
+
+            element.removeEventListener('animationend', handleEnd);
+            element.removeEventListener('transitionend', handleEnd);
+        };
+
+        element.addEventListener('animationend', handleEnd, { once: true });
+        element.addEventListener('transitionend', handleEnd, { once: true });
+
+        scrollLogger.debug("Animation applied", {
+            element: element.tagName,
+            animation: animation,
+            delay: elementData.delay
+        });
+    }
+
+    /**
+     * Check initial viewport (for elements already visible)
+     */
+    checkInitialViewport() {
+        const viewportHeight = window.innerHeight;
+        const scrollPosition = window.pageYOffset;
+
+        this.elements.forEach(elementData => {
+            if (elementData.animated) return;
+
+            const rect = elementData.element.getBoundingClientRect();
+            const elementTop = rect.top + scrollPosition;
+            const elementBottom = rect.bottom + scrollPosition;
+
+            // Check if element is already in viewport
+            if (elementBottom > 0 && elementTop < viewportHeight) {
+                const visibleHeight = Math.min(elementBottom, viewportHeight) - Math.max(elementTop, 0);
+                const visibilityRatio = visibleHeight / rect.height;
+
+                if (visibilityRatio >= elementData.threshold) {
+                    this.triggerAnimation(elementData);
+                }
+            }
+        });
+    }
+
+    /**
+     * Dispatch animation event
+     */
+    dispatchAnimationEvent(element, eventName) {
+        const event = new CustomEvent(eventName, {
+            detail: {
+                element: element,
+                timestamp: Date.now()
+            },
+            bubbles: true
+        });
+
+        element.dispatchEvent(event);
+    }
+
+    /**
+     * Fallback setup for when everything fails
+     */
+    fallbackSetup() {
+        scrollLogger.warn("Using fallback setup");
+
+        // Simple fade in for all elements
+        this.elements.forEach((elementData, index) => {
+            setTimeout(() => {
+                elementData.element.style.opacity = '1';
+                elementData.element.style.transform = 'none';
+                elementData.element.style.transition = 'opacity 0.5s ease';
+            }, index * 100);
+        });
+
+        this.isInitialized = true;
+    }
+
+    /**
+     * Utility: Debounce function
+     */
+    debounce(func, wait) {
+        let timeout;
+        return function executedFunction(...args) {
+            const later = () => {
+                clearTimeout(timeout);
+                func.apply(this, args);
+            };
+            clearTimeout(timeout);
+            timeout = setTimeout(later, wait);
+        };
+    }
+
+    /**
+     * Add custom animation mapping
+     */
+    addAnimation(name, animationClass) {
+        this.config.animationMap[name] = animationClass;
+        scrollLogger.debug("Animation added", { name, animationClass });
+    }
+
+    /**
+     * Manually trigger animation for specific element
+     */
+    triggerElement(selectorOrElement, animationType = null) {
+        const element = typeof selectorOrElement === 'string'
+            ? document.querySelector(selectorOrElement)
+            : selectorOrElement;
+
+        if (!element) {
+            scrollLogger.warn("Element not found", { selector: selectorOrElement });
+            return;
+        }
+
+        const elementData = this.elements.find(el => el.element === element) || {
+            element: element,
+            animation: animationType || 'fadeInUp',
+            delay: 0,
+            animated: false
+        };
+
+        if (!elementData.animated) {
+            this.applyAnimation(elementData);
+        }
+    }
+
+    /**
+     * Reset element animation
+     */
+    resetElement(selectorOrElement) {
+        const element = typeof selectorOrElement === 'string'
+            ? document.querySelector(selectorOrElement)
+            : selectorOrElement;
+
+        if (!element) return;
+
+        // Reset classes
+        element.classList.remove('animated', 'in-viewport', 'animation-completed');
+
+        // Reset animation classes
+        Object.values(this.config.animationMap).forEach(animationClass => {
+            element.classList.remove(animationClass);
+        });
+
+        // Find and reset in elements array
+        const elementData = this.elements.find(el => el.element === element);
+        if (elementData) {
+            elementData.animated = false;
+            this.performance.animatedElements = Math.max(0, this.performance.animatedElements - 1);
+        }
+
+        // Re-observe if using observer
+        if (this.observer && this.config.triggerOnce) {
+            this.observer.observe(element);
+        }
+
+        scrollLogger.debug("Element reset", { element: element.tagName });
+    }
+
+    /**
+     * Get performance statistics
+     */
+    getStats() {
+        return {
+            totalElements: this.performance.totalElements,
+            animatedElements: this.performance.animatedElements,
+            pendingAnimations: this.performance.totalElements - this.performance.animatedElements,
+            uptime: performance.now() - this.performance.startTime
+        };
+    }
+
+    /**
+     * Update configuration
+     */
+    updateConfig(newConfig) {
+        Object.assign(this.config, newConfig);
+        scrollLogger.debug("Config updated", newConfig);
+    }
+
+    /**
+     * Clean shutdown
+     */
+    destroy() {
+        scrollLogger.time("ScrollAnimator destroy");
+
+        // Disconnect observer
+        if (this.observer) {
+            this.observer.disconnect();
+        }
+
+        // Remove scroll listeners
+        if (this.config.debounceScroll) {
+            window.removeEventListener('scroll', this.debouncedScroll);
+        } else {
+            window.removeEventListener('scroll', this.handleScroll);
+        }
+
+        // Remove progress bar
+        const progressBar = document.querySelector('.scroll-progress-bar');
+        if (progressBar) {
+            progressBar.remove();
+        }
+
+        // Reset elements
+        this.elements.forEach(elementData => {
+            elementData.element.classList.remove('scroll-animate');
+        });
+
+        // Clear state
+        this.elements = [];
+        this.observer = null;
+        this.isInitialized = false;
+
+        scrollLogger.info("ScrollAnimator destroyed", {
+            totalAnimations: this.performance.animatedElements
+        });
+
+        scrollLogger.timeEnd("ScrollAnimator destroy");
+    }
 }
 
 /**
@@ -6665,7 +7064,7 @@ updateMenuItems() {
     this.eventHandlers = {
       imageMouseEnter: () => {
         appLogger.debug("Image container mouse enter - triggering confetti");
-        this.modules.confetti.triggerConfetti(20);
+        //this.modules.confetti.triggerConfetti(20);
       },
       imageTouchStart: () => {
         appLogger.debug("Image container touch start - triggering confetti");
@@ -6941,6 +7340,14 @@ document.addEventListener("DOMContentLoaded", () => {
   appLogger.debug("DOM content loaded, starting application initialization");
     new GraduationApp().init();
   appLogger.timeEnd("DOMContentLoaded initialization");
+
+const hasScrollElements = document.querySelector('[data-scroll-animate], .scroll-animate');
+
+if (hasScrollElements && !window.scrollAnimator) {
+    scrollLogger.debug("Auto-initializing ScrollAnimator");
+    window.scrollAnimator = new ScrollAnimator();
+    window.scrollAnimator.init();
+}
 });
 
 // Export for module systems
@@ -6956,97 +7363,3 @@ if (typeof module !== "undefined" && module.exports) {
 }
 
 export default GraduationApp;
-
-// Add CSS animations
-const dropdownStyles = document.createElement('style');
-dropdownStyles.textContent = `
-  /* Dropdown animations */
-  @keyframes dropdownFadeIn {
-    from {
-      opacity: 0;
-      transform: translateY(-10px) scale(0.95);
-    }
-    to {
-      opacity: 1;
-      transform: translateY(0) scale(1);
-    }
-  }
-  
-  @keyframes dropdownFadeOut {
-    from {
-      opacity: 1;
-      transform: translateY(0) scale(1);
-    }
-    to {
-      opacity: 0;
-      transform: translateY(-10px) scale(0.95);
-    }
-  }
-  
-  @keyframes backdropFadeIn {
-    from { opacity: 0; }
-    to { opacity: 1; }
-  }
-  
-  @keyframes backdropFadeOut {
-    from { opacity: 1; }
-    to { opacity: 0; }
-  }
-  
-  @keyframes toastSlideIn {
-    from {
-      transform: translateX(100%);
-      opacity: 0;
-    }
-    to {
-      transform: translateX(0);
-      opacity: 1;
-    }
-  }
-  
-  @keyframes toastSlideOut {
-    from {
-      transform: translateX(0);
-      opacity: 1;
-    }
-    to {
-      transform: translateX(100%);
-      opacity: 0;
-    }
-  }
-  
-  @keyframes ripple {
-    to {
-      transform: scale(4);
-      opacity: 0;
-    }
-  }
-  
-  /* Ripple effect */
-  .ripple-effect {
-    position: relative;
-    overflow: hidden;
-  }
-  
-  .ripple {
-    position: absolute;
-    border-radius: 50%;
-    transform: scale(0);
-    animation: ripple 0.6s linear;
-    pointer-events: none;
-  }
-  
-  /* Screen reader only */
-  .sr-only {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    padding: 0;
-    margin: -1px;
-    overflow: hidden;
-    clip: rect(0, 0, 0, 0);
-    white-space: nowrap;
-    border: 0;
-  }
-`;
-document.head.appendChild(dropdownStyles);
