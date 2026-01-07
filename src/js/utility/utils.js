@@ -13,6 +13,27 @@ export async function getAppName() {
     return null;
   }
 }
+
+export function  showMediaLoading(loadingContainer) {
+    // Show loading container with proper classes
+    if (loadingContainer) {
+        loadingContainer.classList.add("is-visible", "is-loading");
+        loadingContainer.setAttribute("aria-hidden", "false");
+        loadingContainer.setAttribute("aria-live", "off");
+    }
+}
+
+export function hideMediaLoading(loadingContainer) {
+    // Hide loading container and reset attributes
+    setTimeout(() => {
+        if (loadingContainer) {
+            loadingContainer.classList.remove("is-visible", "is-loading");
+            loadingContainer.setAttribute("aria-hidden", "true");
+            loadingContainer.setAttribute("aria-live", "polite");
+        }
+    }, 500);
+}
+
 /**
  * Utility: Load media data from gallery-data.json
  * @returns {Promise<Object>} Parsed media data
@@ -81,7 +102,9 @@ export function filterMediaByUser(media, authResult, options = {}) {
     return config.returnAllOnError ? media : [];
   }
 
-  const { accessLevel, code, name } = authResult;
+  const { accessLevel, code, name} = authResult;
+
+
   
   if (config.debug) {
     console.debug('🔍 Advanced Media Filter started:', {
@@ -309,6 +332,8 @@ export function filterMediaByUser(media, authResult, options = {}) {
 
 /**
  * Generate thumbnail URL from main image URL
+ * @param {string} src - Original image source URL
+ * @returns {string} Thumbnail URL
  */
 function generateThumbnailUrl(src) {
   if (!src) return '';
@@ -332,6 +357,8 @@ function generateThumbnailUrl(src) {
 
 /**
  * Generate responsive srcset for images
+ * @param {string} src - Original image source URL
+ * @returns {string} Srcset attribute value
  */
 function generateResponsiveSrcset(src) {
   if (!src) return '';
@@ -347,6 +374,10 @@ function generateResponsiveSrcset(src) {
 
 /**
  * Generate alt text for images based on persons
+ * @param {Object} mediaItem - Media item object
+ * @param {string} userCode - Logged-in user's code
+ * @param {string} userName - Logged-in user's name
+ * @returns {Object} Media item with updated alt text
  */
 function generateAltText(mediaItem, userCode, userName) {
   if (!Array.isArray(mediaItem.persons) || mediaItem.persons.length === 0) {
@@ -586,6 +617,26 @@ export function createPersonalizedMediaFeed(media, authResult) {
   return feed;
 }
 
+/**
+ * Utility: Get current user info from localStorage
+ * @returns {{code, name, isGraduand, accessLevel}|null}
+ */
+export function getCurrentUserInfo() {
+    const authData = localStorage.getItem('GraduationAppPassword');
+    if (!authData) window.location.href = '/login';
+    try {
+        const parsed = JSON.parse(authData);
+        return {
+            code: parsed.code || null,
+            name: parsed.name || null,
+            isGraduand: parsed.isGraduand || false,
+            accessLevel: parsed.accessLevel || 0
+        }
+    } catch {
+        return null;
+    }
+
+}
 // Export the main function and utilities
 export default filterMediaByUser;
   /**

@@ -1,7 +1,14 @@
 import logger from "../js/utility/logger.js";
 import DropdownManager from "./utility/DropdownManager.js";
 import { ThemeManager } from "./utility/Mode.js";
-import { loadMediaData } from "./utility/utils.js";
+import {
+    filterMediaByUser,
+    getCurrentUserInfo,
+    hideMediaLoading,
+    loadMediaData,
+    showMediaLoading
+} from "./utility/utils.js";
+
 
 const appLogger = logger.withContext({
   module: "GraduationApp",
@@ -1168,15 +1175,12 @@ class ConfettiSystem {
   }
 }
 
-//todo fix the roatational problem usiong the libaries online
+/**
+ * ImageLoader Class for Slideshow with Swiper.js
+ */
+
 class ImageLoader {
-    /**
-     * Create an ImageLoader instance
-     * @param {HTMLElement} imageElement - The main image element
-     * @param {HTMLElement} placeholderElement - Placeholder element for loading states
-     * @param {Object} options - Configuration options
-     */
-    constructor(imageElement, placeholderElement, options = {}) {
+constructor(imageElement, placeholderElement, options = {}) {
         imageLogger.time("ImageLoader constructor");
 
         if (!imageElement) {
@@ -1187,80 +1191,62 @@ class ImageLoader {
         this.image = imageElement;
         this.placeholder = placeholderElement;
 
-        // Configuration with defaults
+        // Store HTML elements
+        this.htmlElements = {
+            prevBtn: document.getElementById('prevImageBtn'),
+            nextBtn: document.getElementById('nextImageBtn'),
+            pauseBtn: document.getElementById('pauseRotationBtn'),
+            resumeBtn: document.getElementById('resumeRotationBtn'),
+            progressBar: document.querySelector('.rotation-progress .progress-bar'),
+            imageCounter: document.querySelector('.image-counter'),
+            thumbnailNav: document.querySelector('.thumbnail-nav')
+        };
+
+        // Configuration
         this.config = {
-            rotationDelay: 5000,           
-            automaticRotate: false,          
-            transitionDuration: 1000,
-            preloadCount: 2,
-            maxRetries: 2,
-            retryDelay: 1000,
-            lazyLoadThreshold: 300,
-            enableWebP: false,
-            enableBlurHash: false,
-            pauseOnHover: false,           // Separate control for hover pausing
-            pauseWhenNotVisible: true,     // Pause when tab is not visible
+            rotationDelay: 5000,
+            automaticRotate: true,
+            transitionDuration: 600,
+            preloadCount: 3, // Increased for better performance
+            pauseOnHover: true,
+            pauseWhenNotVisible: true,
+            lazyLoadEnabled: true,
+            ...options
         };
 
-        // State management
-        this.mediaData = null;
+        // State
+        this.mediaData={
+            media: []
+        }
         this.currentIndex = 0;
-        this.rotationTimer = null;        // Single timer reference
         this.isLoaded = false;
-        this.rotationEnabled = true;     // Whether rotation system is active
-        this.isHoverPaused = false;       // Separate state for hover pausing
-        this.isVisibilityPaused = false;  // Separate state for visibility pausing
-        this.isManualPaused = true;      // Separate state for manual pausing
-        this.retryCounts = new Map();
-        this.preloadedImages = new Map();
-        this.performanceMetrics = {
-            loadTimes: [],
-            cacheHits: 0,
-            cacheMisses: 0
-        };
-
-        // Rotation timing control
-        this.rotationStartTime = null;
-        this.scheduledRotationTime = null;
-        this.remainingRotationTime = null;
-
-        // Feature detection
-        this.supportsIntersectionObserver = 'IntersectionObserver' in window;
-        this.supportsWebP = this.detectWebPSupport();
-        this.isLowBandwidth = this.detectLowBandwidth();
+        this.swiper = null;
+        this.loadedImages = new Set(); // Track loaded images
 
         // Bind methods
         this.handleVisibilityChange = this.handleVisibilityChange.bind(this);
-        this.handleNetworkChange = this.handleNetworkChange.bind(this);
+        this.setupPlaybackControls = this.setupPlaybackControls.bind(this);
+        this.onSlideChange = this.onSlideChange.bind(this);
+        this.onAutoplayStart = this.onAutoplayStart.bind(this);
+        this.onAutoplayStop = this.onAutoplayStop.bind(this);
+        this.handleImageLoad = this.handleImageLoad.bind(this);
         this.handleImageError = this.handleImageError.bind(this);
-        this.handleMouseEnter = this.handleMouseEnter.bind(this);
-        this.handleMouseLeave = this.handleMouseLeave.bind(this);
-        this.performScheduledRotation = this.performScheduledRotation.bind(this);
+        this.preloadAdjacentImages = this.preloadAdjacentImages.bind(this);
 
         imageLogger.debug("ImageLoader instance created", {
-            config: { ...this.config, rotationDelay: this.config.rotationDelay },
-            features: {
-                intersectionObserver: this.supportsIntersectionObserver,
-                webP: this.supportsWebP,
-                lowBandwidth: this.isLowBandwidth
-            }
+            elementId: imageElement.id
         });
 
-        // Initialize
         this.init(options);
         imageLogger.timeEnd("ImageLoader constructor");
     }
 
-    /**
-     * Initialize the image loader
-     * @async
-     */
     async init(options) {
         imageLogger.time("ImageLoader initialization");
         this.config = { ...this.config, ...options };
 
         try {
-            // Load media data first
+            // Load media data
             await this.loadMediaData();
 
             if (!this.mediaData?.media?.length) {
@@ -1269,31 +1255,21 @@ class ImageLoader {
                 return;
             }
 
-            // Setup intersection observer for lazy loading
-            this.setupIntersectionObserver();
+            // Filter out undefined sources (videos)
+            this. filterUndefinedMedia();
 
-            // Preload initial images
-            await this.preloadInitialImages();
+            // Initialize Swiper
+            await this.initializeSwiper();
 
-            // Load and display first image
-            await this.loadImageAtIndex(0, true);
-
-            // Setup event listeners (including hover)
+            // Setup event listeners
             this.setupEventListeners();
 
-            // Start rotation if more than one image and automatic rotation is enabled
-            if (this.mediaData.media.length > 1 && this.config.automaticRotate) {
-                this.startRotation();
-            }
-
-            // Setup performance monitoring
-            this.setupPerformanceMonitoring();
+            // Setup playback controls
+            this.setupPlaybackControls();
 
             this.isLoaded = true;
             imageLogger.info("ImageLoader initialized successfully", {
-                totalImages: this.mediaData.media.length,
-                preloaded: this.preloadedImages.size,
-                automaticRotation: this.config.automaticRotate
+                totalImages: this.mediaData.media.length
             });
 
         } catch (error) {
@@ -1303,926 +1279,769 @@ class ImageLoader {
             imageLogger.timeEnd("ImageLoader initialization");
         }
     }
-
     /**
-     * Load media data from source
-     * @async
-     * @returns {Promise<void>}
+     * Handle initialization errors
      */
-    async loadMediaData() {
-        imageLogger.time("Load media data");
+    handleInitializationError(error) {
+        appLogger.error("Handling initialization error", error);
 
-        try {
-            this.mediaData = await loadMediaData();
+        // Show user-friendly error message
+        const errorDiv = document.createElement("div");
+        errorDiv.style.cssText = `
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    background: #ef476f;
+    color: white;
+    padding: 1rem;
+    border-radius: 8px;
+    z-index: 10000;
+    max-width: 300px;
+  `;
+        errorDiv.textContent = "Failed to initialize page. Please refresh.";
+        document.body.appendChild(errorDiv);
 
-            if (!this.mediaData?.media?.length) {
-                throw new Error("No media data available");
+        appLogger.debug("Error message displayed to user");
+
+        // Remove error message after 5 seconds
+        setTimeout(() => {
+            if (errorDiv.parentNode) {
+                errorDiv.parentNode.removeChild(errorDiv);
+                appLogger.debug("Error message removed");
+                this.hideMediaLoading()
+
             }
-
-            // Optimize image sources based on browser support
-            this.mediaData.media = this.mediaData.media.map(mediaItem => {
-                return this.optimizeMediaItem(mediaItem);
-            });
-
-            imageLogger.debug("Media data loaded and optimized", {
-                count: this.mediaData.media.length,
-                optimizedForWebP: this.supportsWebP
-            });
-
-        } catch (error) {
-            imageLogger.error("Failed to load media data", error);
-            this.mediaData = {
-                media: this.getFallbackMedia()
-            };
-        } finally {
-            imageLogger.timeEnd("Load media data");
-        }
+        }, 5000);
     }
-
-    /**
-     * Set rotation speed
+  /**
+     * Filter out media with undefined sources (videos)
      */
-    setRotationSpeed(speed) {
-        if (speed < 1000 || speed > 30000) {
-            imageLogger.warn("Invalid rotation speed", { speed });
-            return;
-        }
-
-        const wasRotating = this.rotationEnabled;
-
-        // Stop current rotation
-        if (wasRotating) {
-            this.stopRotation();
-        }
-
-        // Update config
-        this.config.rotationDelay = speed;
-
-        // Restart if it was rotating
-        if (wasRotating && this.config.automaticRotate) {
-            this.startRotation();
-        }
-
-        imageLogger.info("Rotation speed updated", {
-            newSpeed: speed,
-            wasRotating,
-            isRotating: this.rotationEnabled
+    filterUndefinedMedia() {
+        if (!this.mediaData?.media) return;
+        
+        const originalCount = this.mediaData.media.length;
+        this.mediaData.media = this.mediaData.media.filter(item => {
+            // Keep only images with valid src
+            const hasValidSrc = item.src && item.src !== 'undefined' && !item.src.includes('undefined');
+            const isImage = !item.type || item.type === 'image' || item.type.includes('image');
+            
+            if (!hasValidSrc) {
+                imageLogger.debug("Filtered out invalid media", {
+                    src: item.src,
+                    type: item.type
+                });
+            }
+            
+            return hasValidSrc && isImage;
+        });
+        
+        imageLogger.debug("Media filtered", {
+            originalCount,
+            filteredCount: this.mediaData.media.length,
+            removed: originalCount - this.mediaData.media.length
         });
     }
 
     /**
-     * Optimize media item based on browser capabilities
-     * @param {Object} mediaItem - Original media item
-     * @returns {Object} Optimized media item
+     * Initialize Swiper.js with your HTML structure
      */
-    optimizeMediaItem(mediaItem) {
-        const optimized = { ...mediaItem };
-
-        // Use WebP if supported and available
-        if (this.config.enableWebP && this.supportsWebP && mediaItem.srcWebP) {
-            optimized.src = mediaItem.srcWebP;
-            optimized.format = 'webp';
+async initializeSwiper() {
+    imageLogger.time("Initialize Swiper");
+    
+    try {
+        if (typeof Swiper === 'undefined') {
+            throw new Error('Swiper.js library not loaded');
         }
 
-        // Add blur hash placeholder if enabled
-        if (this.config.enableBlurHash && mediaItem.blurHash) {
-            optimized.blurHash = mediaItem.blurHash;
-        }
+        // Hide placeholder
+        this.hidePlaceholder();
 
-        // Generate responsive srcset if sizes are available
-        if (mediaItem.sizes) {
-            optimized.srcset = this.generateSrcset(mediaItem);
-        }
+        // Prepare slides
+        await this.prepareSlides();
 
-        // Add loading strategy
-        optimized.loading = this.isLowBandwidth ? 'lazy' : 'eager';
-
-        return optimized;
-    }
-
-    /**
-     * Generate srcset for responsive images
-     * @param {Object} mediaItem - Media item with sizes
-     * @returns {string} srcset attribute value
-     */
-    generateSrcset(mediaItem) {
-        if (!mediaItem.sizes || !Array.isArray(mediaItem.sizes)) {
-            return '';
-        }
-
-        return mediaItem.sizes
-            .map(size => {
-                const url = this.supportsWebP && size.webp ? size.webp : size.url;
-                return `${url} ${size.width}w`;
-            })
-            .join(', ');
-    }
-
-    /**
-     * Set up intersection observer with fallback
-     */
-    setupIntersectionObserver() {
-        if (!this.supportsIntersectionObserver) {
-            imageLogger.warn("IntersectionObserver not supported, using fallback");
-            this.initializeWithoutObserver();
-            return;
-        }
-
-        imageLogger.time("Setup IntersectionObserver");
-
-        this.intersectionObserver = new IntersectionObserver(
-            (entries) => {
-                entries.forEach(entry => {
-                    const { isIntersecting, intersectionRatio, boundingClientRect } = entry;
-
-                    imageLogger.debug("IntersectionObserver entry", {
-                        isIntersecting,
-                        intersectionRatio: intersectionRatio.toFixed(3),
-                        bounds: {
-                            top: Math.round(boundingClientRect.top),
-                            bottom: Math.round(boundingClientRect.bottom)
-                        }
-                    });
-
-                    if (isIntersecting && intersectionRatio > 0.1) {
-                        this.onImageVisible(entry.target);
-                    } else if (!isIntersecting && this.config.pauseWhenNotVisible) {
-                        this.handleVisibilityChange();
-                    }
+        // Get pagination container
+        const paginationContainer = this.image.querySelector('.swiper-pagination');
+        
+        // Create event handlers first
+        const eventHandlers = {
+            init: (swiperInstance) => {
+                // Store the swiper instance
+                this.swiper = swiperInstance;
+                this.currentIndex = swiperInstance.realIndex;
+                
+                imageLogger.debug("Swiper initialized via init event", {
+                    realIndex: swiperInstance.realIndex,
+                    activeIndex: swiperInstance.activeIndex,
+                    slides: swiperInstance.slides.length
                 });
+                
+                this.showSwiperContainer();
+                this.updateImageCounter();
+                this.updateThumbnailNav();
+                
+                // Manually load first few images
+                this.preloadAdjacentImages();
             },
-            {
-                root: null,
-                rootMargin: `${this.config.lazyLoadThreshold}px`,
-                threshold: [0, 0.1, 0.5, 1.0]
-            }
-        );
-
-        if (this.image) {
-            this.intersectionObserver.observe(this.image);
-            imageLogger.debug("IntersectionObserver attached to image element");
-        }
-
-        const container = this.image.parentElement;
-        if (container && container !== document.body) {
-            this.intersectionObserver.observe(container);
-            imageLogger.debug("IntersectionObserver also attached to container");
-        }
-
-        imageLogger.timeEnd("Setup IntersectionObserver");
-    }
-
-    /**
-     * Initialize without IntersectionObserver (fallback)
-     */
-    initializeWithoutObserver() {
-        imageLogger.time("Initialize without IntersectionObserver");
-
-        if (this.mediaData?.media?.length > 0) {
-            this.loadImageAtIndex(0, true).catch(error => {
-                imageLogger.error("Fallback initialization failed", error);
-            });
-        }
-
-        if (this.mediaData?.media?.length > 1 && this.config.automaticRotate) {
-        this.startRotation();
-       }
-
-        imageLogger.timeEnd("Initialize without IntersectionObserver");
-    }
-
-    /**
-     * Check if image is currently visible in viewport
-     * @returns {boolean}
-     */
-    isImageVisible() {
-        if (!this.image) return false;
-
-        const rect = this.image.getBoundingClientRect();
-        const viewportHeight = window.innerHeight || document.documentElement.clientHeight;
-        const viewportWidth = window.innerWidth || document.documentElement.clientWidth;
-
-        return (
-            rect.top >= 0 &&
-            rect.left >= 0 &&
-            rect.bottom <= viewportHeight &&
-            rect.right <= viewportWidth
-        );
-    }
-
-    /**
-     * Force visibility check and load if needed
-     * @async
-     */
-    async ensureImageVisible() {
-        if (this.isImageVisible() && !this.isLoaded) {
-            imageLogger.debug("Image is visible but not loaded - forcing load");
-            await this.loadImageAtIndex(this.currentIndex, true);
-        }
-    }
-
-    /**
-     * Preload initial images for smooth rotation
-     * @async
-     * @returns {Promise<void>}
-     */
-    async preloadInitialImages() {
-        imageLogger.time("Preload initial images");
-
-        const preloadPromises = [];
-        const preloadCount = Math.min(this.config.preloadCount, this.mediaData.media.length);
-
-        for (let i = 1; i <= preloadCount; i++) {
-            const nextIndex = i % this.mediaData.media.length;
-            preloadPromises.push(this.preloadImageAtIndex(nextIndex));
-        }
-
-        try {
-            await Promise.all(preloadPromises);
-            imageLogger.debug("Initial images preloaded", {
-                count: preloadCount,
-                successful: this.preloadedImages.size
-            });
-        } catch (error) {
-            imageLogger.warn("Some images failed to preload", error);
-        } finally {
-            imageLogger.timeEnd("Preload initial images");
-        }
-    }
-
-    /**
-     * Preload image at specific index
-     * @param {number} index - Image index to preload
-     * @returns {Promise<HTMLImageElement>}
-     */
-    async preloadImageAtIndex(index) {
-        if (this.preloadedImages.has(index)) {
-            this.performanceMetrics.cacheHits++;
-            return this.preloadedImages.get(index);
-        }
-
-        const mediaItem = this.mediaData.media[index];
-        if (!mediaItem) {
-            throw new Error(`No media item at index ${index}`);
-        }
-
-        return new Promise((resolve, reject) => {
-            const img = new Image();
-
-            const startTime = performance.now();
-
-            img.onload = () => {
-                const loadTime = performance.now() - startTime;
-                this.performanceMetrics.loadTimes.push(loadTime);
-
-                this.preloadedImages.set(index, img);
-                this.performanceMetrics.cacheMisses++;
-
-                imageLogger.debug("Image preloaded", {
-                    index,
-                    src: mediaItem.src,
-                    loadTime: `${loadTime.toFixed(2)}ms`
+            
+            slideChange: (swiperInstance) => {
+                const oldIndex = this.currentIndex;
+                this.currentIndex = swiperInstance.realIndex;
+                
+                imageLogger.debug("Slide changed via slideChange event", {
+                    fromIndex: oldIndex,
+                    toIndex: this.currentIndex,
+                    realIndex: swiperInstance.realIndex
                 });
-
-                resolve(img);
-            };
-
-            img.onerror = (error) => {
-                imageLogger.error("Failed to preload image", {
-                    index,
-                    src: mediaItem.src,
-                    error
-                });
-                reject(error);
-            };
-
-            img.src = mediaItem.src;
-
-            if (mediaItem.srcset) {
-                img.srcset = mediaItem.srcset;
+                
+                this.updateImageCounter();
+                this.updateThumbnailNav();
+                
+                if (this.navigationController) {
+                    this.navigationController.currentIndex = this.currentIndex;
+                    this.navigationController.updateUI();
+                }
+            },
+            
+            slideChangeTransitionStart: () => {
+                imageLogger.debug("Slide transition started");
+            },
+            
+            slideChangeTransitionEnd: () => {
+                imageLogger.debug("Slide transition ended");
+                // Preload next images after transition
+                this.preloadAdjacentImages();
+            },
+            
+            autoplayStart: () => {
+                imageLogger.debug("Autoplay started");
+                this.updatePlaybackButtons();
+            },
+            
+            autoplayStop: () => {
+                imageLogger.debug("Autoplay stopped");
+                this.updatePlaybackButtons();
+            },
+            
+            imagesReady: () => {
+                imageLogger.debug("All images ready");
+                this.hideMediaLoading();
+            },
+            
+            lazyImageReady: (swiper, slideEl, imageEl) => {
+                const index = Array.from(swiper.slides).indexOf(slideEl);
+                imageLogger.debug("Lazy image ready", { index });
+                this.handleImageLoad(imageEl, index);
             }
+        };
+
+        // Configure Swiper
+        const swiperConfig = {
+            // Core settings
+            direction: 'horizontal',
+            slidesPerView: 1,
+            spaceBetween: 0,
+            loop: true,
+            centeredSlides: false,
+            grabCursor: true,
+            
+            // Autoplay
+            autoplay: this.config.automaticRotate ? {
+                delay: this.config.rotationDelay,
+                disableOnInteraction: false,
+                pauseOnMouseEnter: this.config.pauseOnHover,
+                stopOnLastSlide: false,
+                waitForTransition: true
+            } : false,
+            
+            // Speed and effects
+            speed: this.config.transitionDuration,
+            effect: 'fade',
+            fadeEffect: { 
+                crossFade: true 
+            },
+            
+            // Navigation
+            navigation: this.htmlElements.prevBtn && this.htmlElements.nextBtn ? {
+                nextEl: this.htmlElements.nextBtn,
+                prevEl: this.htmlElements.prevBtn,
+                disabledClass: 'disabled'
+            } : false,
+            
+            // Pagination
+            pagination: paginationContainer ? {
+                el: paginationContainer,
+                clickable: true,
+                dynamicBullets: false,
+                renderBullet: (index, className) => {
+                    return `<span class="${className}" aria-label="Go to slide ${index + 1}"></span>`;
+                }
+            } : false,
+            
+            // Lazy loading - DISABLED for now to fix opacity issue
+            lazy: false,
+            
+            // Preload images
+            preloadImages: true,
+            updateOnImagesReady: true,
+            
+            // Watch slides visibility
+            watchSlidesProgress: true,
+            watchSlidesVisibility: true,
+            
+            // Accessibility
+            a11y: {
+                enabled: true,
+                prevSlideMessage: 'Previous slide',
+                nextSlideMessage: 'Next slide',
+                firstSlideMessage: 'This is the first slide',
+                lastSlideMessage: 'This is the last slide',
+                paginationBulletMessage: 'Go to slide {{index}}'
+            },
+            
+            // Keyboard
+            keyboard: {
+                enabled: true,
+                onlyInViewport: true
+            },
+            
+            // Mousewheel
+            mousewheel: {
+                forceToAxis: true,
+                sensitivity: 0.5
+            },
+            
+            // Breakpoints
+            breakpoints: {
+                320: {
+                    slidesPerView: 1
+                },
+                768: {
+                    slidesPerView: 1
+                },
+                1024: {
+                    slidesPerView: 1
+                }
+            },
+            
+            // Event handlers - use the pre-defined handlers
+            on: eventHandlers
+        };
+        
+        // Initialize Swiper
+        this.swiper = new Swiper(this.image, swiperConfig);
+        
+        // Show pagination
+        if (paginationContainer) {
+            paginationContainer.classList.remove('d-none');
+        }
+        
+        // Show the swiper container
+        this.image.classList.remove('d-none');
+        
+        // If swiper wasn't set via init event (shouldn't happen), set it now
+        if (!this.swiper) {
+            this.swiper = this.image.swiper;
+        }
+        
+        imageLogger.info("Swiper initialized", {
+            totalSlides: this.mediaData.media.length,
+            hasNavigation: !!this.htmlElements.prevBtn && !!this.htmlElements.nextBtn,
+            hasPagination: !!paginationContainer,
+            swiperInstance: !!this.swiper
         });
+        
+    } catch (error) {
+        imageLogger.error("Failed to initialize Swiper", error);
+        throw error;
+    } finally {
+        imageLogger.timeEnd("Initialize Swiper");
     }
-
-    /**
-     * Load and display image at specific index
-     * @async
-     * @param {number} index - Image index to load
-     * @param {boolean} isInitial - Whether this is the initial load
-     * @returns {Promise<void>}
+}
+/**
+     * Prepare slides with proper image loading
      */
-    async loadImageAtIndex(index, isInitial = false) {
-        if (index < 0 || index >= this.mediaData.media.length) {
-            imageLogger.error("Invalid image index", { index });
-            return;
-        }
-
-        imageLogger.time(`Load image at index ${index}`);
-
+    async prepareSlides() {
+        imageLogger.time("Prepare slides");
+        
         try {
-            let loadedImage = this.preloadedImages.get(index);
-
-            if (!loadedImage) {
-                loadedImage = await this.loadImageWithRetry(index);
+            const wrapper = this.image.querySelector('.swiper-wrapper');
+            if (!wrapper) {
+                throw new Error('Swiper wrapper not found');
             }
-
-            this.currentIndex = index;
-
-            if (this.navigationController) {
-                this.navigationController.currentIndex = index;
-                this.navigationController.updateUI();
-            }
-
-            await this.transitionToImage(loadedImage, isInitial);
-
-            this.preloadNextImages();
-
-            imageLogger.debug("Image loaded successfully", {
-                index,
-                src: loadedImage.src,
-                fromCache: !!this.preloadedImages.has(index)
+            
+            // Clear existing slides
+            wrapper.innerHTML = '';
+            
+            // Create slides
+            this.mediaData.media.forEach((mediaItem, index) => {
+                const slide = document.createElement('div');
+                slide.className = 'swiper-slide';
+                slide.setAttribute('role', 'group');
+                slide.setAttribute('aria-label', `${index + 1} / ${this.mediaData.media.length}`);
+                slide.setAttribute('data-swiper-slide-index', index);
+                
+                // Create image - load immediately instead of lazy loading
+                const img = document.createElement('img');
+                img.alt = mediaItem.alt || `Graduation image ${index + 1}`;
+                img.loading = 'eager'; // Change to eager loading
+                img.decoding = 'async';
+                
+                // Set styles
+                img.style.cssText = `
+                    width: 100%;
+                    height: 100%;
+                    object-fit: cover;
+                    display: block;
+                    opacity: 0;
+                    transition: opacity 0.3s ease;
+                `;
+                
+                // Store the src for later
+                img.dataset.srcToLoad = mediaItem.src;
+                
+                // Add load event
+                img.addEventListener('load', () => this.handleImageLoad(img, index));
+                img.addEventListener('error', () => this.handleImageError(img, mediaItem, index));
+                
+                slide.appendChild(img);
+                wrapper.appendChild(slide);
+                
+                imageLogger.debug("Slide created", { index, src: mediaItem.src });
             });
-
-        } catch (error) {
-            imageLogger.error("Failed to load image", {
-                index,
-                error: error.message
-            });
-
-            await this.loadFallbackImage();
-        } finally {
-            imageLogger.timeEnd(`Load image at index ${index}`);
-        }
-    }
-
-    /**
-     * Load image with retry logic
-     * @async
-     * @param {number} index - Image index
-     * @returns {Promise<HTMLImageElement>}
-     */
-    async loadImageWithRetry(index) {
-        const mediaItem = this.mediaData.media[index];
-        const retryKey = `${index}-${mediaItem.src}`;
-        let retryCount = this.retryCounts.get(retryKey) || 0;
-
-        while (retryCount <= this.config.maxRetries) {
-            try {
-                const img = await this.loadImage(mediaItem);
-
-                this.retryCounts.delete(retryKey);
-
-                return img;
-            } catch (error) {
-                retryCount++;
-                this.retryCounts.set(retryKey, retryCount);
-
-                if (retryCount > this.config.maxRetries) {
-                    throw error;
-                }
-
-                imageLogger.warn(`Retrying image load (${retryCount}/${this.config.maxRetries})`, {
-                    index,
-                    src: mediaItem.src
-                });
-
-                await this.delay(this.config.retryDelay * retryCount);
-            }
-        }
-    }
-
-    /**
-     * Load single image
-     * @async
-     * @param {Object} mediaItem - Media item to load
-     * @returns {Promise<HTMLImageElement>}
-     */
-    loadImage(mediaItem) {
-        return new Promise((resolve, reject) => {
-            const img = new Image();
-            const startTime = performance.now();
-
-            const timeoutId = setTimeout(() => {
-                reject(new Error(`Image load timeout: ${mediaItem.src}`));
-            }, 15000);
-
-            img.onload = () => {
-                clearTimeout(timeoutId);
-                const loadTime = performance.now() - startTime;
-                this.performanceMetrics.loadTimes.push(loadTime);
-
-                if (mediaItem.blurHash && this.config.enableBlurHash) {
-                    this.applyBlurHash(img, mediaItem.blurHash);
-                }
-
-                resolve(img);
-            };
-
-            img.onerror = (error) => {
-                clearTimeout(timeoutId);
-                reject(new Error(`Failed to load image: ${mediaItem.src}`));
-            };
-
-            img.src = mediaItem.src;
-            if (mediaItem.srcset) {
-                img.srcset = mediaItem.srcset;
-            }
-            if (mediaItem.sizes) {
-                img.sizes = mediaItem.sizes;
-            }
-            img.loading = mediaItem.loading || 'eager';
-            img.decoding = 'async';
-
-            if (mediaItem.alt) {
-                img.alt = mediaItem.alt;
-            }
-        });
-    }
-
-    /**
-     * Transition to new image with smooth animation
-     * @async
-     * @param {HTMLImageElement} newImage - The new image to display
-     * @param {boolean} isInitial - Whether this is the initial transition
-     * @returns {Promise<void>}
-     */
-    async transitionToImage(newImage, isInitial = false) {
-        imageLogger.time("Image transition");
-
-        return new Promise((resolve) => {
-            const oldSrc = this.image.src;
-            const isSameImage = oldSrc === newImage.src;
-
-            if (isSameImage && !isInitial) {
-                imageLogger.debug("Skipping transition - same image");
-                resolve();
-                return;
-            }
-
-            const tempImage = new Image();
-            tempImage.src = newImage.src;
-            if (newImage.srcset) tempImage.srcset = newImage.srcset;
-            if (newImage.sizes) tempImage.sizes = newImage.sizes;
-
-            if (isInitial) {
-                this.image.src = newImage.src;
-                if (newImage.srcset) this.image.srcset = newImage.srcset;
-                if (newImage.sizes) this.image.sizes = newImage.sizes;
-                this.image.classList.remove('d-none');
-
-                if (this.placeholder) {
-                    this.placeholder.style.display = 'none';
-                }
-
-                resolve();
-                imageLogger.timeEnd("Image transition");
-                return;
-            }
-
-            this.image.style.transition = `opacity ${this.config.transitionDuration}ms ease-in-out`;
-            this.image.style.opacity = '0';
-
+            
+            // Load first few images immediately
             setTimeout(() => {
-                this.image.src = newImage.src;
-                if (newImage.srcset) this.image.srcset = newImage.srcset;
-                if (newImage.sizes) this.image.sizes = newImage.sizes;
-
-                if (newImage.alt) {
-                    this.image.alt = newImage.alt;
-                }
-
-                this.image.style.opacity = '1';
-
-                setTimeout(() => {
-                    this.image.style.transition = '';
-                    resolve();
-                    imageLogger.debug("Image transition completed");
-                    imageLogger.timeEnd("Image transition");
-                }, this.config.transitionDuration);
-            }, this.config.transitionDuration);
-        });
-    }
-
-    /**
-     * Preload next images in sequence
-     */
-    preloadNextImages() {
-        const nextIndices = [];
-
-        for (let i = 1; i <= this.config.preloadCount; i++) {
-            const nextIndex = (this.currentIndex + i) % this.mediaData.media.length;
-            if (!this.preloadedImages.has(nextIndex)) {
-                nextIndices.push(nextIndex);
-            }
-        }
-
-        if (nextIndices.length > 0 && !this.isManualPaused && !this.isHoverPaused) {
-            nextIndices.forEach(index => {
-                this.preloadImageAtIndex(index).catch(error => {
-                    imageLogger.debug("Background preload failed", {
-                        index,
-                        error: error.message
-                    });
-                });
-            });
-        }
-    }
-
-    /**
-     * Start image rotation with precise timing
-     */
-    startRotation() {
-          imageLogger.info("startRotation called", {
-        rotationEnabled: this.rotationEnabled,
-        automaticRotate: this.config.automaticRotate,
-        mediaLength: this.mediaData?.media?.length || 0
-    });
-
-        if (this.rotationEnabled) {
-            imageLogger.warn("Rotation already started");
-            return;
-        }
-
-        if (this.mediaData.media.length <= 1) {
-            imageLogger.warn("Not enough images for rotation");
-            return;
-        }
-
-        if (!this.config.automaticRotate) {
-            imageLogger.debug("Automatic rotation disabled in config");
-            return;
-        }
-
-        this.rotationEnabled = true;
-        this.rotationStartTime = performance.now();
-        this.scheduledRotationTime = this.rotationStartTime + this.config.rotationDelay;
-
-        if (this.rotationTimer) {
-            clearTimeout(this.rotationTimer);
-            this.rotationTimer = null;
-        }
-
-        this.scheduleNextRotation();
-
-        imageLogger.info("Image rotation started", {
-            rotationDelay: this.config.rotationDelay,
-            totalImages: this.mediaData.media.length,
-            scheduledAt: new Date(Date.now() + this.config.rotationDelay).toISOString()
-        });
-    }
-
-    /**
-     * Schedule next rotation with precise timing
-     */
-    scheduleNextRotation() {
-        if (!this.rotationEnabled || !this.config.automaticRotate) {
-            return;
-        }
-
-        if (this.rotationTimer) {
-            clearTimeout(this.rotationTimer);
-            this.rotationTimer = null;
-        }
-
-        const now = performance.now();
-        const timeSinceStart = now - this.rotationStartTime;
-        const timeUntilNext = Math.max(0, this.config.rotationDelay - timeSinceStart);
-
-        this.rotationTimer = setTimeout(() => {
-            this.performScheduledRotation();
-        }, timeUntilNext);
-        this.backuptimer = this.rotationTimer;
-
-        imageLogger.debug("Next rotation scheduled", {
-            delay: timeUntilNext.toFixed(0),
-            totalDelay: this.config.rotationDelay,
-            timeSinceLast: timeSinceStart.toFixed(0)
-        });
-    }
-
-    /**
-     * Perform scheduled rotation to next image
-     */
-    async performScheduledRotation() {
-        if (!this.rotationEnabled ||
-            !this.config.automaticRotate ||
-            this.isHoverPaused ||
-            this.isVisibilityPaused ||
-            this.isManualPaused) {
-            imageLogger.debug("Rotation skipped due to pause state", {
-                rotationEnabled: this.rotationEnabled,
-                automaticRotate: this.config.automaticRotate,
-                hoverPaused: this.isHoverPaused,
-                visibilityPaused: this.isVisibilityPaused,
-                manualPaused: this.isManualPaused
-            });
-
-            this.rotationStartTime = performance.now();
-            this.scheduleNextRotation();
-            return;
-        }
-
-        try {
-            const nextIndex = (this.currentIndex + 1) % this.mediaData.media.length;
-            await this.loadImageAtIndex(nextIndex);
-
-            this.rotationStartTime = performance.now();
-            this.scheduledRotationTime = this.rotationStartTime + this.config.rotationDelay;
-
-            this.scheduleNextRotation();
-
-            imageLogger.debug("Scheduled rotation completed", {
-                fromIndex: (this.currentIndex - 1 + this.mediaData.media.length) % this.mediaData.media.length,
-                toIndex: this.currentIndex,
-                nextScheduled: new Date(Date.now() + this.config.rotationDelay).toISOString()
-            });
-
+                this.loadInitialImages();
+            }, 100);
+            
         } catch (error) {
-            imageLogger.error("Failed to perform scheduled rotation", error);
-
-            this.rotationStartTime = performance.now();
-            this.scheduleNextRotation();
+            imageLogger.error("Failed to prepare slides", error);
+            throw error;
+        } finally {
+            imageLogger.timeEnd("Prepare slides");
         }
     }
 
     /**
-     * Stop image rotation completely
+     * Load initial images (first 3)
      */
-    stopRotation() {
-        if (!this.rotationEnabled) {
-            return;
-        }
-
-       // this.rotationEnabled = false;
-
-        if (this.rotationTimer) {
-            clearTimeout(this.rotationTimer);
-            this.rotationTimer = null;
-            imageLogger.debug("Rotation timer cleared");
-        }
-
-        this.rotationStartTime = null;
-        this.scheduledRotationTime = null;
-        this.remainingRotationTime = null;
-
-        imageLogger.info("Image rotation stopped");
-    }
-
-    /**
-     * Pause rotation (manual pause - separate from hover/visibility)
-     */
-    pauseRotation() {
-        if (!this.rotationEnabled) {
-            return;
-        }
-
-        this.isManualPaused = true;
-
-        if (this.rotationStartTime && this.rotationTimer) {
-            const now = performance.now();
-            this.remainingRotationTime = Math.max(0, this.config.rotationDelay - (now - this.rotationStartTime));
-
-            clearTimeout(this.rotationTimer);
-            this.rotationTimer = null;
-        }
-
-        imageLogger.debug("Rotation manually paused", {
-            remainingTime: this.remainingRotationTime
-        });
-    }
-
-    /**
-     * Resume rotation (from manual pause)
-     */
-    resumeRotation() {
-        if (!this.rotationEnabled || !this.isManualPaused) {
-            return;
-        }
-
-        this.isManualPaused = false;
-
-        if (this.remainingRotationTime !== null) {
-            this.rotationStartTime = performance.now() - (this.config.rotationDelay - this.remainingRotationTime);
-            this.scheduleNextRotation();
-            this.remainingRotationTime = null;
-        }
-
-        imageLogger.debug("Rotation manually resumed");
-    }
-
-    /**
-     * Move to next image (manual navigation)
-     */
-    async nextImage() {
-        const nextIndex = (this.currentIndex + 1) % this.mediaData.media.length;
-
-        if (this.rotationEnabled) {
-            this.rotationStartTime = performance.now();
-            this.scheduledRotationTime = this.rotationStartTime + this.config.rotationDelay;
-
-            this.scheduleNextRotation();
-        }
-
-        await this.loadImageAtIndex(nextIndex);
-    }
-
-    /**
-     * Move to previous image (manual navigation)
-     */
-    async previousImage() {
-        const prevIndex = (this.currentIndex - 1 + this.mediaData.media.length) % this.mediaData.media.length;
-
-        if (this.rotationEnabled) {
-            this.rotationStartTime = performance.now();
-            this.scheduledRotationTime = this.rotationStartTime + this.config.rotationDelay;
-
-            this.scheduleNextRotation();
-        }
-
-        await this.loadImageAtIndex(prevIndex);
-    }
-
-    /**
-     * Handle mouse enter (for hover pausing)
-     */
-    handleMouseEnter() {
-        if (!this.config.pauseOnHover || this.isHoverPaused) {
-            return;
-        }
-
-        this.isHoverPaused = true;
-
-        if (this.rotationEnabled && this.rotationTimer) {
-            const now = performance.now();
-            this.remainingRotationTime = Math.max(0, this.config.rotationDelay - (now - this.rotationStartTime));
-
-            clearTimeout(this.rotationTimer);
-            this.rotationTimer = null;
-        }
-
-        imageLogger.debug("Rotation paused on hover", {
-            remainingTime: this.remainingRotationTime
-        });
-    }
-
-    /**
-     * Handle mouse leave (for hover resuming)
-     */
-    handleMouseLeave() {
-        if (!this.config.pauseOnHover || !this.isHoverPaused) {
-            return;
-        }
-
-        this.isHoverPaused = false;
-
-        if (this.rotationEnabled && !this.isManualPaused && this.remainingRotationTime !== null) {
-            this.rotationStartTime = performance.now() - (this.config.rotationDelay - this.remainingRotationTime);
-            this.scheduleNextRotation();
-            this.remainingRotationTime = null;
-
-            imageLogger.debug("Rotation resumed after hover");
+    loadInitialImages() {
+        if (!this.swiper) return;
+        
+        const slides = this.swiper.slides;
+        const loadCount = Math.min(3, slides.length);
+        
+        for (let i = 0; i < loadCount; i++) {
+            const slide = slides[i];
+            const img = slide.querySelector('img');
+            if (img && img.dataset.srcToLoad && !this.loadedImages.has(img.dataset.srcToLoad)) {
+                img.src = img.dataset.srcToLoad;
+                this.loadedImages.add(img.dataset.srcToLoad);
+                imageLogger.debug("Loading initial image", { index: i });
+            }
         }
     }
 
     /**
-     * Jump to specific image
-     * @param {number} index - Image index to jump to
+     * Preload images adjacent to current slide
      */
-    async jumpToImage(index) {
-        if (index >= 0 && index < this.mediaData.media.length) {
-            await this.loadImageAtIndex(index);
-        }
-    }
-
-    /**
-     * Setup event listeners
-     */
-    setupEventListeners() {
-        // Visibility change
-        document.addEventListener('visibilitychange', this.handleVisibilityChange);
-
-        // Network status
-        window.addEventListener('online', this.handleNetworkChange);
-        window.addEventListener('offline', this.handleNetworkChange);
-
-        // Image error handling
-        if(!this.image) {
-            this.image = document.getElementById("GraduationImage");
-        }
-        this.image.addEventListener('error', this.handleImageError);
-
-        // Hover events (only if enabled)
-        if (this.config.pauseOnHover) {
-            this.image.addEventListener('mouseenter', this.handleMouseEnter);
-            this.image.addEventListener('mouseleave', this.handleMouseLeave);
-
-            // Touch events for mobile
-            this.image.addEventListener('touchstart', this.handleMouseEnter, { passive: true });
-            this.image.addEventListener('touchend', this.handleMouseLeave, { passive: true });
-        }
-
-        // Keyboard navigation
-        document.addEventListener('keydown', (e) => {
-            if (e.key === 'ArrowLeft') {
-                this.previousImage();
-            } else if (e.key === 'ArrowRight') {
-                this.nextImage();
-            } else if (e.key === ' ' || e.key === 'Spacebar') {
-                // Space bar to toggle manual pause
-                if (this.rotationEnabled) {
-                    this.togglePause();
+    preloadAdjacentImages() {
+        if (!this.swiper) return;
+        
+        const currentIndex = this.swiper.realIndex;
+        const slides = this.swiper.slides;
+        const preloadCount = this.config.preloadCount;
+        
+        // Preload next few slides
+        for (let i = 1; i <= preloadCount; i++) {
+            const nextIndex = (currentIndex + i) % slides.length;
+            const prevIndex = (currentIndex - i + slides.length) % slides.length;
+            
+            // Preload next slide
+            const nextSlide = slides[nextIndex];
+            if (nextSlide) {
+                const nextImg = nextSlide.querySelector('img');
+                if (nextImg && nextImg.dataset.srcToLoad && !this.loadedImages.has(nextImg.dataset.srcToLoad)) {
+                    nextImg.src = nextImg.dataset.srcToLoad;
+                    this.loadedImages.add(nextImg.dataset.srcToLoad);
                 }
             }
+            
+            // Preload previous slide
+            const prevSlide = slides[prevIndex];
+            if (prevSlide) {
+                const prevImg = prevSlide.querySelector('img');
+                if (prevImg && prevImg.dataset.srcToLoad && !this.loadedImages.has(prevImg.dataset.srcToLoad)) {
+                    prevImg.src = prevImg.dataset.srcToLoad;
+                    this.loadedImages.add(prevImg.dataset.srcToLoad);
+                }
+            }
+        }
+    }
+
+    /**
+     * Handle image load
+     */
+    handleImageLoad(img, index) {
+        imageLogger.debug("Image loaded successfully", { 
+            index, 
+            src: img.src,
+            naturalSize: `${img.naturalWidth}x${img.naturalHeight}`
         });
-    }
-
-    togglePause() {
-        if (this.isManualPaused) {
-            this.resumeRotation();
-        } else {
-            this.pauseRotation();
-        }
-    }
-
-    /**
-     * Handle visibility change
-     */
-    handleVisibilityChange() {
-        if (document.hidden) {
-            this.isVisibilityPaused = true;
-            this.rotationTimer ? this.rotationTimer = this.backuptimer : this.rotationTimer = this.backuptimer;
-            if (this.rotationEnabled && (this.rotationTimer|| this.backuptimer)) {
-                const now = performance.now();
-                this.remainingRotationTime = Math.max(0, this.config.rotationDelay - (now - this.rotationStartTime));
-
-                clearTimeout(this.rotationTimer);
-                this.rotationTimer = null;
-            }
-
-            imageLogger.debug("Rotation paused - page hidden");
-        } else {
-            this.isVisibilityPaused = false;
-
-            if (this.rotationEnabled &&
-                !this.isManualPaused &&
-                !this.isHoverPaused &&
-                this.remainingRotationTime !== null) {
-
-                this.rotationStartTime = performance.now() - (this.config.rotationDelay - this.remainingRotationTime);
-                this.scheduleNextRotation();
-                this.remainingRotationTime = null;
-
-                imageLogger.debug("Rotation resumed - page visible");
-            }
-        }
-    }
-
-    /**
-     * Handle network status change
-     */
-    handleNetworkChange() {
-        if (navigator.onLine) {
-            this.resumeRotation();
-            imageLogger.debug("Online - resuming normal operation");
-        } else {
-            this.pauseRotation();
-            this.isLowBandwidth = true;
-            imageLogger.debug("Offline - pausing rotation and enabling low-bandwidth mode");
+        
+        // Fade in the image
+        img.style.opacity = '1';
+        
+        // Check if all initial images are loaded
+        if (this.loadedImages.size >= Math.min(3, this.mediaData.media.length)) {
+            this.hideMediaLoading();
         }
     }
 
     /**
      * Handle image error
      */
-    handleImageError(event) {
-        imageLogger.error("Image error occurred", {
-            src: event.target.src,
-            error: event.error
-        });
-
-        this.loadFallbackImage().catch(() => {
-            this.showErrorState();
-        });
-    }
-
-    /**
-     * Load fallback image
-     * @async
-     */
-    async loadFallbackImage() {
+    handleImageError(img, mediaItem, index) {
+        imageLogger.error("Failed to load image", { index, src: mediaItem.src });
+        
+        // Try fallback
         const fallbackMedia = this.getFallbackMedia();
         if (fallbackMedia.length > 0) {
-            const fallbackItem = this.optimizeMediaItem(fallbackMedia[0]);
-            const img = await this.loadImage(fallbackItem);
-            this.image.src = img.src;
-            imageLogger.debug("Fallback image loaded");
+            img.src = fallbackMedia[0].src;
+            img.alt = fallbackMedia[0].alt || 'Fallback image';
+            imageLogger.debug("Loaded fallback image", { index });
+        } else {
+            // Show error placeholder
+            img.style.opacity = '1';
+            img.style.backgroundColor = '#f0f0f0';
+            img.style.display = 'flex';
+            img.style.alignItems = 'center';
+            img.style.justifyContent = 'center';
+            img.style.color = '#666';
+            img.style.fontSize = '14px';
+            img.innerHTML = 'Image failed to load';
+        }
+    }
+
+/**
+     * Hide placeholder
+     */
+    hidePlaceholder() {
+        if (this.placeholder) {
+            this.placeholder.style.display = 'none';
+            imageLogger.debug("Placeholder hidden");
         }
     }
 
     /**
-     * Get fallback media items
-     * @returns {Array} Fallback media items
+     * Show/hide media loading
      */
+    showMediaLoading() {
+        const loadingContainer = document.getElementById('Modal-loading__container');
+        showMediaLoading(loadingContainer);
+    }
+
+    hideMediaLoading() {
+        const loadingContainer = document.getElementById('Modal-loading__container');
+        hideMediaLoading(loadingContainer);
+    }
+
+    /**
+     * Show Swiper container with animation
+     */
+    showSwiperContainer() {
+        if (!this.image) return;
+        
+        this.image.style.opacity = '0';
+        this.image.style.transition = 'opacity 0.5s ease-in-out';
+        
+        this.image.offsetHeight; // Trigger reflow
+        
+        this.image.style.opacity = '1';
+        
+        setTimeout(() => {
+            this.image.style.transition = '';
+        }, 500);
+      }
+
+    /**
+     * Setup playback controls
+     */
+    setupPlaybackControls() {
+        const { pauseBtn, resumeBtn } = this.htmlElements;
+        
+        if (pauseBtn && resumeBtn) {
+            pauseBtn.addEventListener('click', () => {
+                this.pauseRotation();
+                this.updatePlaybackButtons();
+            });
+            
+            resumeBtn.addEventListener('click', () => {
+                this.resumeRotation();
+                this.updatePlaybackButtons();
+            });
+            
+            this.updatePlaybackButtons();
+        }
+    }
+
+    /**
+     * Update playback buttons
+     */
+    updatePlaybackButtons() {
+        const { pauseBtn, resumeBtn } = this.htmlElements;
+        const isPlaying = this.swiper?.autoplay?.running || false;
+        
+        if (pauseBtn && resumeBtn) {
+            if (isPlaying) {
+                pauseBtn.classList.remove('d-none');
+                resumeBtn.classList.add('d-none');
+            } else {
+                pauseBtn.classList.add('d-none');
+                resumeBtn.classList.remove('d-none');
+            }
+        }
+    }
+
+    /**
+     * Update image counter
+     */
+    updateImageCounter() {
+        const { imageCounter } = this.htmlElements;
+        if (!imageCounter) return;
+        
+        const currentSpan = imageCounter.querySelector('.current');
+        const totalSpan = imageCounter.querySelector('.total');
+        
+        if (currentSpan) {
+            currentSpan.textContent = (this.currentIndex + 1).toString();
+        }
+        
+        if (totalSpan) {
+            totalSpan.textContent = this.mediaData?.media?.length?.toString() || '0';
+        }
+    }
+
+    /**
+     * Update thumbnail navigation
+     */
+    updateThumbnailNav() {
+        const { thumbnailNav } = this.htmlElements;
+        if (!thumbnailNav || !this.mediaData?.media) return;
+        
+        thumbnailNav.classList.remove('d-none');
+        thumbnailNav.innerHTML = '';
+        
+        this.mediaData.media.forEach((_, index) => {
+            const dot = document.createElement('button');
+            dot.className = `thumbnail-dot ${index === this.currentIndex ? 'active' : ''}`;
+            dot.setAttribute('role', 'tab');
+            dot.setAttribute('aria-selected', index === this.currentIndex ? 'true' : 'false');
+            dot.setAttribute('aria-label', `Go to image ${index + 1}`);
+            dot.setAttribute('data-index', index);
+            
+            dot.addEventListener('click', () => {
+                this.jumpToImage(index);
+            });
+            
+            thumbnailNav.appendChild(dot);
+        });
+    }
+
+    /**
+     * Event handlers
+     */
+    onSlideChange() {
+        if (!this.swiper) return;
+        
+        const oldIndex = this.currentIndex;
+        this.currentIndex = this.swiper.realIndex;
+        
+        imageLogger.debug("Slide changed", {
+            fromIndex: oldIndex,
+            toIndex: this.currentIndex
+        });
+        
+        this.updateImageCounter();
+        this.updateThumbnailNav();
+        
+        if (this.navigationController) {
+            this.navigationController.currentIndex = this.currentIndex;
+            this.navigationController.updateUI();
+        }
+    }
+
+    onAutoplayStart() {
+        imageLogger.debug("Autoplay started");
+        this.updatePlaybackButtons();
+    }
+
+    onAutoplayStop() {
+        imageLogger.debug("Autoplay stopped");
+        this.updatePlaybackButtons();
+    }
+
+    /**
+     * Public methods that maintain compatibility
+     **/
+    startRotation() {
+        if (this.swiper?.autoplay) {
+            this.swiper.autoplay.start();
+            imageLogger.debug("Rotation started");
+        }
+    }
+
+    stopRotation() {
+        if (this.swiper?.autoplay) {
+            this.swiper.autoplay.stop();
+            imageLogger.debug("Rotation stopped");
+        }
+    }
+
+    pauseRotation() {
+        if (this.swiper?.autoplay?.running) {
+            this.swiper.autoplay.stop();
+            imageLogger.debug("Rotation paused");
+        }
+    }
+
+    resumeRotation() {
+        if (this.swiper?.autoplay && !this.swiper.autoplay.running) {
+            this.swiper.autoplay.start();
+            imageLogger.debug("Rotation resumed");
+        }
+    }
+
+    nextImage() {
+        if (this.swiper) {
+            this.swiper.slideNext();
+            imageLogger.debug("Next image triggered");
+        }
+    }
+
+    previousImage() {
+        if (this.swiper) {
+            this.swiper.slidePrev();
+            imageLogger.debug("Previous image triggered");
+        }
+    }
+
+    jumpToImage(index) {
+        if (this.swiper && index >= 0 && index < this.mediaData.media.length) {
+            this.swiper.slideToLoop(index);
+            imageLogger.debug("Jumped to image", { index });
+        }
+    }
+
+    setRotationSpeed(speed) {
+        if (speed < 1000 || speed > 30000) {
+            imageLogger.warn("Invalid rotation speed", { speed });
+            return;
+        }
+
+        this.config.rotationDelay = speed;
+        
+        if (this.swiper?.autoplay) {
+            const wasRunning = this.swiper.autoplay.running;
+            
+            if (wasRunning) {
+                this.swiper.autoplay.stop();
+            }
+            
+            this.swiper.params.autoplay.delay = speed;
+            
+            if (wasRunning) {
+                this.swiper.autoplay.start();
+            }
+        }
+
+        imageLogger.info("Rotation speed updated", { newSpeed: speed });
+    }
+
+    updateConfig(newConfig) {
+        this.config = { ...this.config, ...newConfig };
+        
+        if (newConfig.automaticRotate !== undefined && this.swiper) {
+            if (newConfig.automaticRotate) {
+                this.startRotation();
+            } else {
+                this.stopRotation();
+            }
+        }
+        
+        if (newConfig.rotationDelay && this.swiper) {
+            this.setRotationSpeed(newConfig.rotationDelay);
+        }
+    }
+
+    getRotationState() {
+        return {
+            rotationEnabled: this.swiper?.autoplay?.running || false,
+            automaticRotate: this.config.automaticRotate,
+            rotationDelay: this.config.rotationDelay,
+            currentIndex: this.currentIndex,
+            totalImages: this.mediaData?.media?.length || 0,
+            isPlaying: this.swiper?.autoplay?.running || false
+        };
+    }
+
+    async loadMediaData() {
+        imageLogger.time("Load media data");
+        try {
+            this.mediaData = await loadMediaData();
+            if (!this.mediaData?.media?.length) {
+                throw new Error("No media data available");
+            }
+            const auth = getCurrentUserInfo()
+            if (auth.isGraduand) {
+                this.mediaData.media = filterMediaByUser(this.mediaData.media, auth);
+            }
+            imageLogger.debug("Media data loaded", {
+                count: this.mediaData.media.length
+            });
+        } catch (error) {
+            imageLogger.error("Failed to load media data", error);
+            this.mediaData = { media: this.getFallbackMedia() };
+        } finally {
+            imageLogger.timeEnd("Load media data");
+        }
+    }
+    setupEventListeners() {
+        document.addEventListener('visibilitychange', this.handleVisibilityChange);
+        window.addEventListener('online', this.handleNetworkChange);
+        window.addEventListener('offline', this.handleNetworkChange);
+    }
+
+    handleVisibilityChange() {
+        if (document.hidden && this.swiper?.autoplay?.running) {
+            this.wasPlayingBeforeHidden = true;
+            this.swiper.autoplay.stop();
+        } else if (!document.hidden && this.wasPlayingBeforeHidden && this.swiper?.autoplay) {
+            this.swiper.autoplay.start();
+            this.wasPlayingBeforeHidden = false;
+        }
+    }
+
+    handleNetworkChange() {
+        // Handle network changes
+    }
+
+    destroy() {
+        imageLogger.time("ImageLoader cleanup");
+        
+        if (this.swiper?.destroy) {
+            this.swiper.destroy(true, true);
+        }
+        
+        // Remove event listeners
+        document.removeEventListener('visibilitychange', this.handleVisibilityChange);
+        window.removeEventListener('online', this.handleNetworkChange);
+        window.removeEventListener('offline', this.handleNetworkChange);
+        
+        imageLogger.info("ImageLoader destroyed");
+        imageLogger.timeEnd("ImageLoader cleanup");
+    }
+
     getFallbackMedia() {
         return [
             {
@@ -2231,284 +2050,7 @@ class ImageLoader {
             }
         ];
     }
-
-    /**
-     * Handle when image becomes visible in viewport (for lazy loading)
-     * @param {HTMLElement} target - The observed element
-     */
-    onImageVisible(target) {
-        imageLogger.debug("Image element entered viewport", {
-            element: target.tagName,
-            src: target.src || 'not-yet-loaded',
-            currentIndex: this.currentIndex
-        });
-
-        if (!this.isLoaded && this.currentIndex === 0) {
-            imageLogger.debug("First time image visible - triggering initial load");
-
-            if (!this.image.src || this.image.src === '') {
-                this.loadImageAtIndex(0, true).catch(error => {
-                    imageLogger.error("Failed to load initial image on visible", error);
-                });
-            }
-        }
-
-        if (this.isLowBandwidth && !this.preloadedImages.has(this.currentIndex)) {
-            imageLogger.debug("Low bandwidth mode - loading current image on demand");
-            this.preloadImageAtIndex(this.currentIndex).catch(error => {
-                imageLogger.warn("Failed to load image on demand in low bandwidth mode", error);
-            });
-        }
-
-        if (!this.rotationEnabled && this.mediaData.media.length > 1 && this.config.automaticRotate) {
-            imageLogger.debug("Image visible - starting rotation");
-            this.startRotation();
-        }
-
-        this.checkImagePerformance(target);
-    }
-
-    /**
-     * Check and log image loading performance when visible
-     * @param {HTMLElement} imgElement - The image element to check
-     */
-    checkImagePerformance(imgElement) {
-        if (imgElement.complete) {
-            const loadTime = this.performanceMetrics.loadTimes[this.currentIndex];
-            if (loadTime) {
-                imageLogger.debug("Image already loaded when became visible", {
-                    index: this.currentIndex,
-                    loadTime: `${loadTime.toFixed(2)}ms`,
-                    naturalSize: `${imgElement.naturalWidth}x${imgElement.naturalHeight}`
-                });
-            }
-
-            const displayedWidth = imgElement.clientWidth;
-            const naturalWidth = imgElement.naturalWidth;
-            const scaleFactor = displayedWidth / naturalWidth;
-
-            if (scaleFactor > 1.5) {
-                imageLogger.warn("Image potentially upscaled too much", {
-                    displayedWidth,
-                    naturalWidth,
-                    scaleFactor: scaleFactor.toFixed(2),
-                    recommendation: "Consider using a larger source image"
-                });
-            } else if (scaleFactor < 0.5) {
-                imageLogger.warn("Image potentially larger than needed", {
-                    displayedWidth,
-                    naturalWidth,
-                    scaleFactor: scaleFactor.toFixed(2),
-                    recommendation: "Consider using a smaller source image for better performance"
-                });
-            }
-        } else {
-            imageLogger.debug("Image still loading when became visible", {
-                index: this.currentIndex,
-                src: imgElement.src
-            });
-
-            const loadListener = () => {
-                imageLogger.debug("Image finished loading after becoming visible", {
-                    index: this.currentIndex
-                });
-                imgElement.removeEventListener('load', loadListener);
-            };
-
-            imgElement.addEventListener('load', loadListener);
-        }
-
-        if (this.placeholder && this.placeholder.style.display !== 'none') {
-            imageLogger.debug("Placeholder still visible, image might be slow to load", {
-                placeholderVisible: true,
-                currentSrc: imgElement.src
-            });
-        }
-    }
-
-    /**
-     * Show error state
-     */
-    showErrorState() {
-        if (this.placeholder) {
-            this.placeholder.innerHTML = `
-        <div class="image-error">
-          <span class="error-icon">⚠️</span>
-          <p>Unable to load image</p>
-          <button class="retry-btn">Retry</button>
-        </div>
-      `;
-
-            this.placeholder.style.display = 'flex';
-            this.placeholder.querySelector('.retry-btn').addEventListener('click', () => {
-                this.loadImageAtIndex(this.currentIndex);
-            });
-        }
-    }
-
-    /**
-     * Show no media message
-     */
-    showNoMediaMessage() {
-        if (this.placeholder) {
-            this.placeholder.innerHTML = `
-        <div class="no-media-message">
-          <p>No images available</p>
-        </div>
-      `;
-            this.placeholder.style.display = 'flex';
-        }
-    }
-
-    /**
-     * Setup performance monitoring
-     */
-    setupPerformanceMonitoring() {
-        setInterval(() => {
-            if (this.performanceMetrics.loadTimes.length > 0) {
-                const avgLoadTime = this.performanceMetrics.loadTimes.reduce((a, b) => a + b, 0) /
-                    this.performanceMetrics.loadTimes.length;
-
-                imageLogger.debug("Performance metrics", {
-                    avgLoadTime: `${avgLoadTime.toFixed(2)}ms`,
-                    cacheHitRate: `${((this.performanceMetrics.cacheHits /
-                        (this.performanceMetrics.cacheHits + this.performanceMetrics.cacheMisses || 1)) * 100).toFixed(1)}%`,
-                    imagesLoaded: this.performanceMetrics.loadTimes.length
-                });
-            }
-        }, 30000);
-    }
-
-    /**
-     * Handle initialization error
-     */
-    handleInitializationError(error) {
-        imageLogger.error("Initialization error handled", error);
-
-        if (this.placeholder) {
-            this.placeholder.innerHTML = `
-        <div class="init-error">
-          <p>Failed to load images. Please refresh.</p>
-        </div>
-      `;
-            this.placeholder.style.display = 'flex';
-        }
-
-        this.loadFallbackImage();
-    }
-
-    /**
-     * Utility: Delay function
-     * @param {number} ms - Milliseconds to delay
-     * @returns {Promise<void>}
-     */
-    delay(ms) {
-        return new Promise(resolve => setTimeout(resolve, ms));
-    }
-
-    /**
-     * Detect WebP support
-     * @returns {boolean}
-     */
-    detectWebPSupport() {
-        const elem = document.createElement('canvas');
-        if (!!(elem.getContext && elem.getContext('2d'))) {
-            return elem.toDataURL('image/webp').indexOf('data:image/webp') === 0;
-        }
-        return false;
-    }
-
-     updateConfig(newConfig) {
-    console.debug("Updating navigation config", newConfig);
-    this.config = { ...this.config, ...newConfig };
-    this.scheduleNextRotation();
-  }
-
-    /**
-     * Detect low bandwidth
-     * @returns {boolean}
-     */
-    detectLowBandwidth() {
-        if (navigator.connection) {
-            const connection = navigator.connection;
-            return connection.saveData ||
-                connection.effectiveType === 'slow-2g' ||
-                connection.effectiveType === '2g';
-        }
-        return false;
-    }
-
-    /**
-     * Apply blur hash placeholder (stub - implement if using blurhash library)
-     * @param {HTMLImageElement} img - Image element
-     * @param {string} blurHash - Blur hash string
-     */
-    applyBlurHash(img, blurHash) {
-        // Implement blur hash decoding if you have a blurhash library
-    }
-
-    /**
-     * Get current rotation state
-     */
-    getRotationState() {
-        return {
-            rotationEnabled: this.rotationEnabled,
-            automaticRotate: this.config.automaticRotate,
-            rotationDelay: this.config.rotationDelay,
-            pauseOnHover: this.isHoverPaused,
-            isVisibilityPaused: this.isVisibilityPaused,
-            isManualPaused: this.isManualPaused,
-            currentIndex: this.currentIndex,
-            totalImages: this.mediaData?.media?.length || 0,
-            remainingTime: this.remainingRotationTime,
-            nextRotationIn: this.scheduledRotationTime ?
-                Math.max(0, this.scheduledRotationTime - performance.now()) : null
-        };
-    }
-
-    /**
-     * Cleanup all resources
-     */
-    destroy() {
-        imageLogger.time("ImageLoader cleanup");
-
-        this.stopRotation();
-
-        document.removeEventListener('visibilitychange', this.handleVisibilityChange);
-        window.removeEventListener('online', this.handleNetworkChange);
-        window.removeEventListener('offline', this.handleNetworkChange);
-
-        if (this.image) {
-            this.image.removeEventListener('error', this.handleImageError);
-
-            if (this.config.pauseOnHover) {
-                this.image.removeEventListener('mouseenter', this.handleMouseEnter);
-                this.image.removeEventListener('mouseleave', this.handleMouseLeave);
-                this.image.removeEventListener('touchstart', this.handleMouseEnter);
-                this.image.removeEventListener('touchend', this.handleMouseLeave);
-            }
-        }
-
-        if (this.intersectionObserver) {
-            this.intersectionObserver.disconnect();
-        }
-
-        this.preloadedImages.clear();
-        this.retryCounts.clear();
-
-        if (this.performanceInterval) {
-            clearInterval(this.performanceInterval);
-        }
-
-        imageLogger.info("ImageLoader destroyed", {
-            totalImagesLoaded: this.performanceMetrics.loadTimes.length,
-            finalCacheSize: this.preloadedImages.size
-        });
-
-        imageLogger.timeEnd("ImageLoader cleanup");
-    }
 }
-
 /**
  * IMAGE NAVIGATION CONTROLLER - Handles image navigation, playback, and UI controls
  * @class ImageNavigationController
@@ -2519,44 +2061,45 @@ class ImageNavigationController {
     this.currentIndex = 0;
     this.totalImages = 0;
     this.isPlaying = true;
-    this.rotationSpeed = 5000; // 5 seconds
     this.playbackSpeed = 1; // Normal speed
-    this.rotationTimeout = null;
-    this.progressInterval = null;
-    this.lastUpdateTime = null;
-    this.progress = 0;
     this.isInitialized = false;
     this.keyboardShortcutsEnabled = true;
+    this.hideTimeout = null;
+    this.hideDelay = 3000; // 3 seconds
+    this.container = imageLoader.image.parentElement;
     
-    // DOM Elements
-    this.elements = {
-      navPrev: null,
-      navNext: null,
-      playbackBtn: null,
-      progressBar: null,
-      imageCounter: null,
-      thumbnailNav: null,
-      keyboardHints: null
-    };
+    // DOM Elements - Use existing HTML elements
+      this.elements = {
+          controls: null,
+          navPrev: null,
+          navNext: null,
+          playButton: null,
+          progressBar: null,
+          imageCounter: null,
+          thumbnailNav: null,
+          keyboardHints: null
+      };
     
     // Bind methods
-    this.handlePrevClick = this.handlePrevClick.bind(this);
-    this.handleNextClick = this.handleNextClick.bind(this);
-    this.handlePlaybackClick = this.handlePlaybackClick.bind(this);
-    this.handleThumbnailClick = this.handleThumbnailClick.bind(this);
-    this.handleKeyDown = this.handleKeyDown.bind(this);
-    this.updateProgressBar = this.updateProgressBar.bind(this);
-    this.resetProgressBar = this.resetProgressBar.bind(this);
-    
+      this.handlePrevClick = this.handlePrevClick.bind(this);
+      this.handleNextClick = this.handleNextClick.bind(this);
+      this.handlePlaybackClick = this.handlePlaybackClick.bind(this);
+      this.handleThumbnailClick = this.handleThumbnailClick.bind(this);
+      this.handleKeyDown = this.handleKeyDown.bind(this);
+      this.handleMouseMove = this.handleMouseMove.bind(this);
+      this.handleMouseEnter = this.handleMouseEnter.bind(this);
+      this.handleMouseLeave = this.handleMouseLeave.bind(this);
+      this.handleControlsMouseEnter = this.handleControlsMouseEnter.bind(this);
+      this.handleControlsMouseLeave = this.handleControlsMouseLeave.bind(this);
     // Initialize
     this.init();
   }
   
   /**
-   * Initialize the navigation controller
+   * Initialize the navigation controller for Swiper
    */
   init() {
-    console.time("ImageNavigationController initialization");
+    imageLogger.time("ImageNavigationController initialization (Swiper)");
     
     try {
       this.cacheElements();
@@ -2571,195 +2114,51 @@ class ImageNavigationController {
       // Show keyboard hints briefly
       this.showKeyboardHints();
       
-      console.info("ImageNavigationController initialized successfully");
-      console.timeEnd("ImageNavigationController initialization");
+      // Listen to Swiper events
+      this.setupSwiperEventListeners();
+        // Show controls initially for a moment
+        this.showControls();
+        this.startHideTimer();
+      
+      imageLogger.info("ImageNavigationController initialized successfully for Swiper");
+      imageLogger.timeEnd("ImageNavigationController initialization (Swiper)");
     } catch (error) {
-      console.error("Failed to initialize ImageNavigationController", error);
+      imageLogger.error("Failed to initialize ImageNavigationController", error);
+    }
+    finally {
+        imageLogger.timeEnd("ImageNavigationController initialization (Swiper)");
+
     }
   }
   
   /**
-   * Cache DOM elements
+   * Cache DOM elements that already exist in HTML
    */
   cacheElements() {
     this.elements = {
-      navPrev: document.querySelector('.nav-btn.prev'),
-      navNext: document.querySelector('.nav-btn.next'),
-      playbackBtn: document.querySelector('.playback-btn'),
-      progressBar: document.querySelector('.progress-bar'),
-      imageCounter: document.querySelector('.image-counter'),
-      thumbnailNav: document.querySelector('.thumbnail-nav'),
-      keyboardHints: document.querySelector('.keyboard-hints')
+      controls: this.container.querySelector('.nav-controls'),
+      navPrev: this.container.querySelector('.nav-btn.prev'),
+      navNext: this.container.querySelector('.nav-btn.next'),
+      playButton: this.container.querySelector('.playback-btn'),
+      progressBar: this.container.querySelector('.rotation-progress .progress-bar'),
+      imageCounter: this.container.querySelector('.image-counter'),
+      thumbnailNav: this.container.querySelector('.thumbnail-nav'),
+      keyboardHints: document.querySelector('.keyboard-hints'),
     };
     
-    // Create elements if they don't exist
-    this.ensureElementsExist();
-    
-    console.debug("Navigation elements cached", {
+    imageLogger.debug("Navigation elements cached for Swiper", {
       elementsFound: Object.keys(this.elements).filter(key => !!this.elements[key]).length,
       totalElements: Object.keys(this.elements).length
     });
   }
   
   /**
-   * Ensure required elements exist in the DOM
-   */
-  ensureElementsExist() {
-    const container = this.imageLoader.image?.parentElement;
-    if (!container) return;
-    
-    // Navigation controls
-    if (!this.elements.navPrev) {
-      this.elements.navPrev = this.createNavButton('prev', 'Previous (←)');
-    }
-    
-    if (!this.elements.navNext) {
-      this.elements.navNext = this.createNavButton('next', 'Next (→)');
-    }
-    
-    // Playback controls
-    if (!this.elements.playbackBtn) {
-      this.elements.playbackBtn = this.createPlaybackButton();
-    }
-    
-    // Progress bar
-    if (!this.elements.progressBar) {
-      this.elements.progressBar = this.createProgressBar();
-    }
-    
-    // Image counter
-    if (!this.elements.imageCounter) {
-      this.elements.imageCounter = this.createImageCounter();
-    }
-    
-    // Thumbnail navigation
-    if (!this.elements.thumbnailNav) {
-      this.elements.thumbnailNav = this.createThumbnailNav();
-    }
-    
-    // Keyboard hints
-    if (!this.elements.keyboardHints) {
-      this.elements.keyboardHints = this.createKeyboardHints();
-    }
-  }
-  
-  /**
-   * Create navigation button
-   */
-  createNavButton(direction, tooltip) {
-    const btn = document.createElement('button');
-    btn.className = `nav-btn ${direction}`;
-    btn.setAttribute('data-tooltip', tooltip);
-    btn.setAttribute('aria-label', direction === 'prev' ? 'Previous image' : 'Next image');
-    
-    const icon = document.createElement('span');
-    icon.className = 'icon';
-    icon.setAttribute('aria-hidden', 'true');
-    
-    btn.appendChild(icon);
-    return btn;
-  }
-  
-  /**
-   * Create playback button
-   */
-  createPlaybackButton() {
-    const btn = document.createElement('button');
-    btn.className = 'playback-btn pause';
-    btn.setAttribute('aria-label', 'Pause image rotation');
-    
-    const icon = document.createElement('span');
-    icon.className = 'playback-icon';
-    icon.setAttribute('aria-hidden', 'true');
-    
-    const speed = document.createElement('span');
-    speed.className = 'playback-speed';
-    speed.textContent = `${this.rotationSpeed / 1000}s`;
-    
-    btn.appendChild(icon);
-    btn.appendChild(speed);
-    return btn;
-  }
-  
-  /**
-   * Create progress bar
-   */
-  createProgressBar() {
-    const container = document.createElement('div');
-    container.className = 'rotation-progress';
-    container.setAttribute('role', 'progressbar');
-    container.setAttribute('aria-label', 'Image rotation progress');
-    
-    const bar = document.createElement('div');
-    bar.className = 'progress-bar';
-    
-    container.appendChild(bar);
-    return bar;
-  }
-  
-  /**
-   * Create image counter
-   */
-  createImageCounter() {
-    const counter = document.createElement('div');
-    counter.className = 'image-counter';
-    counter.setAttribute('aria-label', 'Image position');
-    counter.innerHTML = '<span class="current">1</span> / <span class="total">0</span>';
-    return counter;
-  }
-  
-  /**
-   * Create thumbnail navigation
-   */
-  createThumbnailNav() {
-    const container = document.createElement('div');
-    container.className = 'thumbnail-nav';
-    container.setAttribute('role', 'tablist');
-    container.setAttribute('aria-label', 'Image thumbnails');
-    return container;
-  }
-  
-  /**
-   * Create keyboard hints
-   */
-  createKeyboardHints() {
-    const hints = document.createElement('div');
-    hints.className = 'keyboard-hints';
-    hints.setAttribute('role', 'status');
-    hints.setAttribute('aria-live', 'polite');
-    
-    const shortcuts = [
-      { key: '←', label: 'Previous image' },
-      { key: '→', label: 'Next image' },
-      { key: 'Space', label: 'Pause/Play' }
-    ];
-    
-    shortcuts.forEach(shortcut => {
-      const hint = document.createElement('div');
-      hint.className = 'keyboard-hint';
-      
-      const key = document.createElement('kbd');
-      key.className = 'keyboard-key';
-      key.textContent = shortcut.key;
-      
-      const label = document.createElement('span');
-      label.textContent = shortcut.label;
-      
-      hint.appendChild(key);
-      hint.appendChild(label);
-      hints.appendChild(hint);
-    });
-    
-    return hints;
-  }
-  
-  /**
-   * Setup event listeners
+   * Setup event listeners for Swiper navigation
    */
   setupEventListeners() {
-    console.time("Navigation event listeners setup");
+    imageLogger.time("Navigation event listeners setup (Swiper)");
     
-    // Navigation buttons
+    // Navigation buttons - use Swiper's built-in navigation
     if (this.elements.navPrev) {
       this.elements.navPrev.addEventListener('click', this.handlePrevClick);
     }
@@ -2768,10 +2167,10 @@ class ImageNavigationController {
       this.elements.navNext.addEventListener('click', this.handleNextClick);
     }
     
-    // Playback button
-    if (this.elements.playbackBtn) {
-      this.elements.playbackBtn.addEventListener('click', this.handlePlaybackClick);
-    }
+      // Playback button
+      if (this.elements.playButton) {
+          this.elements.playButton.addEventListener('click', this.handlePlaybackClick);
+      }
     
     // Thumbnail navigation
     if (this.elements.thumbnailNav) {
@@ -2779,21 +2178,63 @@ class ImageNavigationController {
     }
     
     // Mouse events for showing/hiding controls
-    const container = this.imageLoader.image?.parentElement;
-    if (container) {
-      container.addEventListener('mouseenter', () => this.showControls());
-      container.addEventListener('mouseleave', () => this.hideControls());
+    if (this.container || this.elements.controls) {
+// Show controls on mouse enter/touch
+        this.container.addEventListener('mousemove', this.handleMouseMove);
+        this.container.addEventListener('mouseenter', this.handleMouseEnter);
+        this.container.addEventListener('mouseleave', this.handleMouseLeave);
+
+        // Touch events for mobile
+        this.container.addEventListener('touchstart', () => {
+            this.showControls();
+            this.startHideTimer();
+        }, { passive: true });
+
+        this.container.addEventListener('touchmove', () => {
+            this.resetHideTimer();
+        }, { passive: true });
     }
+
+      // Controls mouse events
+      if (this.elements.controls) {
+          this.elements.controls.addEventListener('mouseenter', this.handleControlsMouseEnter);
+          this.elements.controls.addEventListener('mouseleave', this.handleControlsMouseLeave);
+      }
     
-    // Touch events for mobile
-    if (container) {
-      container.addEventListener('touchstart', () => this.showControls(), { passive: true });
-      container.addEventListener('touchend', () => {
-        setTimeout(() => this.hideControls(), 3000);
-      }, { passive: true });
-    }
+    imageLogger.timeEnd("Navigation event listeners setup (Swiper)");
+  }
+  
+  /**
+   * Setup Swiper event listeners
+   */
+  setupSwiperEventListeners() {
+    if (!this.imageLoader || !this.imageLoader.image) return;
     
-    console.timeEnd("Navigation event listeners setup");
+    // Listen to Swiper custom events
+    this.imageLoader.image.addEventListener('swiper:slideChange', (e) => {
+      this.currentIndex = e.detail.index;
+      this.updateUI();
+    });
+    
+    this.imageLoader.image.addEventListener('swiper:autoplayStart', () => {
+      this.isPlaying = true;
+      this.updatePlaybackButtons();
+    });
+    
+    this.imageLoader.image.addEventListener('swiper:autoplayStop', () => {
+      this.isPlaying = false;
+      this.updatePlaybackButtons();
+    });
+    
+    // Also listen to document events
+    document.addEventListener('swiper:slideChange', (e) => {
+      if (e.detail.swiper === this.imageLoader.swiper) {
+        this.currentIndex = e.detail.index;
+        this.updateUI();
+      }
+    });
+    
+    imageLogger.debug("Swiper event listeners setup");
   }
   
   /**
@@ -2802,60 +2243,86 @@ class ImageNavigationController {
   setupKeyboardShortcuts() {
     if (this.keyboardShortcutsEnabled) {
       document.addEventListener('keydown', this.handleKeyDown);
-      
-      // Add keyboard shortcut indicator
-      this.showKeyboardShortcutIndicator();
     }
   }
+    handleMouseMove() {
+        this.showControls();
+        this.resetHideTimer();
+    }
+
+    handleMouseEnter() {
+        this.showControls();
+        this.resetHideTimer();
+    }
+
+    handleMouseLeave() {
+        // Only hide if mouse is not over controls
+        if (!this.isMouseOverControls) {
+            this.startHideTimer();
+        }
+    }
+
+    handleControlsMouseEnter() {
+        this.isMouseOverControls = true;
+        this.showControls();
+        this.cancelHideTimer();
+    }
+
+    handleControlsMouseLeave() {
+        this.isMouseOverControls = false;
+        this.startHideTimer();
+    }
   
   /**
    * Handle previous button click
    */
   async handlePrevClick() {
-    console.debug("Previous button clicked");
+    imageLogger.debug("Previous button clicked");
     this.animateButton(this.elements.navPrev);
     
-    // Reset progress bar
-    this.resetProgressBar();
-    
-    // Navigate to previous image
+    // Navigate to previous image using Swiper
     await this.previousImage();
     
     // Update UI
     this.updateUI();
+      this.showControls();
+      this.resetHideTimer();
   }
   
   /**
    * Handle next button click
    */
   async handleNextClick() {
-    console.debug("Next button clicked");
+    imageLogger.debug("Next button clicked");
     this.animateButton(this.elements.navNext);
     
-    // Reset progress bar
-    this.resetProgressBar();
-    
-    // Navigate to next image
+    // Navigate to next image using Swiper
     await this.nextImage();
     
     // Update UI
     this.updateUI();
+
+    this.showControls();
+      this.resetHideTimer();
   }
   
   /**
    * Handle playback button click
    */
   handlePlaybackClick() {
-    console.debug("Playback button clicked");
-    this.animateButton(this.elements.playbackBtn);
+    imageLogger.debug("Playback button clicked");
     
+    // Toggle play/pause using Swiper
     if (this.isPlaying) {
       this.pauseRotation();
     } else {
       this.resumeRotation();
     }
     
+    // Update UI
     this.updateUI();
+      this.showControls();
+      this.resetHideTimer();
   }
   
   /**
@@ -2867,17 +2334,16 @@ class ImageNavigationController {
     
     const index = Array.from(this.elements.thumbnailNav.children).indexOf(thumbnail);
     if (index >= 0 && index !== this.currentIndex) {
-      console.debug("Thumbnail clicked", { index });
+      imageLogger.debug("Thumbnail clicked", { index });
       this.animateButton(thumbnail);
       
-      // Reset progress bar
-      this.resetProgressBar();
-      
-      // Jump to selected image
+      // Jump to selected image using Swiper
       await this.jumpToImage(index);
       
       // Update UI
       this.updateUI();
+        this.showControls();
+        this.resetHideTimer();
     }
   }
   
@@ -2898,14 +2364,14 @@ class ImageNavigationController {
       case 'ArrowLeft':
       case 'Left':
         event.preventDefault();
-        console.debug("Left arrow key pressed");
+        imageLogger.debug("Left arrow key pressed");
         this.handlePrevClick();
         break;
         
       case 'ArrowRight':
       case 'Right':
         event.preventDefault();
-        console.debug("Right arrow key pressed");
+        imageLogger.debug("Right arrow key pressed");
         this.handleNextClick();
         break;
         
@@ -2913,16 +2379,7 @@ class ImageNavigationController {
       case 'Spacebar':
         if (event.target === document.body || event.target === this.imageLoader.image) {
           event.preventDefault();
-          console.debug("Space bar pressed");
-          this.handlePlaybackClick();
-        }
-        break;
-        
-      case 'p':
-      case 'P':
-        if (event.ctrlKey || event.metaKey) {
-          event.preventDefault();
-          console.debug("Ctrl+P pressed");
+          imageLogger.debug("Space bar pressed");
           this.handlePlaybackClick();
         }
         break;
@@ -2934,110 +2391,95 @@ class ImageNavigationController {
   }
   
   /**
-   * Navigate to previous image
+   * Navigate to previous image using Swiper
    */
   async previousImage() {
     if (!this.imageLoader || !this.imageLoader.mediaData?.media?.length) {
-      console.warn("No media available for navigation");
+      imageLogger.warn("No media available for navigation");
       return;
     }
     
-    const media = this.imageLoader.mediaData.media;
-    this.currentIndex = (this.currentIndex - 1 + media.length) % media.length;
-    
-    console.debug("Navigating to previous image", {
-      newIndex: this.currentIndex,
-      total: media.length
-    });
-    
-    await this.imageLoader.loadImageAtIndex(this.currentIndex);
+    // Use Swiper's slidePrev method
+    if (this.imageLoader.swiper) {
+      this.imageLoader.swiper.slidePrev();
+    } else {
+      // Fallback to ImageLoader method
+      await this.imageLoader.previousImage();
+    }
   }
   
   /**
-   * Navigate to next image
+   * Navigate to next image using Swiper
    */
   async nextImage() {
     if (!this.imageLoader || !this.imageLoader.mediaData?.media?.length) {
-      console.warn("No media available for navigation");
+      imageLogger.warn("No media available for navigation");
       return;
     }
     
-    const media = this.imageLoader.mediaData.media;
-    this.currentIndex = (this.currentIndex + 1) % media.length;
-    
-    console.debug("Navigating to next image", {
-      newIndex: this.currentIndex,
-      total: media.length
-    });
-    
-    await this.imageLoader.loadImageAtIndex(this.currentIndex);
+    // Use Swiper's slideNext method
+    if (this.imageLoader.swiper) {
+      this.imageLoader.swiper.slideNext();
+    } else {
+      // Fallback to ImageLoader method
+      await this.imageLoader.nextImage();
+    }
   }
   
   /**
-   * Jump to specific image
+   * Jump to specific image using Swiper
    */
   async jumpToImage(index) {
     if (!this.imageLoader || !this.imageLoader.mediaData?.media?.length) {
-      console.warn("No media available for navigation");
+      imageLogger.warn("No media available for navigation");
       return;
     }
     
-    const media = this.imageLoader.mediaData.media;
-    if (index >= 0 && index < media.length) {
-      this.currentIndex = index;
-      
-      console.debug("Jumping to image", {
-        index,
-        total: media.length
-      });
-      
-      await this.imageLoader.loadImageAtIndex(this.currentIndex);
+    if (index >= 0 && index < this.imageLoader.mediaData.media.length) {
+      // Use Swiper's slideToLoop method
+      if (this.imageLoader.swiper) {
+        this.imageLoader.swiper.slideToLoop(index);
+      } else {
+        // Fallback to ImageLoader method
+        await this.imageLoader.jumpToImage(index);
+      }
     }
   }
   
   /**
-   * Pause image rotation
+   * Pause image rotation using Swiper
    */
   pauseRotation() {
     if (!this.isPlaying) return;
     
-    console.debug("Pausing image rotation");
+    imageLogger.debug("Pausing image rotation via Swiper");
     this.isPlaying = false;
     
-    // Stop the image loader's rotation
-    if (this.imageLoader.stopRotation) {
-      this.imageLoader.stopRotation();
-    }
-    
-    // Clear progress interval
-    if (this.progressInterval) {
-      clearInterval(this.progressInterval);
-      this.progressInterval = null;
+    // Use ImageLoader's pauseRotation method
+    if (this.imageLoader.pauseRotation) {
+      this.imageLoader.pauseRotation();
     }
     
     // Update button state
-    this.updatePlaybackButton();
+    this.updatePlaybackButtons();
   }
   
   /**
-   * Resume image rotation
+   * Resume image rotation using Swiper
    */
   resumeRotation() {
     if (this.isPlaying) return;
     
-    console.debug("Resuming image rotation");
+    imageLogger.debug("Resuming image rotation via Swiper");
     this.isPlaying = true;
     
-    // Start the image loader's rotation
-    if (this.imageLoader.startRotation) {
-      this.imageLoader.startRotation();
+    // Use ImageLoader's resumeRotation method
+    if (this.imageLoader.resumeRotation) {
+      this.imageLoader.resumeRotation();
     }
     
-    // Start progress bar
-    this.startProgressBar();
-    
     // Update button state
-    this.updatePlaybackButton();
+    this.updatePlaybackButtons();
   }
   
   /**
@@ -3053,92 +2495,14 @@ class ImageNavigationController {
   }
   
   /**
-   * Start progress bar animation
-   */
-  startProgressBar() {
-    if (!this.isPlaying || !this.elements.progressBar) return;
-    
-    console.debug("Starting progress bar");
-    
-    // Clear existing interval
-    if (this.progressInterval) {
-      clearInterval(this.progressInterval);
-    }
-    
-    this.progress = 0;
-    this.lastUpdateTime = performance.now();
-    
-    // Calculate step based on rotation speed
-    const step = 100 / (this.rotationSpeed / 100); // 100 steps per second
-    
-    this.progressInterval = setInterval(() => {
-      this.progress += step;
-      
-      if (this.progress >= 100) {
-        this.progress = 0;
-        // Trigger next image when progress completes
-        this.handleAutoAdvance();
-      }
-      
-      this.updateProgressBar();
-    }, 100); // Update every 100ms for smooth animation
-  }
-  
-  /**
-   * Update progress bar width
-   */
-  updateProgressBar() {
-    if (!this.elements.progressBar) return;
-    
-    // Ensure progress is between 0 and 100
-    const clampedProgress = Math.min(100, Math.max(0, this.progress));
-    
-    this.elements.progressBar.style.width = `${clampedProgress}%`;
-    
-    // Update aria attributes
-    this.elements.progressBar.setAttribute('aria-valuenow', clampedProgress.toFixed(0));
-    this.elements.progressBar.setAttribute('aria-valuetext', `${clampedProgress.toFixed(0)}% complete`);
-  }
-  
-  /**
-   * Reset progress bar
-   */
-  resetProgressBar() {
-    console.debug("Resetting progress bar");
-    this.progress = 0;
-    this.updateProgressBar();
-    
-    // Restart progress bar if playing
-    if (this.isPlaying) {
-      this.startProgressBar();
-    }
-  }
-  
-  /**
-   * Handle automatic advancement to next image
-   */
-  async handleAutoAdvance() {
-    if (!this.isPlaying) return;
-    
-    console.debug("Auto-advancing to next image");
-    await this.nextImage();
-    this.updateUI();
-  }
-  
-  /**
    * Update all UI elements
    */
   updateUI() {
     this.updateTotalImages();
     this.updateImageCounter();
-    this.updatePlaybackButton();
+    this.updatePlaybackButtons();
     this.updateThumbnailNav();
     this.updateNavigationButtons();
-    
-    // Start progress bar if playing
-    if (this.isPlaying && !this.progressInterval) {
-      this.startProgressBar();
-    }
   }
   
   /**
@@ -3172,43 +2536,31 @@ class ImageNavigationController {
       'aria-label',
       `Image ${this.currentIndex + 1} of ${this.totalImages}`
     );
+    
+    imageLogger.debug("Image counter updated", {
+      current: this.currentIndex + 1,
+      total: this.totalImages
+    });
   }
   
   /**
-   * Update playback button state
+   * Update playback button state for Swiper
    */
-  updatePlaybackButton() {
-    if (!this.elements.playbackBtn) return;
-    
-    if (this.isPlaying) {
-      this.elements.playbackBtn.classList.remove('pause');
-      this.elements.playbackBtn.classList.add('play');
-      this.elements.playbackBtn.setAttribute('aria-label', 'Pause image rotation');
-      
-      const icon = this.elements.playbackBtn.querySelector('.playback-icon');
-      if (icon) {
-        icon.textContent = '⏸';
+  updatePlaybackButtons() {
+      if (this.elements.playButton) {
+          const icon = this.elements.playButton.querySelector('i');
+          if (icon) {
+              icon.className = this.isPlaying ? 'fa fa-pause' : 'fa fa-play';
+          }
+          this.elements.playButton.setAttribute('data-tooltip', this.isPlaying ? 'Pause (Space)' : 'Play (Space)');
+          this.elements.playButton.setAttribute('aria-label', this.isPlaying ? 'Pause slideshow' : 'Play slideshow');
+          this.elements.playButton.classList.toggle('playing', this.isPlaying);
+          this.elements.playButton.classList.toggle('paused', !this.isPlaying);
       }
-    } else {
-      this.elements.playbackBtn.classList.remove('play');
-      this.elements.playbackBtn.classList.add('pause');
-      this.elements.playbackBtn.setAttribute('aria-label', 'Play image rotation');
-      
-      const icon = this.elements.playbackBtn.querySelector('.playback-icon');
-      if (icon) {
-        icon.textContent = '▶';
-      }
-    }
-    
-    // Update speed indicator
-    const speedElement = this.elements.playbackBtn.querySelector('.playback-speed');
-    if (speedElement) {
-      speedElement.textContent = `${(this.rotationSpeed / 1000) * this.playbackSpeed}s`;
-    }
   }
   
   /**
-   * Update thumbnail navigation
+   * Update thumbnail navigation for Swiper
    */
   updateThumbnailNav() {
     if (!this.elements.thumbnailNav) return;
@@ -3216,20 +2568,41 @@ class ImageNavigationController {
     const media = this.imageLoader?.mediaData?.media;
     if (!media || !Array.isArray(media)) return;
     
-    // Clear existing thumbnails
-    this.elements.thumbnailNav.innerHTML = '';
+    // Check if thumbnails already exist (created by ImageLoader)
+    const existingThumbnails = this.elements.thumbnailNav.querySelectorAll('.thumbnail-dot');
     
-    // Create thumbnails
-    media.forEach((_, index) => {
-      const thumbnail = document.createElement('button');
-      thumbnail.className = `thumbnail-dot ${index === this.currentIndex ? 'active' : ''}`;
-      thumbnail.setAttribute('role', 'tab');
-      thumbnail.setAttribute('aria-selected', index === this.currentIndex ? 'true' : 'false');
-      thumbnail.setAttribute('aria-label', `Image ${index + 1}`);
-      thumbnail.setAttribute('data-index', index);
+    if (existingThumbnails.length === 0) {
+      // Create thumbnails if they don't exist
+      media.forEach((_, index) => {
+        const thumbnail = document.createElement('button');
+        thumbnail.className = `thumbnail-dot ${index === this.currentIndex ? 'active' : ''}`;
+        thumbnail.setAttribute('role', 'tab');
+        thumbnail.setAttribute('aria-selected', index === this.currentIndex ? 'true' : 'false');
+        thumbnail.setAttribute('aria-label', `Image ${index + 1}`);
+        thumbnail.setAttribute('data-index', index);
+        thumbnail.setAttribute('tabindex', index === this.currentIndex ? '0' : '-1');
+        
+        // Add click handler
+        thumbnail.addEventListener('click', (e) => {
+          e.preventDefault();
+          this.jumpToImage(index);
+        });
+        
+        this.elements.thumbnailNav.appendChild(thumbnail);
+      });
       
-      this.elements.thumbnailNav.appendChild(thumbnail);
-    });
+      imageLogger.debug("Thumbnail navigation created", {
+        thumbnails: media.length
+      });
+    } else {
+      // Update existing thumbnails
+      existingThumbnails.forEach((dot, index) => {
+        const isActive = index === this.currentIndex;
+        dot.classList.toggle('active', isActive);
+        dot.setAttribute('aria-selected', isActive.toString());
+        dot.setAttribute('tabindex', isActive ? '0' : '-1');
+      });
+    }
     
     // Update ARIA attributes
     this.elements.thumbnailNav.setAttribute(
@@ -3242,30 +2615,28 @@ class ImageNavigationController {
    * Update navigation buttons state
    */
   updateNavigationButtons() {
-    // Disable previous button if at first image
+    const swiper = this.imageLoader.swiper;
+    
+    // Update previous button
     if (this.elements.navPrev) {
-      const isFirstImage = this.currentIndex === 0;
-      this.elements.navPrev.disabled = isFirstImage && this.totalImages > 1;
-      this.elements.navPrev.setAttribute('aria-disabled', isFirstImage.toString());
+      const isBeginning = swiper ? swiper.isBeginning && !swiper.params.loop : this.currentIndex === 0;
+      this.elements.navPrev.disabled = isBeginning && this.totalImages > 1;
+      this.elements.navPrev.setAttribute('aria-disabled', isBeginning.toString());
       
-      if (isFirstImage && this.totalImages > 1) {
+      if (isBeginning && this.totalImages > 1) {
         this.elements.navPrev.classList.add('disabled');
       } else {
         this.elements.navPrev.classList.remove('disabled');
       }
     }
     
-    // Disable next button if at last image
+    // Update next button
     if (this.elements.navNext) {
-      const isLastImage = this.currentIndex === this.totalImages - 1;
-      this.elements.navNext.disabled = isLastImage && this.totalImages > 1;
-      this.elements.navNext.setAttribute('aria-disabled', isLastImage.toString());
-      
-      if (isLastImage && this.totalImages > 1) {
-        this.elements.navNext.classList.add('disabled');
-      } else {
-        this.elements.navNext.classList.remove('disabled');
-      }
+      const isEnd = swiper ? swiper.isEnd && !swiper.params.loop : this.currentIndex === this.totalImages - 1;
+      this.elements.navNext.disabled = isEnd && this.totalImages > 1;
+      this.elements.navNext.setAttribute('aria-disabled', isEnd.toString());
+        this.elements.navNext.classList.toggle('disabled', isEnd && this.totalImages > 1);
+
     }
   }
   
@@ -3273,21 +2644,44 @@ class ImageNavigationController {
    * Show navigation controls
    */
   showControls() {
-    const container = this.imageLoader.image?.parentElement;
-    if (container) {
-      container.classList.add('show-controls');
-    }
+      if (this.elements.controls) {
+          this.elements.controls.classList.add('show-controls');
+      }
   }
   
   /**
    * Hide navigation controls
    */
   hideControls() {
-    const container = this.imageLoader.image?.parentElement;
-    if (container) {
-      container.classList.remove('show-controls');
-    }
+      if (this.elements.controls) {
+          this.elements.controls.classList.remove('show-controls');
+      }
   }
+
+    resetHideTimer() {
+        this.cancelHideTimer();
+        this.startHideTimer();
+    }
+
+    startHideTimer() {
+        this.cancelHideTimer();
+
+        // Don't start timer if mouse is over controls
+        if (this.isMouseOverControls) {
+            return;
+        }
+
+        this.hideTimeout = setTimeout(() => {
+            this.hideControls();
+        }, this.hideDelay);
+    }
+
+    cancelHideTimer() {
+        if (this.hideTimeout) {
+            clearTimeout(this.hideTimeout);
+            this.hideTimeout = null;
+        }
+    }
   
   /**
    * Show keyboard hints
@@ -3295,7 +2689,7 @@ class ImageNavigationController {
   showKeyboardHints() {
     if (!this.elements.keyboardHints) return;
     
-    console.debug("Showing keyboard hints");
+    imageLogger.debug("Showing keyboard hints");
     
     this.elements.keyboardHints.classList.add('show');
     
@@ -3315,42 +2709,6 @@ class ImageNavigationController {
   }
   
   /**
-   * Show keyboard shortcut indicator
-   */
-  showKeyboardShortcutIndicator() {
-    // Add a subtle indicator that keyboard shortcuts are available
-    const indicator = document.createElement('div');
-    indicator.className = 'keyboard-shortcut-indicator';
-    indicator.innerHTML = '🎮';
-    indicator.title = 'Keyboard shortcuts available (← → Space)';
-    indicator.style.cssText = `
-      position: fixed;
-      bottom: 10px;
-      right: 10px;
-      font-size: 20px;
-      opacity: 0.7;
-      cursor: help;
-      z-index: 1000;
-      transition: opacity 0.3s;
-    `;
-    
-    indicator.addEventListener('mouseenter', () => {
-      indicator.style.opacity = '1';
-      this.showKeyboardHints();
-    });
-    
-    indicator.addEventListener('mouseleave', () => {
-      indicator.style.opacity = '0.7';
-    });
-    
-    indicator.addEventListener('click', () => {
-      this.showKeyboardHints();
-    });
-    
-    document.body.appendChild(indicator);
-  }
-  
-  /**
    * Animate button on click
    */
   animateButton(button) {
@@ -3367,53 +2725,32 @@ class ImageNavigationController {
     }, 150);
   }
   
- /**
-   * Set rotation speed
+  /**
+   * Set rotation speed - delegate to ImageLoader
    */
   setRotationSpeed(speed) {
-    if (speed < 1000 || speed > 30000) {
-      imageLogger.warn("Invalid rotation speed", { speed });
-      return;
+    if (this.imageLoader.setRotationSpeed) {
+      this.imageLoader.setRotationSpeed(speed);
     }
-    
-    const wasRotating = this.imageLoader.rotationEnabled;
-    
-    // Stop current rotation
-    if (wasRotating) {
-      this.imageLoader.stopRotation();
-    }
-    
-    // Update config
-    this.imageLoader.config.rotationDelay = speed;
-    
-    // Restart if it was rotating
-    if (wasRotating &&  this.imageLoader.config.automaticRotate) {
-      this.imageLoader.startRotation();
-    }
-    
-    imageLogger.info("Rotation speed updated", {
-      newSpeed: speed,
-      wasRotating,
-      isRotating: this.imageLoader.rotationEnabled
-    });
   }
   
   /**
-   * Set playback speed multiplier
+   * Set playback speed multiplier - adjust Swiper autoplay delay
    */
   setPlaybackSpeed(multiplier) {
     if (multiplier < 0.25 || multiplier > 4) {
-      console.warn("Playback speed must be between 0.25 and 4");
+      imageLogger.warn("Playback speed must be between 0.25 and 4", { multiplier });
       return;
     }
     
-    console.debug("Setting playback speed multiplier", { multiplier });
+    imageLogger.debug("Setting playback speed multiplier", { multiplier });
     this.playbackSpeed = multiplier;
     
     // Calculate effective rotation speed
-    const effectiveSpeed = this.rotationSpeed / multiplier;
+    const currentDelay = this.imageLoader.config?.rotationDelay || 5000;
+    const effectiveSpeed = currentDelay / multiplier;
     
-    // Update image loader if it has speed control
+    // Update image loader speed
     if (this.imageLoader.setRotationSpeed) {
       this.imageLoader.setRotationSpeed(effectiveSpeed);
     }
@@ -3425,17 +2762,14 @@ class ImageNavigationController {
    * Get current navigation state
    */
   getState() {
+    const swiperState = this.imageLoader.getRotationState?.() || {};
+    
     return {
       currentIndex: this.currentIndex,
       totalImages: this.totalImages,
       isPlaying: this.isPlaying,
-      automaticRotate: this.imageLoader?.config?.automaticRotate || false,
-      pauseOnHover: this.imageLoader?.config?.pauseOnHover || false,
-      rotationDelay: this.imageLoader?.config?.rotationDelay || 4000,
-      rotationSpeed: this.rotationSpeed,
       playbackSpeed: this.playbackSpeed,
-      progress: this.progress,
-      
+      ...swiperState
     };
   }
   
@@ -3443,7 +2777,7 @@ class ImageNavigationController {
    * Cleanup resources
    */
   destroy() {
-    console.time("ImageNavigationController cleanup");
+    imageLogger.time("ImageNavigationController cleanup (Swiper)");
     
     // Remove event listeners
     if (this.elements.navPrev) {
@@ -3454,8 +2788,12 @@ class ImageNavigationController {
       this.elements.navNext.removeEventListener('click', this.handleNextClick);
     }
     
-    if (this.elements.playbackBtn) {
-      this.elements.playbackBtn.removeEventListener('click', this.handlePlaybackClick);
+    if (this.elements.playButton) {
+      this.elements.playButton.removeEventListener('click', this.handlePlaybackClick);
+    }
+    
+    if (this.elements.pauseButton) {
+      this.elements.pauseButton.removeEventListener('click', this.handlePlaybackClick);
     }
     
     if (this.elements.thumbnailNav) {
@@ -3464,31 +2802,22 @@ class ImageNavigationController {
     
     document.removeEventListener('keydown', this.handleKeyDown);
     
-    // Clear intervals
-    if (this.progressInterval) {
-      clearInterval(this.progressInterval);
-      this.progressInterval = null;
-    }
-    
-    // Pause rotation
-    this.pauseRotation();
-    
-    // Remove keyboard shortcut indicator
-    const indicator = document.querySelector('.keyboard-shortcut-indicator');
-    if (indicator) {
-      indicator.remove();
+    // Remove Swiper event listeners
+    if (this.imageLoader && this.imageLoader.image) {
+      const imageElement = this.imageLoader.image;
+      const listeners = imageElement.__swiperEventListeners || [];
+      listeners.forEach(({ event, handler }) => {
+        imageElement.removeEventListener(event, handler);
+      });
+      delete imageElement.__swiperEventListeners;
     }
     
     this.isInitialized = false;
-    console.info("ImageNavigationController destroyed");
-    console.timeEnd("ImageNavigationController cleanup");
+    imageLogger.info("ImageNavigationController destroyed for Swiper");
+    imageLogger.timeEnd("ImageNavigationController cleanup (Swiper)");
   }
 }
 
-/**
- * SCROLL ANIMATOR - Handles scroll-triggered animations
- * @class ScrollAnimator
- */
 /**
  * SCROLL ANIMATOR - Lightweight, performant scroll-triggered animations
  * Focuses on smooth performance, minimal overhead, and perfect integration with existing CSS
@@ -3734,7 +3063,7 @@ class ScrollAnimator {
             left: 0;
             width: 0%;
             height: 3px;
-            background: linear-gradient(90deg, var(--primary-color, #667eea), var(--secondary-color, #764ba2));
+            background: linear-gradient(90deg, var(--primary, #667eea), var(--secondary, #764ba2));
             z-index: 9999;
             transition: width 0.1s ease;
         `;
@@ -5365,12 +4694,12 @@ copyToClipboard(text) {
     const root = document.documentElement;
     
     if (theme === 'dark') {
-      root.style.setProperty('--primary-color', '#8E2DE2');
-      root.style.setProperty('--secondary-color', '#4A00E0');
+      root.style.setProperty('--primary', '#8E2DE2');
+      root.style.setProperty('--secondary', '#4A00E0');
       root.style.setProperty('--primary-rgb', '142, 45, 226');
     } else {
-      root.style.setProperty('--primary-color', '#667eea');
-      root.style.setProperty('--secondary-color', '#764ba2');
+      root.style.setProperty('--primary', '#667eea');
+      root.style.setProperty('--secondary', '#764ba2');
       root.style.setProperty('--primary-rgb', '102, 126, 234');
     }
   }
@@ -5487,8 +4816,8 @@ showLogoutAnimation() {
         bottom: 0;
         background: linear-gradient(
             135deg,
-            var(--primary-color, #667eea) 0%,
-            var(--secondary-color, #764ba2) 50%,
+            var(--primary, #667eea) 0%,
+            var(--secondary, #764ba2) 50%,
             var(--accent-color, #f093fb) 100%
         );
         display: flex;
@@ -5810,7 +5139,7 @@ showLogoutAnimation() {
     
     // Add countdown functionality
     const countdownNumber = overlay.querySelector('.countdown-number');
-    let countdown = 3;
+    let countdown = 10;
     
     const countdownInterval = setInterval(() => {
         countdown--;
@@ -5832,7 +5161,7 @@ showLogoutAnimation() {
                     overlay.remove();
                     // Add your redirect logic here
                     // window.location.href = '/login';
-                }, 800);
+                }, countdown);
             }
         }
     }, 1000);
@@ -5925,7 +5254,7 @@ showLogoutAnimation() {
                style="width: 100%;">
         <div style="display: flex; justify-content: space-between; margin-top: 5px;">
           <span style="font-size: 12px; color: var(--dropdown-text, #999);">Slow</span>
-          <span id="speed-value" style="font-size: 14px; color: var(--primary-color, #667eea);">
+          <span id="speed-value" style="font-size: 14px; color: var(--primary, #667eea);">
             ${(state.rotationDelay || 5000) / 1000}s
           </span>
           <span style="font-size: 12px; color: var(--dropdown-text, #999);">Fast</span>
@@ -5965,7 +5294,7 @@ showLogoutAnimation() {
         <button class="btn-primary" style="
           padding: 10px 20px;
           border: none;
-          background: var(--primary-color, #667eea);
+          background: var(--primary, #667eea);
           color: white;
           border-radius: 8px;
           cursor: pointer;
@@ -5997,26 +5326,22 @@ showLogoutAnimation() {
     speedInput.addEventListener('input', (e) => {
       speedValue.textContent = `${e.target.value / 1000}s`;
     });
-    
-    dialog.querySelector('.btn-primary').addEventListener('click', () => {
-      const newSpeed = parseInt(speedInput.value);
       const autoRotate = dialog.querySelector('#auto-rotate').checked;
       const pauseOnHover = dialog.querySelector('#pause-on-hover').checked;
       const rotationEnabled = dialog.querySelector('#EnableRotation').checked;
+    dialog.querySelector('.btn-primary').addEventListener('click', () => {
+      const newSpeed = parseInt(speedInput.value);
 
       if (this.modules.imageLoader.updateConfig) {
         this.modules.imageLoader.updateConfig({
           automaticRotate: autoRotate,
           pauseOnHover: pauseOnHover,
-          rotationEnabled: rotationEnabled
-        });
-      }   
+          rotationEnabled: rotationEnabled,
+            rotationDelay: newSpeed
 
-      // Apply settings
-      if (this.modules.imageLoader.setRotationSpeed) {
-        this.modules.imageLoader.setRotationSpeed(newSpeed);
+        });
       }
-         
+
       // Save to preferences
       this.state.preferences.automaticRotate = autoRotate;
       this.state.preferences.isHoverPaused = pauseOnHover;
@@ -6182,8 +5507,8 @@ showAboutDialog() {
               width: 100%;
               height: 100%;
               background: linear-gradient(135deg, 
-                var(--primary-color, #667eea) 0%, 
-                var(--secondary-color, #764ba2) 100%
+                var(--primary, #667eea) 0%, 
+                var(--secondary, #764ba2) 100%
               );
               border-radius: 24px;
               display: flex;
@@ -6224,8 +5549,8 @@ showAboutDialog() {
             font-weight: 800;
             letter-spacing: -0.5px;
             background: linear-gradient(135deg, 
-              var(--primary-color, #667eea), 
-              var(--secondary-color, #764ba2)
+              var(--primary, #667eea), 
+              var(--secondary, #764ba2)
             );
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
@@ -6244,7 +5569,7 @@ showAboutDialog() {
               rgba(102, 126, 234, 0.1), 
               rgba(118, 75, 162, 0.1)
             );
-            color: var(--primary-color, #667eea);
+            color: var(--primary, #667eea);
             border-radius: 20px;
             font-size: 14px;
             font-weight: 600;
@@ -6261,9 +5586,7 @@ showAboutDialog() {
             color: var(--dropdown-text, #666);
             font-size: 15px;
             line-height: 1.4;
-            max-width: 320px;
-            margin: 0 auto;
-          ">
+            max-width: 320px;">
             Celebrate achievements with style
           </p>
         </div>
@@ -6286,7 +5609,7 @@ showAboutDialog() {
             <div style="
               font-size: 24px;
               margin-bottom: 10px;
-              color: var(--primary-color, #667eea);
+              color: var(--primary, #667eea);
             ">🎉</div>
             <div style="
               font-size: 12px;
@@ -6307,7 +5630,7 @@ showAboutDialog() {
             <div style="
               font-size: 24px;
               margin-bottom: 10px;
-              color: var(--secondary-color, #764ba2);
+              color: var(--secondary, #764ba2);
             ">🖼️</div>
             <div style="
               font-size: 12px;
@@ -6430,8 +5753,8 @@ showAboutDialog() {
             padding: 14px 20px;
             border: none;
             background: linear-gradient(135deg, 
-              var(--primary-color, #667eea), 
-              var(--secondary-color, #764ba2)
+              var(--primary, #667eea), 
+              var(--secondary, #764ba2)
             );
             color: white;
             border-radius: 12px;
@@ -6532,8 +5855,8 @@ showAboutDialog() {
       
       .btn-secondary:hover {
         background: var(--dropdown-divider, #f5f5f5);
-        border-color: var(--primary-color, #667eea);
-        color: var(--primary-color, #667eea);
+        border-color: var(--primary, #667eea);
+        color: var(--primary, #667eea);
       }
       
       .dialog-close-btn:hover {
@@ -7239,19 +6562,35 @@ updateMenuItems() {
   changeTitleName() {
     appLogger.time("Change title name");
     const titleElement = document.querySelector(".Graduation-title");
-    const authString = localStorage.getItem("GraduationAppPassword");
-    const auth = authString ? JSON.parse(authString) : null;
+    const auth = getCurrentUserInfo();
     const newName = auth && auth.name ? auth.name : "Friend";
+    const headerClass = "span class=\"name-highlight glow\" tabindex=\"0\" role=\"button\""
     if (titleElement) {
-      titleElement.innerHTML = `Congratulations, ${newName}!                   <span class="name-highlight glow" tabindex="0" role="button"
-                    >Combine Maths&Cscs 2025! 💘💗💓</span
-                  >`;
-      appLogger.debug("Title name changed", { newName });
+        if (auth.isGraduand) {
+            titleElement.innerHTML = `Congratulations, ${newName}! <${headerClass}> Combine Maths&Cscs 2025! 💘💗💓</span
+ `;
+            appLogger.debug("Title name changed", {newName});
+        }
+        else if (auth.code === 'L') {
+            titleElement.innerHTML = `Welcome, <br> <${headerClass}> ${newName}💗💓! </span>`
+            this.switchYoutubeIframeVideos(true)
+        }
+        else{
+            titleElement.innerHTML = `Welcome, ${newName}! <${headerClass}> Explore Graduation Wishes! 🎓✨</span>`
+        }
     } else {
       appLogger.warn("Title element not found for name change");
     }
     appLogger.timeEnd("Change title name");
   }
+
+  switchYoutubeIframeVideos(enable) {
+    appLogger.time("Switch YouTube iframe videos");
+    const video1 = document.getElementById("youtubeVideo");
+    const src = 'https://www.youtube.com/embed/I0XmZX0HEIw?si=43eqxmqcd1mv7ipS'
+        enable ? video1.src = src : '' ;
+      }
+
 
   /**
    * Debounce function for performance

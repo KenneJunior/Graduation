@@ -531,53 +531,31 @@ class Logger {
     }
     const prefix = args.shift();
     const mainMessage = "%c" + args.shift();
-    const remainingArgs = args.shift();
+    const remainingArgs = args.shift() || [];
+
+    const logArgs = [
+      `${prefix} ${mainMessage}`,
+      levelStyle,
+      messagestyle,
+      ...(Array.isArray(remainingArgs) ? remainingArgs : [remainingArgs]),
+      ...args,
+    ].filter((arg) => arg !== undefined);
 
     switch (level) {
       case LOG_LEVELS.DEBUG:
-        console.debug(
-          `${prefix} ${mainMessage}`,
-          levelStyle,
-          messagestyle,
-          ...remainingArgs,
-          ...args
-        );
+        console.debug(...logArgs);
         break;
       case LOG_LEVELS.INFO:
-        console.info(
-          `${prefix} ${mainMessage}`,
-          levelStyle,
-          messagestyle,
-          ...remainingArgs,
-          ...args
-        );
+        console.info(...logArgs);
         break;
       case LOG_LEVELS.WARN:
-        console.warn(
-          `${prefix} ${mainMessage}`,
-          levelStyle,
-          messagestyle,
-          ...remainingArgs,
-          ...args
-        );
+        console.warn(...logArgs);
         break;
       case LOG_LEVELS.ERROR:
-        console.error(
-          `${prefix} ${mainMessage}`,
-          levelStyle,
-          messagestyle,
-          ...remainingArgs,
-          ...args
-        );
+        console.error(...logArgs);
         break;
       default:
-        console.log(
-          `${prefix} ${mainMessage}`,
-          levelStyle,
-          messagestyle,
-          ...remainingArgs,
-          ...args
-        );
+        console.log(...logArgs);
         break;
     }
   }

@@ -181,13 +181,6 @@ class UltimateModal {
     this._toggleNavigationElements(true);
 
     // Optional: Add loading class to media element if provided
-    if (mediaElement) {
-      mediaElement.classList.add("is-loading");
-      modalLogger.debug("Loading class added to media element", {
-      element: mediaElement.tagName,
-      });
-    }
-
     modalLogger.info("Media loading animation displayed successfully");
     modalLogger.timeEnd("Show media loading animation");
   }
@@ -215,14 +208,6 @@ class UltimateModal {
 
       // Show navigation elements and counter
       this._toggleNavigationElements(false);
-
-      // Remove loading class from media element if provided
-      if (mediaElement) {
-        mediaElement.classList.remove("is-loading");
-        modalLogger.debug("Loading class removed from media element", {
-          element: mediaElement.tagName,
-        });
-      }
     }, 500);
 
     modalLogger.info("Media loading animation hidden successfully");

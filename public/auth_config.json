@@ -16,15 +16,28 @@
     "users": {
       "K": {
         "name": "Kech",
-        "password": "CongratulationsMamaKech"
+        "password": "CongratulationsMamaKech",
+        "isGraduand": "true"
       },
       "T": {
         "name": "Terence",
-        "password": "CongratulationsdullMan"
+        "password": "CongratulationsdullMan",
+        "isGraduand": "true"
       },
       "M": {
         "name": "Mcckelly",
-        "password": "CongratulationsMcc"
+        "password": "CongratulationsMcc",
+        "isGraduand": "true"
+      },
+      "J":{
+        "name": "Junior",
+        "password": "CongratulationsJunior",
+        "isGraduand": "true"
+      },
+      "L": {
+        "name": "LuLu\uD83E\uDEF6\uD83D\uDC96",
+        "password": "WelcomeLucy",
+        "isGraduand": "false"
       }
     }
   }

@@ -399,6 +399,7 @@ class AuthManager {
    */
   saveCurrentLocation() {
     const returnUrl = window.location.href;
+    if (returnUrl.includes("logout")) return;
     sessionStorage.setItem("returnUrl", returnUrl);
     this.authLogger.debug("Saved current location", { returnUrl });
   }

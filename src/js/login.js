@@ -1099,6 +1099,7 @@ export function checkPassword(inputPassword, passwordConfig) {
       ok: true,
       type: "general",
       code: "ALL",
+      isGraduand: false,
       name: "Everyone",
       accessLevel: 100,
       message: "General access granted 🎉",
@@ -1110,9 +1111,10 @@ export function checkPassword(inputPassword, passwordConfig) {
 
   for (const [code, user] of Object.entries(users)) {
     if (cleanInput === user.password) {
+        const isGraduand = user.isGraduand !==   "false";
       return {
         ok: true,
-        type: "user",
+        isGraduand,
         code,
         name: user.name,
         accessLevel: 50,
