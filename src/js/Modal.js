@@ -1,8 +1,18 @@
 import logger from "./utility/logger.js";
 import { loadMediaData } from "./utility/utils.js";
+import ColorThief from "colorthief";
 // Create contextual logger for UltimateModal
 const modalLogger = logger.withContext({ module: "UltimateModal" });
-
+/*
+*todo
+* 1. improve Extract color palette from image using ColorThief (done)
+* 2. improve Create dynamic gradient based on extracted colors (done)
+* 3. cache the extracted palette for reuse (done)
+* 4. improve the the tooltip text
+* 5. use preloading to load images in the background as the user navigates
+* 6. fix the css transition for the image background changing
+* 7. when its a vid it should use the thumb to get the color
+* */
 class UltimateModal {
   constructor() {
     modalLogger.time("UltimateModal constructor");
@@ -37,11 +47,21 @@ class UltimateModal {
       ).length,
       totalElements: Object.keys(this.elements).length,
     });
+    this.colorThief = new ColorThief();
 
     this.state = {
       animations: [],
+      backupStyles: {
+        modalContainerBackground: '',
+        modalContainerBackgroundColor: '',
+        modalBackground: '',
+        modalBackgroundColor: '',
+      }, // To store original styles for restoration
       currentIndex: 0,
       media: [],
+        colorPalette: null, // Store full palette for gradients
+        fullscreenGradient: '', // Gradient for fullscreen mode
+        isBrowserFullscreen: false, // Track F11 fullscreen
       isZoomed: false,
       isZoomPanSetup: false,
       isMaximized: false,
@@ -50,7 +70,8 @@ class UltimateModal {
       panStart: { x: 0, y: 0 },
       panOffset: { x: 0, y: 0 },
     };
-    this.mediaData = {};
+      this.gradientCache = new Map();
+      this.mediaData = {};
 
     modalLogger.debug("Initial state set", {
       transitionStyle: this.state.transitionStyle,
@@ -61,13 +82,16 @@ class UltimateModal {
     modalLogger.timeEnd("UltimateModal constructor");
   }
 
-  init() {
+  async init() {
     modalLogger.time("UltimateModal initialization");
     modalLogger.debug("Starting gallery generation");
-    this.generateGallery();
+    await this.generateGallery();
     this.setupSeeMoreButton();
     this.setupImageTooltip();
-    modalLogger.timeEnd("UltimateModal initialization");
+      setTimeout(() => {
+          this.saveInitialBackgroundStyles();
+      }, 300);
+      modalLogger.timeEnd("UltimateModal initialization");
   }
 
   initHammerWhenReady() {
@@ -319,6 +343,8 @@ class UltimateModal {
       originalIndices: this.state.media.map((m) => m.originalIndex),
     });
 
+    this.preloadMediaImages();
+
     modalLogger.timeEnd("Image caching");
   }
 
@@ -415,6 +441,7 @@ class UltimateModal {
       this.handleFullscreenChange();
     });
 
+
     modalLogger.info("Event listeners setup completed", {
       thumbnails: this.elements.thumbnails.length,
       keyboard: true,
@@ -422,6 +449,464 @@ class UltimateModal {
     });
     modalLogger.timeEnd("Event listener setup");
   }
+    /**
+     * Saves the initial computed background styles for restoration.
+     * - Focuses on essential properties only.
+     * - Uses localStorage for persistence across sessions.
+     */
+    saveInitialBackgroundStyles() {
+        modalLogger.time("Save initial background styles");
+        if (!this.elements.modalContainer || !this.elements.modal) {
+            modalLogger.warn("Elements not available for saving styles");
+            return;
+        }
+
+        const containerComputed = window.getComputedStyle(this.elements.modalContainer);
+        const modalComputed = window.getComputedStyle(this.elements.modal);
+
+        // Save only essential background properties
+        this.state.backupStyles = {
+            container: {
+                background: containerComputed.background,
+                backgroundColor: containerComputed.backgroundColor,
+                backgroundImage: containerComputed.backgroundImage,
+                transition: containerComputed.transition,
+            },
+            modal: {
+                background: modalComputed.background,
+                backgroundColor: modalComputed.backgroundColor,
+                backgroundImage: modalComputed.backgroundImage,
+                transition: modalComputed.transition,
+            }
+        };
+
+        // Backup to localStorage for persistence
+        try {
+            localStorage.setItem('modal_backup_styles', JSON.stringify(this.state.backupStyles));
+        } catch (e) {
+            modalLogger.debug("Could not save to localStorage", e);
+        }
+
+        modalLogger.debug("Initial styles cached", {
+            containerBg: containerComputed.background.substring(0, 30) + '...',
+            modalBg: modalComputed.background.substring(0, 30) + '...',
+        });
+        modalLogger.timeEnd("Save initial background styles");
+    }
+
+    /**
+     * Extracts palette and creates gradient with intelligent caching.
+     * - Checks cache first for quick retrieval.
+     * - Uses requestAnimationFrame for better performance.
+     * - Robust fallback system with multiple strategies.
+     * - Improved: Added better error handling and image load verification.
+     * @param imageSrc
+     * @return Promise<String>
+     */
+    async extractPaletteAndCreateGradient(imageSrc) {
+        modalLogger.time("Create gradient with caching");
+
+        // Check cache first
+        if (this.gradientCache.has(imageSrc)) {
+            const cachedGradient = this.gradientCache.get(imageSrc);
+            modalLogger.debug("Using cached gradient", { imageSrc });
+            this.state.fullscreenGradient = cachedGradient;
+            modalLogger.timeEnd("Create gradient with caching");
+            return cachedGradient;
+        }
+
+        try {
+            // Verify image is fully loaded - check the actual modal image
+            if (!this.elements.modalImage.complete ||
+                !this.elements.modalImage.naturalWidth ||
+                this.elements.modalImage.naturalWidth === 0) {
+                modalLogger.warn("Image not ready, scheduling retry");
+
+                // Set up a one-time retry
+                return new Promise((resolve) => {
+                    const checkImage = () => {
+                        if (this.elements.modalImage.complete &&
+                            this.elements.modalImage.naturalWidth > 0) {
+                            // Now try again
+                            this.extractPaletteAndCreateGradient(imageSrc)
+                                .then(resolve)
+                                .catch(() => resolve(this.getFallbackGradient()));
+                        } else {
+                            setTimeout(checkImage, 50);
+                        }
+                    };
+                    checkImage();
+                });
+            }
+
+            // Use requestAnimationFrame for smoother UI updates
+            await new Promise(resolve => requestAnimationFrame(resolve));
+
+            // Extract palette with more colors for richer gradients
+            let palette;
+            try {
+                palette = this.colorThief.getPalette(this.elements.modalImage, 8); // Increased to 8 for more variety
+                modalLogger.debug("Palette extracted", {
+                    colors: palette.length,
+                    sample: palette[0]
+                });
+            } catch (extractError) {
+                modalLogger.warn("Failed to extract palette, using fallback", extractError);
+                // Fallback: Generate palette from dominant color
+                try {
+                    const dominant = this.colorThief.getColor(this.elements.modalImage);
+                    palette = this.generatePaletteFromDominant(dominant);
+                    modalLogger.debug("Using generated palette from dominant", { dominant });
+                } catch (dominantError) {
+                    // Ultimate fallback - use time-based gradient
+                    const fallback = this.getFallbackGradient();
+                    this.gradientCache.set(imageSrc, fallback);
+                    this.state.fullscreenGradient = fallback;
+                    modalLogger.timeEnd("Create gradient with caching");
+                    return fallback;
+                }
+                }
+
+            // Create enhanced dynamic gradient
+            const gradient = this.createDynamicGradient(palette);
+
+            // Cache the result
+            this.gradientCache.set(imageSrc, gradient);
+            this.state.fullscreenGradient = gradient;
+            this.state.colorPalette = palette;
+
+            // Limit cache size to prevent memory leaks
+            if (this.gradientCache.size > 30) {
+                const firstKey = this.gradientCache.keys().next().value;
+                this.gradientCache.delete(firstKey);
+            }
+
+            modalLogger.info("Gradient created and cached", {
+                gradient: gradient.substring(0, 80) + '...',
+                cacheSize: this.gradientCache.size,
+            });
+            modalLogger.timeEnd("Create gradient with caching");
+            return gradient;
+        } catch (error) {
+            modalLogger.error("Gradient creation failed", error);
+
+            // Use elegant fallback gradient
+            const fallback = this.getFallbackGradient();
+            this.gradientCache.set(imageSrc, fallback); // Cache even the fallback
+            this.state.fullscreenGradient = fallback;
+
+            modalLogger.timeEnd("Create gradient with caching");
+            return fallback;
+        }
+    }
+
+    /**
+     * Generates a harmonious palette from a single dominant color.
+     * - Creates 6 colors with better variation using HSL adjustments for more natural harmony.
+     */
+    generatePaletteFromDominant(dominant) {
+        const [r, g, b] = dominant;
+        const [h, s, l] = this.rgbToHsl(r, g, b);
+        const palette = [dominant];
+
+        // Create harmonious variations: analogous, complementary, triadic, etc.
+        for (let i = 1; i < 6; i++) {
+            const hueOffset = (i % 3 === 0) ? 180 : (i % 2 === 0 ? 30 : -30); // Complementary and analogous
+            const newH = (h + hueOffset / 360) % 1;
+            const newS = Math.min(100, Math.max(0, s + (i % 2 ? 10 : -10)));
+            const newL = Math.min(100, Math.max(0, l + (i % 3 ? 15 : -15)));
+
+            const variation = this.hslToRgb(newH * 360, newS, newL);
+            palette.push(variation);
+        }
+
+        return palette;
+    }
+
+    /**
+     * Creates a visually stunning dynamic gradient.
+     * - Enhanced: Uses radial gradient for softer, more immersive effects.
+     * - Incorporates color theory for better harmony.
+     * - Adds subtle opacity variations and more stops for smoother transitions.
+     * - Improved: Supports subtle animation via CSS (assumes CSS handles animation on --fullscreen-gradient).
+     */
+    createDynamicGradient(palette) {
+        if (!palette || palette.length < 3) {
+            return this.getFallbackGradient();
+        }
+
+        // Sort colors by hue and lightness for better selection
+        const sortedByHue = [...palette].sort((a, b) => {
+            const hueA = this.rgbToHsl(...a)[0];
+            const hueB = this.rgbToHsl(...b)[0];
+            return hueA - hueB;
+        });
+        const sortedByLightness = [...palette].sort((a, b) => {
+            const lightnessA = this.rgbToHsl(...a)[2];
+            const lightnessB = this.rgbToHsl(...b)[2];
+            return lightnessA - lightnessB;
+        });
+
+        // Select 5 colors for richer gradient: dark, mid-tones, light
+        const selectedColors = [
+            sortedByLightness[0], // Darkest
+            sortedByHue[Math.floor(sortedByHue.length / 4)], // Low hue
+            sortedByHue[Math.floor(sortedByHue.length / 2)], // Mid hue
+            sortedByHue[Math.floor(sortedByHue.length * 3 / 4)], // High hue
+            sortedByLightness[sortedByLightness.length - 1] // Lightest
+        ];
+
+        // Create gradient stops with varying opacity for depth
+        const gradientStops = selectedColors.map((color, index) => {
+            const [r, g, b] = color;
+            const position = (index / (selectedColors.length - 1)) * 100;
+            const opacity = 0.4 + (0.5 * (index / selectedColors.length)); // Softer opacity range
+            return `rgba(${r}, ${g}, ${b}, ${opacity.toFixed(2)}) ${position}%`;
+        });
+
+        // Use radial gradient for a more immersive, focal effect
+        const radialGradient = `radial-gradient(
+        circle at 50% 50%,
+        ${gradientStops.join(', ')}
+    )`;
+
+        // Linear fallback for broader compatibility
+        const linearGradient = `linear-gradient(
+        135deg,
+        ${gradientStops.join(', ')}
+    )`;
+
+        // Combine for layered, dynamic look (CSS can animate between layers if desired)
+        return `
+        ${radialGradient},
+        ${linearGradient}
+    `.trim();
+    }
+
+    /**
+     * RGB to HSL conversion for color manipulation.
+     */
+    rgbToHsl(r, g, b) {
+        r /= 255; g /= 255; b /= 255;
+        const max = Math.max(r, g, b);
+        const min = Math.min(r, g, b);
+        let h, s, l = (max + min) / 2;
+
+        if (max === min) {
+            h = s = 0; // achromatic
+        } else {
+            const d = max - min;
+            s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+            switch (max) {
+                case r: h = (g - b) / d + (g < b ? 6 : 0); break;
+                case g: h = (b - r) / d + 2; break;
+                case b: h = (r - g) / d + 4; break;
+            }
+            h /= 6;
+        }
+        return [h * 360, s * 100, l * 100];
+    }
+
+    /**
+     * HSL to RGB conversion (new helper for palette generation).
+     */
+    hslToRgb(h, s, l) {
+        h /= 360; s /= 100; l /= 100;
+        let r, g, b;
+
+        if (s === 0) {
+            r = g = b = l; // achromatic
+        } else {
+            const hue2rgb = (p, q, t) => {
+                if (t < 0) t += 1;
+                if (t > 1) t -= 1;
+                if (t < 1/6) return p + (q - p) * 6 * t;
+                if (t < 1/2) return q;
+                if (t < 2/3) return p + (q - p) * (2/3 - t) * 6;
+                return p;
+            };
+            const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+            const p = 2 * l - q;
+            r = hue2rgb(p, q, h + 1/3);
+            g = hue2rgb(p, q, h);
+            b = hue2rgb(p, q, h - 1/3);
+        }
+
+        return [Math.round(r * 255), Math.round(g * 255), Math.round(b * 255)];
+    }
+
+    /**
+     * Provides an elegant fallback gradient based on time of day.
+     * - Improved: Added more nuanced color schemes for better aesthetics.
+     */
+    getFallbackGradient() {
+        const hour = new Date().getHours();
+
+        // Time-based gradients with softer, more modern palettes
+        if (hour < 6) return 'radial-gradient(circle, #0a0a2a 0%, #1a1a3a 100%)'; // Deep night
+        if (hour < 12) return 'radial-gradient(circle, #1e3a8a 0%, #38bdf8 100%)'; // Fresh morning
+        if (hour < 18) return 'radial-gradient(circle, #f97316 0%, #fde047 100%)'; // Warm afternoon
+        return 'radial-gradient(circle, #1e293b 0%, #334155 100%)'; // Calm evening
+    }
+
+    /**
+     * Applies the gradient background with smooth transitions.
+     * - Only applies in browser fullscreen mode.
+     * - Uses CSS custom properties for optimal performance.
+     */
+    applyFullscreenBackground() {
+        if (!this.state.isBrowserFullscreen) {
+            this.restoreInitialBackgroundStyles();
+            return;
+        }
+
+        modalLogger.debug("Applying fullscreen gradient background");
+
+        // Set CSS custom property for gradient
+        document.documentElement.style.setProperty(
+            '--fullscreen-gradient',
+            this.state.fullscreenGradient
+        );
+
+        // Add class for CSS-based styling and transitions
+        this.elements.modalContainer.classList.add('fullscreen-gradient-active');
+        this.elements.modal.classList.add('fullscreen-gradient-active');
+
+        modalLogger.debug("Fullscreen gradient applied via CSS variables");
+    }
+
+    /**
+     * Restores initial styles with smooth transitions.
+     * - Simplified: Checks for differences before applying changes.
+     * - Uses CSS classes for easier management.
+     */
+    restoreInitialBackgroundStyles() {
+        modalLogger.time("Restore initial styles");
+
+        // Load from localStorage if backup is missing
+        if (!this.state.backupStyles) {
+            try {
+                const saved = localStorage.getItem('modal_backup_styles');
+                if (saved) {
+                    this.state.backupStyles = JSON.parse(saved);
+                }
+            } catch (e) {
+                modalLogger.debug("Could not load from localStorage", e);
+            }
+        }
+
+        // Remove fullscreen classes
+        this.elements.modalContainer.classList.remove('fullscreen-gradient-active');
+        this.elements.modal.classList.remove('fullscreen-gradient-active');
+
+        // Remove custom property
+        document.documentElement.style.removeProperty('--fullscreen-gradient');
+
+        // Restore styles only if backups exist and differ from current
+        if (this.state.backupStyles) {
+            const containerStyle = window.getComputedStyle(this.elements.modalContainer);
+            const modalStyle = window.getComputedStyle(this.elements.modal);
+
+            if (containerStyle.background !== this.state.backupStyles.container.background) {
+                this.elements.modalContainer.style.background = this.state.backupStyles.container.background;
+                this.elements.modalContainer.style.backgroundColor = this.state.backupStyles.container.backgroundColor;
+                this.elements.modalContainer.style.transition = 'background 0.6s ease';
+            }
+
+            if (modalStyle.background !== this.state.backupStyles.modal.background) {
+                this.elements.modal.style.background = this.state.backupStyles.modal.background;
+                this.elements.modal.style.backgroundColor = this.state.backupStyles.modal.backgroundColor;
+                this.elements.modal.style.transition = 'background 0.6s ease';
+            }
+        }
+
+        // Clear state
+        this.state.fullscreenGradient = '';
+        this.state.colorPalette = null;
+
+        modalLogger.debug("Styles restored to initial state");
+        modalLogger.timeEnd("Restore initial styles");
+    }
+
+    /**
+     * Pre-warms the gradient cache for visible thumbnails.
+     * - Limits to first 5 thumbnails for performance.
+     * - Improved: Uses Promise.all for parallel preloading.
+     */
+    async prewarmGradientCache() {
+        modalLogger.time("Prewarm gradient cache");
+
+        const thumbnails = Array.from(this.elements.allVisibleThumbnails || []).slice(0, 5); // Limit to 5
+
+        const preloadPromises = thumbnails.map((thumb, index) => {
+            const img = thumb.querySelector('img');
+            if (img && img.src && !this.gradientCache.has(img.src)) {
+                return new Promise((resolve) => {
+                    const preloadImg = new Image();
+                    preloadImg.crossOrigin = "Anonymous";
+                    preloadImg.src = img.src;
+
+                    preloadImg.onload = () => {
+                        try {
+                            const palette = this.colorThief.getPalette(preloadImg, 3);
+                            const gradient = this.createDynamicGradient(palette);
+                            this.gradientCache.set(img.src, gradient);
+
+                            modalLogger.debug("Prewarmed gradient cache", {
+                                index,
+                                src: img.src.substring(0, 30) + '...',
+                                cacheSize: this.gradientCache.size
+                            });
+                        } catch (e) {
+                            modalLogger.debug("Failed to prewarm cache for image", e);
+                        }
+                        resolve();
+                    };
+
+                    preloadImg.onerror = () => resolve(); // Continue on error
+                });
+            }
+            return Promise.resolve();
+        });
+
+        await Promise.all(preloadPromises);
+        modalLogger.timeEnd("Prewarm gradient cache");
+    }
+
+    /**
+     * Preload high-res images for better gradient extraction
+     */
+    preloadMediaImages() {
+        // Preload the first few images
+        const preloadCount = Math.min(5, this.state.media.length);
+
+        for (let i = 0; i < preloadCount; i++) {
+            const mediaItem = this.state.media[i];
+            if (mediaItem.data_type === 'image') {
+                const img = new Image();
+                img.crossOrigin = "Anonymous";
+                img.src = mediaItem.src;
+
+                // Store in cache when loaded
+                img.onload = () => {
+                    try {
+                        if (!this.gradientCache.has(mediaItem.src)) {
+                            const palette = this.colorThief.getPalette(img, 6);
+                            const gradient = this.createDynamicGradient(palette);
+                            this.gradientCache.set(mediaItem.src, gradient);
+
+                            modalLogger.debug("Preloaded and cached gradient", {
+                                index: i,
+                                cacheSize: this.gradientCache.size
+                            });
+                        }
+                    } catch (e) {
+                        // Silent fail for preloading
+                    }
+                };
+            }
+        }
+    }
 
   setupSocialSharing() {
     modalLogger.time("Social sharing setup");
@@ -578,6 +1063,7 @@ class UltimateModal {
     if (!this.elements.modalVideo.classList.contains("d-none")) {
       modalLogger.debug("Pausing current video during navigation");
       this.elements.modalVideo.pause();
+      this.restoreInitialBackgroundStyles();
     }
     this.hideImageTooltip();
 
@@ -591,6 +1077,17 @@ class UltimateModal {
     this.updateModalContent();
     this.animateTransition(direction);
 
+      if (this.state.isBrowserFullscreen) {
+          const newCurrent = this._getCurrentMedia();
+          if (newCurrent.data_type === 'image') {
+              // Wait a bit for image to start loading
+              this.extractPaletteAndCreateGradient(newCurrent.src).then(() => {
+                  this.applyFullscreenBackground();
+              });
+          } else {
+              this.restoreInitialBackgroundStyles();
+          }
+      }
     modalLogger.debug("Navigation completed", {
       newIndex: this.state.currentIndex,
     });
@@ -865,6 +1362,11 @@ class UltimateModal {
     this.elements.modalImage.classList.remove("d-none");
 
     this.elements.modalImage.addEventListener("load", () => {
+        if (this.state.isBrowserFullscreen) {
+              this.extractPaletteAndCreateGradient(src).then(() => {
+                this.applyFullscreenBackground();
+            });
+        }
       this.hideMediaLoading(this.elements.modalImage);
       modalLogger.debug("Image loaded successfully");
     });
@@ -1018,7 +1520,32 @@ class UltimateModal {
       document.webkitFullscreenElement ||
       document.msFullscreenElement;
 
-    if (!fullscreenElement) {
+      const isNowFullscreen = !!fullscreenElement;
+
+      if (isNowFullscreen && !this.state.isBrowserFullscreen) {
+          // Entered browser fullscreen
+          modalLogger.debug("Entered browser fullscreen (F11)");
+          this.state.isBrowserFullscreen = true;
+
+          // Extract palette and apply gradient if showing an image
+          const current = this._getCurrentMedia();
+          if (current.data_type === 'image') {
+              this.extractPaletteAndCreateGradient(current.src)
+                  .then(() => {
+                  this.applyFullscreenBackground();
+              });
+          }
+
+      } else if (!isNowFullscreen && this.state.isBrowserFullscreen) {
+          // Exited browser fullscreen
+          modalLogger.debug("Exited browser fullscreen (F11)");
+          this.state.isBrowserFullscreen = false;
+
+          // Remove gradient background
+          this.restoreInitialBackgroundStyles();
+      }
+
+      if (!fullscreenElement) {
       modalLogger.debug("Fullscreen exited via browser controls");
       // We exited fullscreen
       this.state.isFullscreen = false;
@@ -1053,6 +1580,10 @@ class UltimateModal {
     return figure;
   }
 
+    /**
+     *
+     * @return {Promise<void>}
+     */
   async generateGallery() {
     modalLogger.time("Gallery generation");
     const { galleryContainer } = this.elements;

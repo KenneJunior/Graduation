@@ -6412,6 +6412,15 @@ updateMenuItems() {
       appLogger.warn("Image container not found for event listeners");
     }
     this.elements.GraduationImage.addEventListener('load',()=>{this.hideMediaLoading()})
+      const nextpage = document.getElementById('nextPage');
+    if (nextpage){
+        nextpage.addEventListener('click',()=>{
+            setTimeout(()=>{
+                windows.location.href = 'memories.html';
+            },600)
+
+        });
+    }
 
     window.addEventListener('dropdown:close', this.handleDropdownEvent);
     window.addEventListener('dropdown:open', this.handleDropdownEvent);

@@ -27,6 +27,7 @@
     --shadow-soft: 0 4px 30px rgba(254, 154, 175, 0.2);
     --shadow-hard: 0 10px 40px rgba(254, 154, 175, 0.3);
     --transition: all 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    --fullscreen-gradient: linear-gradient(135deg, #0f0f0f 0%, #1a1a1a 50%, #0f0f0f 100%);
 }
 
 /* ========== BASE STYLES ========== */
@@ -48,7 +49,7 @@ body {
     background: linear-gradient(135deg, var(--pink-light), var(--purple-light), #fff5f5);
     background-size: 300% 300%;
     transform-origin: center center;
-    animation: gradientBG 15s ease infinite;
+    animation: gradientFlow 15s ease infinite;
 }
 button{
   transform-style: preserve-3d;
@@ -531,7 +532,7 @@ a {
     #d6249f 60%,
     #285AEB 90%);
     -webkit-background-clip: text;
-    background-clip: transparent;
+    background-clip: text;
     -webkit-text-fill-color: transparent;
     text-shadow: 0 0 10px rgba(211, 37, 170, 0.7),
     0 0 20px rgba(199, 211, 37, 0.97);
@@ -585,9 +586,10 @@ a {
     padding: calc(2rem * var(--zoom-factor));
     border-radius: calc(24px * var(--zoom-factor));
     /* Visual styling */
-    background: rgba(219, 112, 147, 0.3);
     -webkit-backdrop-filter: blur(calc(var(--blur)*2));
     backdrop-filter: blur(calc(var(--blur)*2));
+    background: rgba(219, 112, 147, 0.3) fixed;
+    background-size: cover;
     contain:layout;
     box-shadow: 0 30px 60px -20px rgba(219, 112, 147, 0.3),
     0 0 0 1px rgba(255, 255, 255, 0.3) inset;
@@ -596,7 +598,7 @@ a {
     position: relative;
     /* Animation */
     transform: translateY(20px) scale(0.98);
-    transition: all 0.4s cubic-bezier(0.32, 0.72, 0, 1);
+    transition: background 0.8s cubic-bezier(0.4, 0, 0.2, 1);
     opacity: 0;
     -webkit-user-select: none !important;
     -moz-user-select: none !important;
@@ -631,6 +633,10 @@ a {
     height: 60px;
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='60' height='60' viewBox='0 0 60 60'%3E%3Cpath fill='%23db7093' fill-opacity='0.2' d='M60 0v60H0V0h60zM5 5v50h50V5H5zm5 5v40h40V10H10z'/%3E%3C/svg%3E");
     z-index: 1;
+}
+.modal-container.browser-fullscreen {
+    background-size: 400% 400% !important;
+    animation: gradientShift 15s ease infinite !important;
 }
 
 .modal-overlay:focus,
@@ -1174,7 +1180,6 @@ a {
     display: flex;
     flex-direction: column;
     justify-content: center;
-    background: rgba(0, 0, 0, 0.5);
     padding: 2rem;
 }
 
@@ -1216,7 +1221,6 @@ a {
     height: 100% !important;
     border-radius: 0 !important;
     padding: 20px !important;
-    background: rgba(0, 0, 0, 0.9) !important;
 }
 
 .modal-container:-moz-full-screen {
@@ -1224,7 +1228,6 @@ a {
     height: 100% !important;
     border-radius: 0 !important;
     padding: 20px !important;
-    background: rgba(0, 0, 0, 0.9) !important;
 }
 
 .modal-container:-ms-fullscreen {
@@ -1232,7 +1235,6 @@ a {
     height: 100% !important;
     border-radius: 0 !important;
     padding: 20px !important;
-    background: rgba(0, 0, 0, 0.9) !important;
 }
 
 .modal-container:fullscreen {
@@ -1240,7 +1242,6 @@ a {
     height: 100% !important;
     border-radius: 0 !important;
     padding: 20px !important;
-    background: rgba(0, 0, 0, 0.9) !important;
 }
 
 /* Fullscreen image styling */
@@ -1427,7 +1428,36 @@ a {
     transform: translateY(20px) rotate(180deg) ;
     will-change: transform, opacity;
 }
-
+/* ========== DYNAMIC GRADIENTS ========== */
+.modal-container.fullscreen-gradient-active,
+.modal.fullscreen-gradient-active {
+    background: var(--fullscreen-gradient) !important;
+    background-attachment: fixed !important;
+    background-size: 400% 400% !important;
+    animation: gradientFlow 15s ease infinite !important;
+    transition: background 0.8s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+.modal-container.fullscreen-gradient-active .modal-content,
+.modal-container.fullscreen-gradient-active .modal-image,
+.modal-container.fullscreen-gradient-active .modal-video {
+    background: transparent !important;
+}
+.modal-container.fullscreen-gradient-active::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(
+            90deg,
+            transparent,
+            rgba(255, 255, 255, 0.05),
+            transparent
+    );
+    animation: shimmer 3s infinite;
+    pointer-events: none;
+}
 /* ========== UTILITY CLASSES ========== */
 .hearts {
     transition: font-size 0.1s ease-out, transform 0.2s ease-out;
@@ -1467,6 +1497,19 @@ a {
     }
 }
 
+/* Subtle shimmer effect */
+@keyframes shimmer {
+    0% {
+        opacity: 0.8;
+    }
+    50% {
+        opacity: 1;
+    }
+    100% {
+        opacity: 0.8;
+    }
+}
+
 @keyframes floatAround {
     0% {
         transform: translate(0, 0) rotate(0deg);
@@ -1485,7 +1528,7 @@ a {
     }
 }
 
-@keyframes gradientBG {
+@keyframes gradientFlow {
     0% {
         background-position: 0 50%;
     }
