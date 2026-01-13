@@ -87,20 +87,31 @@ function showUpdateNotification(registration) {
 initializePWA();
 
 import GraduationApp from "./js/index.js";
+import GraduationAppMemories from "./js/HBD.js";
 
-// If GraduationApp is a default export in src/js/index.js this import works; otherwise adjust.
 const themeManager = new ThemeManager({
-  defaultTheme: "light", // Optional override
   storageKey: "myapp-theme", // Custom key
   systemPreference: true,
 });
 async function init() {
   themeManager.init();
-  if (typeof GraduationApp === "function") {
-    new GraduationApp().init();
+  const page = document.getElementById("myPage");
+  let currentPage;
+  if (page) {
+    currentPage =  page.getAttribute('page')
+  }
+  if (typeof GraduationApp === "function" && currentPage.includes('index')) {
+    await new GraduationApp().init();
+  }
+  if(typeof GraduationAppMemories === "function" && currentPage.includes('Memories')) {
+      await new GraduationAppMemories().init();
   }
 }
-// Auto-run when loaded as module
-init();
 
-export default init;
+document.addEventListener('DOMContentLoaded', async () => {
+    try {
+        await init();
+    } catch (error) {
+        console.error('Failed to initialize GraduationApp:', error);
+    }
+});

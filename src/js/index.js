@@ -1176,11 +1176,17 @@ class ConfettiSystem {
 }
 
 /**
- * ImageLoader Class for Slideshow with Swiper.js
+ * @class ImageLoader Class for Slideshow with Swiper.js
  */
 
 class ImageLoader {
-constructor(imageElement, placeholderElement, options = {}) {
+    /**
+     *
+     * @param {HTMLImageElement}imageElement
+     * @param {HTMLElement}placeholderElement
+     * @param {Object}options
+     */
+    constructor(imageElement, placeholderElement, options = {}) {
         imageLogger.time("ImageLoader constructor");
 
         if (!imageElement) {
@@ -1241,6 +1247,11 @@ constructor(imageElement, placeholderElement, options = {}) {
         imageLogger.timeEnd("ImageLoader constructor");
     }
 
+    /**
+     *
+     * @param {object} options
+     * @return {Promise<void>}
+     */
     async init(options) {
         imageLogger.time("ImageLoader initialization");
         this.config = { ...this.config, ...options };
@@ -1281,6 +1292,7 @@ constructor(imageElement, placeholderElement, options = {}) {
     }
     /**
      * Handle initialization errors
+     * @param {Error} error
      */
     handleInitializationError(error) {
         appLogger.error("Handling initialization error", error);
@@ -1315,6 +1327,7 @@ constructor(imageElement, placeholderElement, options = {}) {
     }
   /**
      * Filter out media with undefined sources (videos)
+   * @return {boolean}
      */
     filterUndefinedMedia() {
         if (!this.mediaData?.media) return;
@@ -4281,6 +4294,14 @@ class GraduationApp {
     this.performanceMonitor.start();
 
 try {
+
+    const hasScrollElements = document.querySelector('[data-scroll-animate], .scroll-animate');
+
+    if (hasScrollElements && !window.scrollAnimator) {
+        scrollLogger.debug("Auto-initializing ScrollAnimator");
+        window.scrollAnimator = new ScrollAnimator();
+        window.scrollAnimator.init();
+    }
       // Check authentication
       await this.checkAuthentication();
       
@@ -6412,15 +6433,6 @@ updateMenuItems() {
       appLogger.warn("Image container not found for event listeners");
     }
     this.elements.GraduationImage.addEventListener('load',()=>{this.hideMediaLoading()})
-      const nextpage = document.getElementById('nextPage');
-    if (nextpage){
-        nextpage.addEventListener('click',()=>{
-            setTimeout(()=>{
-                windows.location.href = 'memories.html';
-            },600)
-
-        });
-    }
 
     window.addEventListener('dropdown:close', this.handleDropdownEvent);
     window.addEventListener('dropdown:open', this.handleDropdownEvent);
@@ -6681,22 +6693,6 @@ updateMenuItems() {
 
 
 }
-
-// Initialize the application when DOM is ready
-document.addEventListener("DOMContentLoaded", () => {
-  appLogger.time("DOMContentLoaded initialization");
-  appLogger.debug("DOM content loaded, starting application initialization");
-    new GraduationApp().init();
-  appLogger.timeEnd("DOMContentLoaded initialization");
-
-const hasScrollElements = document.querySelector('[data-scroll-animate], .scroll-animate');
-
-if (hasScrollElements && !window.scrollAnimator) {
-    scrollLogger.debug("Auto-initializing ScrollAnimator");
-    window.scrollAnimator = new ScrollAnimator();
-    window.scrollAnimator.init();
-}
-});
 
 // Export for module systems
 if (typeof module !== "undefined" && module.exports) {

@@ -79,6 +79,7 @@ export function filterMediaByUser(media, authResult, options = {}) {
     sortOrder: 'desc', // 'asc', 'desc'
     shuffle: false,
     limit: null,
+    returnAllOnError: false,
     groupByPerson: false,
     excludeSolo: false,
     onlyWithPerson: null, // Filter to only include media with specific person code
@@ -637,6 +638,1121 @@ export function getCurrentUserInfo() {
     }
 
 }
+/**
+ * ADVANCED INTELLIGENT MESSAGE GENERATOR
+ * Creates human-like messages with context, sentiment, and personality
+ */
+
+// Context patterns for different scenarios
+const contextPatterns = {
+    // Based on number of people
+    solo: {
+        intro: ["This moment", "Looking back", "This memory", "Remembering"],
+        middle: ["was so special", "means so much", "brings back feelings", "still feels vivid"],
+        ending: ["to me", "even now", "after all this time", "always and forever"]
+    },
+
+    duo: {
+        intro: ["You and me", "The two of us", "Our special bond", "Together"],
+        middle: ["created magic", "shared something special", "had unforgettable times", "made memories"],
+        ending: ["that last forever", "that I'll always treasure", "that define friendship", "that matter most"]
+    },
+
+    smallGroup: {
+        intro: ["Our little group", "The squad", "These amazing people", "My favorite humans"],
+        middle: ["knew how to have fun", "made every moment count", "created pure joy", "shared the best laughs"],
+        ending: ["and I miss it", "what a time", "those were the days", "forever in my heart"]
+    },
+
+    largeGroup: {
+        intro: ["This incredible gathering", "When everyone came together", "The whole crew", "Every amazing person here"],
+        middle: ["created something magical", "made history together", "shared unforgettable moments", "built memories"],
+        ending: ["that define an era", "that we'll talk about forever", "that show true connection", "that matter"]
+    }
+};
+
+// Emotion dictionary
+const emotions = {
+    happy: ["joyful", "ecstatic", "delighted", "overjoyed", "blissful", "elated"],
+    nostalgic: ["sentimental", "wistful", "bittersweet", "melancholy", "yearning", "reminiscent"],
+    loving: ["affectionate", "fond", "devoted", "caring", "tender", "warm"],
+    proud: ["accomplished", "triumphant", "victorious", "achieving", "successful", "fulfilled"],
+    grateful: ["thankful", "appreciative", "blessed", "fortunate", "privileged", "indebted"]
+};
+
+// Message frameworks
+const messageFrameworks = {
+    reflection: [
+        "{intro}, {middle} {ending}.",
+        "{intro}. {middle} {ending}.",
+        "{intro} {middle}. {ending}!"
+    ],
+
+    celebration: [
+        "Cheers to {names}! {middle} 🥂",
+        "Celebrating {names} and {middle} 🎉",
+        "{names} deserve all the {emotion}! {middle}!"
+    ],
+
+    missing: [
+        "Missing {names} and our {middle} days 💭",
+        "Wish {names} were here to {middle} again",
+        "Thinking of {names} and how we used to {middle} 💖"
+    ],
+
+    appreciation: [
+        "So grateful for {names} and our {middle} moments 🙏",
+        "Thankful for {names} who {middle} with me",
+        "Appreciating {names} for the {middle} memories ❤️"
+    ]
+};
+
+/**
+ * Enhanced message generator with AI-like intelligence
+ */
+export function generateIntelligentMessage(mediaItem, currentUser, options = {}) {
+    const config = {
+        sentiment: 'auto', // 'auto', 'positive', 'nostalgic', 'celebratory'
+        complexity: 'medium', // 'simple', 'medium', 'complex'
+        includeNames: true,
+        useFullNames: true,
+        includeCurrentUser: true,
+        addLocationHint: false,
+        addTimeContext: true,
+        ...options
+    };
+
+    const persons = Array.isArray(mediaItem.persons) ? mediaItem.persons : [];
+    const userCode = currentUser?.code;
+    const userName = currentUser?.name;
+
+    // ANALYZE THE PHOTO CONTEXT
+    const analysis = analyzePhotoContext(persons, userCode, mediaItem);
+
+    // DETERMINE MESSAGE TYPE
+    const messageType = determineMessageType(analysis, config.sentiment);
+
+    // BUILD THE MESSAGE
+    const message = buildMessage(analysis, messageType, config);
+
+    // ENHANCE WITH EMOJIS AND HASHTAGS
+    return enhanceMessage(message, analysis, config);
+}
+
+/**
+ * Analyze photo context
+ */
+function analyzePhotoContext(persons, userCode, mediaItem) {
+    const totalPeople = persons.length;
+    const userInPhoto = persons.some(p => {
+        const code = typeof p === 'string' ? p : p.code;
+        return code === userCode;
+    });
+
+    const otherPersons = persons.filter(p => {
+        const code = typeof p === 'string' ? p : p.code;
+        return code !== userCode;
+    });
+
+    // Calculate relationship depth
+    let relationshipDepth = 'casual';
+    if (totalPeople === 1 && userInPhoto) relationshipDepth = 'personal';
+    if (totalPeople === 2) relationshipDepth = 'close';
+    if (totalPeople >= 5) relationshipDepth = 'community';
+
+    // Determine likely emotion
+    const possibleEmotions = [];
+    if (userInPhoto) possibleEmotions.push('proud', 'happy');
+    if (otherPersons.length > 0) possibleEmotions.push('loving', 'grateful');
+    if (totalPeople >= 3) possibleEmotions.push('nostalgic');
+
+    return {
+        totalPeople,
+        userInPhoto,
+        otherPersons,
+        relationshipDepth,
+        possibleEmotions,
+        mediaItem
+    };
+}
+
+/**
+ * Determine message type based on analysis
+ */
+function determineMessageType(analysis, configuredSentiment) {
+    if (configuredSentiment !== 'auto') {
+        return configuredSentiment;
+    }
+
+    const { totalPeople, userInPhoto, relationshipDepth } = analysis;
+
+    if (totalPeople === 1 && userInPhoto) {
+        return 'reflection';
+    }
+
+    if (totalPeople === 2) {
+        return userInPhoto ? 'celebration' : 'appreciation';
+    }
+
+    if (totalPeople >= 3 && totalPeople <= 5) {
+        return 'celebration';
+    }
+
+    if (totalPeople > 5) {
+        return 'nostalgic';
+    }
+
+    return 'appreciation';
+}
+
+export function generatePhotoMessage(mediaItem, currentUser = null, options = {}) {
+    // Default options
+    const config = {
+        style: 'casual', // 'casual', 'formal', 'funny', 'romantic', 'nostalgic'
+        includeEmojis: true,
+        maxLength: 280,
+        includeHashtags: true,
+        includePhotoContext: true,
+        language: 'en', // 'en', 'fr', 'es', etc.
+        customTemplate: null,
+        debug: false,
+        ...options
+    };
+
+    // Extract persons from media item
+    const persons = Array.isArray(mediaItem.persons) ? mediaItem.persons : [];
+
+    // Extract current user info
+    const userCode = currentUser?.code || null;
+    const userName = currentUser?.name || null;
+
+    // Classify persons
+    const otherPersons = persons.filter(person => {
+        const personCode = typeof person === 'string' ? person : person.code;
+        return personCode !== userCode;
+    });
+
+    const userInPhoto = persons.some(person => {
+        const personCode = typeof person === 'string' ? person : person.code;
+        return personCode === userCode;
+    });
+
+    // Count
+    const totalPersons = persons.length;
+    const otherCount = otherPersons.length;
+
+    if (config.debug) {
+        console.debug('Message Generation:', {
+            mediaItem: mediaItem.alt,
+            persons,
+            userInPhoto,
+            userCode,
+            userName,
+            totalPersons,
+            otherCount
+        });
+    }
+
+    // PERSONALITY PROFILES (for different styles)
+    const personalities = {
+        casual: {
+            tone: 'friendly',
+            pronouns: ['I', 'we', 'you'],
+            adjectives: ['amazing', 'great', 'fun', 'awesome', 'memorable'],
+            verbs: ['remember', 'cherish', 'miss', 'love', 'enjoy']
+        },
+        formal: {
+            tone: 'respectful',
+            pronouns: ['one', 'we', 'individuals'],
+            adjectives: ['significant', 'memorable', 'notable', 'precious', 'valuable'],
+            verbs: ['recall', 'appreciate', 'value', 'treasure', 'commemorate']
+        },
+        funny: {
+            tone: 'humorous',
+            pronouns: ['we', 'you guys', 'y\'all'],
+            adjectives: ['hilarious', 'epic', 'legendary', 'ridiculous', 'priceless'],
+            verbs: ['crack up', 'laugh about', 'can\'t forget', 'still giggle about']
+        },
+        romantic: {
+            tone: 'affectionate',
+            pronouns: ['we', 'our', 'us'],
+            adjectives: ['beautiful', 'magical', 'heartwarming', 'special', 'cherished'],
+            verbs: ['treasure', 'hold dear', 'adore', 'love', 'embrace']
+        },
+        nostalgic: {
+            tone: 'sentimental',
+            pronouns: ['I', 'we', 'us'],
+            adjectives: ['nostalgic', 'timeless', 'classic', 'unforgettable', 'golden'],
+            verbs: ['reminisce', 'look back on', 'remember fondly', 'miss', 'cherish']
+        }
+    };
+
+    // EMOJI LIBRARY
+    const emojis = {
+        casual: ['😊', '✨', '🌟', '💫', '🎉', '🤗', '👏', '🙌', '🎈'],
+        formal: ['🎓', '📸', '🏛️', '👔', '📚'],
+        funny: ['😂', '🤣', '😆', '🤪', '😜', '🎭', '🤹', '🎪'],
+        romantic: ['💕', '❤️', '🥰', '😍', '💖', '🌹', '💐', '✨'],
+        nostalgic: ['🕰️', '📜', '🎞️', '📷', '💭', '🌅', '🌇']
+    };
+
+    // HASHTAG TEMPLATES
+    const hashtags = {
+        general: ['Memories', 'Throwback', 'GoodTimes', 'Friends', 'Family'],
+        style: {
+            casual: ['FunTimes', 'GreatMemories', 'AwesomePeople'],
+            formal: ['SignificantMoments', 'PreciousMemories', 'NotableOccasions'],
+            funny: ['EpicTimes', 'LaughingSoHard', 'Unforgettable'],
+            romantic: ['BeautifulMoments', 'Heartwarming', 'CherishedMemories'],
+            nostalgic: ['Nostalgic', 'Flashback', 'TimelessMoments']
+        }
+    };
+
+    // TEMPLATES FOR DIFFERENT SCENARIOS
+    const templates = {
+        // User alone in photo
+        soloUser: [
+            "Looking back at this moment with fond memories. {adj} times indeed!",
+            "This brings back so many memories! What an {adj} journey it has been.",
+            "Remembering this special moment. Truly {adj} to look back on.",
+            "A {adj} memory that I will always {verb}. So grateful for this moment."
+        ],
+
+        // User with others
+        userWithOthers: [
+            "What {adj} times with {names}! {emoji} Miss you all!",
+            "Remember when {names} and I {verb} this? {adj} memories! {emoji}",
+            "So many {adj} memories with {names}! Can't wait to make more!",
+            "Thinking of the {adj} times with {names}. Truly unforgettable! {emoji}"
+        ],
+
+        // User not in photo (others only)
+        othersOnly: [
+            "What a {adj} photo of {names}! {emoji} Beautiful memories!",
+            "Look at {names} here! Such {adj} moments captured forever.",
+            "This {adj} memory with {names} is priceless! {emoji}",
+            "{names} looking {adj} as always! {emoji} Great times together!"
+        ],
+
+        // Group photos (3+ people)
+        group: [
+            "The {adj} squad! {names} {emoji} What an amazing group!",
+            "Unforgettable times with these amazing people: {names} {emoji}",
+            "Looking back at this {adj} moment with everyone. {names} {emoji}",
+            "The {adj} crew! {names} {emoji} Memories that last a lifetime!"
+        ],
+
+        // Couple photos (2 people)
+        couple: [
+            "What a {adj} moment with {names}! {emoji} Beautiful times together.",
+            "{names} - two peas in a pod! {adj} memories! {emoji}",
+            "Special bond with {names} captured here. {adj} moments! {emoji}",
+            "Thinking of {names} and this {adj} memory we share. {emoji}"
+        ]
+    };
+
+    // SELECT TEMPLATE BASED ON SCENARIO
+    let scenario;
+    let template;
+
+    if (userInPhoto) {
+        if (totalPersons === 1) {
+            scenario = 'soloUser';
+        } else if (totalPersons === 2) {
+            scenario = 'couple';
+        } else if (totalPersons >= 3) {
+            scenario = 'group';
+        } else {
+            scenario = 'userWithOthers';
+        }
+    } else {
+        if (otherCount === 1) {
+            scenario = 'othersOnly';
+        } else if (otherCount === 2) {
+            scenario = 'couple';
+        } else if (otherCount >= 3) {
+            scenario = 'group';
+        } else {
+            scenario = 'othersOnly';
+        }
+    }
+
+    // Get personality for selected style
+    const personality = personalities[config.style] || personalities.casual;
+
+    // Select random template
+    const scenarioTemplates = templates[scenario];
+    const selectedTemplate = config.customTemplate ||
+        scenarioTemplates[Math.floor(Math.random() * scenarioTemplates.length)];
+
+    // GET NAMES STRING
+    function getNamesString() {
+        if (otherCount === 0) {
+            return userName || 'me';
+        }
+
+        const names = otherPersons.map(person => {
+            if (typeof person === 'string') {
+                return person;
+            }
+            return person.name || person.code;
+        });
+
+        // Format names: "John" or "John and Mary" or "John, Mary, and Sam"
+        if (names.length === 1) {
+            return names[0];
+        } else if (names.length === 2) {
+            return `${names[0]} and ${names[1]}`;
+        } else {
+            const last = names.pop();
+            return `${names.join(', ')}, and ${last}`;
+        }
+    }
+
+    // GET RANDOM ELEMENT
+    function getRandomElement(array) {
+        return array[Math.floor(Math.random() * array.length)];
+    }
+
+    // REPLACE PLACEHOLDERS
+    let message = selectedTemplate
+        .replace('{names}', getNamesString())
+        .replace('{adj}', getRandomElement(personality.adjectives))
+        .replace('{verb}', getRandomElement(personality.verbs));
+
+    // ADD EMOJI
+    if (config.includeEmojis) {
+        const emojiSet = emojis[config.style] || emojis.casual;
+        const emoji = getRandomElement(emojiSet);
+        if (!message.includes(emoji)) {
+            message += ` ${emoji}`;
+        }
+    }
+
+    // ADD PHOTO CONTEXT (if it's interesting)
+    if (config.includePhotoContext && mediaItem.alt && !mediaItem.alt.startsWith('Memory:')) {
+        const altWords = mediaItem.alt.split(' ').slice(0, 5).join(' ');
+        if (altWords.length < 30) {
+            message += ` ${altWords}`;
+        }
+    }
+
+    // TRUNCATE IF TOO LONG
+    if (message.length > config.maxLength) {
+        message = message.substring(0, config.maxLength - 3) + '...';
+    }
+
+    // ADD HASHTAGS
+    let finalMessage = message;
+    let generatedHashtags = [];
+
+    if (config.includeHashtags) {
+        // Add style-specific hashtags
+        const styleHashtags = hashtags.style[config.style] || hashtags.style.casual;
+        generatedHashtags.push(...styleHashtags.slice(0, 2));
+
+        // Add person-based hashtags (using codes)
+        persons.forEach(person => {
+            const personCode = typeof person === 'string' ? person : person.code;
+            if (personCode && personCode.length <= 4) {
+                generatedHashtags.push(`Person${personCode}`);
+            }
+        });
+
+        // Add general hashtags
+        generatedHashtags.push(...hashtags.general.slice(0, 2));
+
+        // Remove duplicates and limit
+        generatedHashtags = [...new Set(generatedHashtags)].slice(0, 5);
+
+        // Append hashtags
+        if (generatedHashtags.length > 0) {
+            const hashtagString = generatedHashtags.map(tag => `#${tag}`).join(' ');
+            if (finalMessage.length + hashtagString.length + 1 <= config.maxLength) {
+                finalMessage += ` ${hashtagString}`;
+            }
+        }
+    }
+
+    // Return structured result
+    return {
+        message: finalMessage,
+        template: selectedTemplate,
+        scenario,
+        style: config.style,
+        persons: otherPersons.map(p => typeof p === 'string' ? p : p.code),
+        userInPhoto,
+        hashtags: generatedHashtags,
+        metadata: {
+            length: finalMessage.length,
+            charactersUsed: finalMessage.length,
+            maxLength: config.maxLength,
+            language: config.language,
+            generatedAt: new Date().toISOString()
+        }
+    };
+}
+
+/**
+ * PERSONALIZED SHARE MESSAGE - Create share message based on media and platform
+ * @param {Object} mediaItem - Media item
+ * @param {Object} currentUser - Current user
+ * @param {String} platform - 'facebook', 'twitter', 'pinterest', 'whatsapp'
+ * @returns {Object} Platform-specific share content
+ */
+export function createShareMessage(mediaItem, currentUser = null, platform = 'twitter') {
+    // Platform-specific constraints
+    const platformConfig = {
+        twitter: {
+            maxLength: 280,
+            includeLink: true,
+            includeMedia: true,
+            hashtagLimit: 3
+        },
+        facebook: {
+            maxLength: 2000,
+            includeLink: true,
+            includeMedia: true,
+            hashtagLimit: 5
+        },
+        pinterest: {
+            maxLength: 500,
+            includeLink: true,
+            includeMedia: true,
+            descriptionFocus: true,
+            hashtagLimit: 5
+        },
+        whatsapp: {
+            maxLength: 1000,
+            includeLink: false,
+            includeMedia: false,
+            personalStyle: true,
+            hashtagLimit: 0
+        },
+        instagram: {
+            maxLength: 2200,
+            includeLink: false,
+            includeMedia: true,
+            hashtagLimit: 30
+        }
+    };
+
+    const config = platformConfig[platform] || platformConfig.twitter;
+
+    // Generate base message
+    const style = platform === 'whatsapp' ? 'casual' :
+        platform === 'pinterest' ? 'romantic' : 'funny';
+
+    const baseMessage = generatePhotoMessage(mediaItem, currentUser, {
+        style,
+        includeEmojis: true,
+        includeHashtags: config.hashtagLimit > 0,
+        maxLength: config.maxLength - 100 // Leave space for URL
+    });
+
+    // Build final message
+    let finalMessage = baseMessage.message;
+
+    // Add URL if needed
+    const currentUrl = window.location.href;
+    if (config.includeLink && currentUrl) {
+        finalMessage += ` ${currentUrl}`;
+    }
+
+    // Platform-specific adjustments
+    if (platform === 'pinterest' && mediaItem.alt) {
+        finalMessage = `${mediaItem.alt}. ${finalMessage}`;
+    }
+
+    if (platform === 'instagram') {
+        // Instagram likes lots of hashtags
+        const extraHashtags = ['PhotoOfTheDay', 'MemoryLane', 'ThrowbackThursday', 'FlashbackFriday'];
+        const hashtags = [...baseMessage.hashtags, ...extraHashtags].slice(0, config.hashtagLimit);
+        if (hashtags.length > 0) {
+            finalMessage += `\n\n${hashtags.map(tag => `#${tag}`).join(' ')}`;
+        }
+    }
+
+    // Truncate to platform limit
+    if (finalMessage.length > config.maxLength) {
+        finalMessage = finalMessage.substring(0, config.maxLength - 3) + '...';
+    }
+
+    return {
+        text: finalMessage,
+        url: config.includeLink ? currentUrl : null,
+        mediaUrl: config.includeMedia ? mediaItem.src : null,
+        platform,
+        metadata: baseMessage.metadata
+    };
+}
+/**
+ * Build the message
+ */
+function buildMessage(analysis, messageType, config) {
+    const { totalPeople, userInPhoto, otherPersons } = analysis;
+
+    // GET NAMES
+    const names = getFormattedNames(otherPersons, config.useFullNames);
+
+    // SELECT PATTERN BASED ON GROUP SIZE
+    let pattern;
+    if (totalPeople === 1) pattern = contextPatterns.solo;
+    else if (totalPeople === 2) pattern = contextPatterns.duo;
+    else if (totalPeople <= 5) pattern = contextPatterns.smallGroup;
+    else pattern = contextPatterns.largeGroup;
+
+    // SELECT FRAMEWORK
+    const framework = selectFramework(messageType, config.complexity);
+
+    // BUILD COMPONENTS
+    const components = {
+        intro: selectRandom(pattern.intro),
+        middle: selectRandom(pattern.middle),
+        ending: selectRandom(pattern.ending),
+        names: names,
+        emotion: selectRandom(analysis.possibleEmotions)
+    };
+
+    // APPLY TEMPLATE
+    let message = applyTemplate(framework, components);
+
+    // ADD USER CONTEXT
+    if (userInPhoto && config.includeCurrentUser) {
+        message = personalizeMessage(message, config);
+    }
+
+    // ADD TIME CONTEXT
+    if (config.addTimeContext) {
+        message = addTimeContext(message);
+    }
+
+    return message;
+}
+
+/**
+ * Get formatted names
+ */
+function getFormattedNames(persons, useFullNames) {
+    if (persons.length === 0) return '';
+
+    const names = persons.map(person => {
+        if (typeof person === 'string') {
+            return useFullNames ? person : person.substring(0, 1);
+        }
+        return useFullNames ? (person.name || person.code) : person.code;
+    });
+
+    if (names.length === 1) return names[0];
+    if (names.length === 2) return `${names[0]} and ${names[1]}`;
+
+    const last = names.pop();
+    return `${names.join(', ')}, and ${last}`;
+}
+
+/**
+ * Select framework based on complexity
+ */
+function selectFramework(messageType, complexity) {
+    const frameworks = messageFrameworks[messageType] || messageFrameworks.appreciation;
+
+    if (complexity === 'simple') {
+        return frameworks[0]; // Shortest
+    } else if (complexity === 'complex') {
+        return frameworks[frameworks.length - 1]; // Longest
+    } else {
+        return frameworks[Math.floor(frameworks.length / 2)]; // Medium
+    }
+}
+
+/**
+ * Apply template with components
+ */
+function applyTemplate(template, components) {
+    return template
+        .replace(/{(\w+)}/g, (match, key) => components[key] || match)
+        .replace(/\s+/g, ' ')
+        .trim();
+}
+
+/**
+ * Personalize message for current user
+ */
+function personalizeMessage(message, config) {
+    const userPronouns = {
+        male: ['he', 'him', 'his'],
+        female: ['she', 'her', 'hers'],
+        neutral: ['they', 'them', 'theirs']
+    };
+
+    // Add personal touch
+    const personalTouches = [
+        "I'll always remember this.",
+        "Me in my element.",
+        "This was such a me moment.",
+        "Feeling nostalgic about this.",
+        "This captures my essence perfectly."
+    ];
+
+    if (Math.random() > 0.7) { // 30% chance to add personal touch
+        return `${message} ${selectRandom(personalTouches)}`;
+    }
+
+    return message;
+}
+
+/**
+ * Add time context
+ */
+function addTimeContext(message) {
+    const timeReferences = [
+        "Back when life was simpler",
+        "In those golden days",
+        "During that amazing phase",
+        "At that perfect moment",
+        "When everything felt right"
+    ];
+
+    if (Math.random() > 0.6) { // 40% chance to add time context
+        return `${selectRandom(timeReferences)}, ${message.toLowerCase()}`;
+    }
+
+    return message;
+}
+
+/**
+ * Enhance message with emojis and hashtags
+ */
+function enhanceMessage(message, analysis, config) {
+    const { totalPeople, userInPhoto, otherPersons } = analysis;
+
+    // ADD EMOJIS
+    const emoji = selectEmoji(totalPeople, userInPhoto);
+    let enhanced = `${message} ${emoji}`;
+
+    // ADD HASHTAGS
+    if (config.includeNames) {
+        const hashtags = generateHashtags(otherPersons, totalPeople, userInPhoto);
+        enhanced += ` ${hashtags}`;
+    }
+
+    // ADD LOCATION HINT (if available in metadata)
+    if (config.addLocationHint && analysis.mediaItem.location) {
+        enhanced += ` 📍 ${analysis.mediaItem.location}`;
+    }
+
+    return {
+        message: enhanced,
+        rawMessage: message,
+        analysis: {
+            totalPeople,
+            userInPhoto,
+            personCount: otherPersons.length,
+            sentiment: analysis.possibleEmotions[0]
+        },
+        metadata: {
+            generatedAt: new Date().toISOString(),
+            length: enhanced.length
+        }
+    };
+}
+
+/**
+ * Select appropriate emoji
+ */
+function selectEmoji(totalPeople, userInPhoto) {
+    if (totalPeople === 1) {
+        return userInPhoto ? '✨' : '🌟';
+    } else if (totalPeople === 2) {
+        return userInPhoto ? '💖' : '👥';
+    } else if (totalPeople <= 5) {
+        return '👨‍👩‍👧‍👦';
+    } else {
+        return '🎉';
+    }
+}
+
+/**
+ * Generate relevant hashtags
+ */
+function generateHashtags(persons, totalPeople, userInPhoto) {
+    const hashtags = [];
+
+    // Person hashtags
+    persons.forEach(person => {
+        const code = typeof person === 'string' ? person : person.code;
+        if (code && code.length <= 4) {
+            hashtags.push(`#Person${code}`);
+        }
+    });
+
+    // Size hashtags
+    if (totalPeople === 1) hashtags.push('#Solo');
+    else if (totalPeople === 2) hashtags.push('#Duo');
+    else if (totalPeople <= 5) hashtags.push('#Squad');
+    else hashtags.push('#GroupPhoto');
+
+    // Sentiment hashtags
+    if (userInPhoto) {
+        hashtags.push('#MyMemory', '#Personal');
+    } else {
+        hashtags.push('#Friends', '#BeautifulPeople');
+    }
+
+    // General hashtags
+    hashtags.push('#Memories', '#Throwback', '#GoodTimes');
+
+    // Limit to 5 hashtags
+    return hashtags.slice(0, 5).join(' ');
+}
+
+/**
+ * Utility: Select random element from array
+ */
+function selectRandom(array) {
+    return array[Math.floor(Math.random() * array.length)];
+}
+
+/**
+ * STORYTELLER MODE - Creates narrative captions
+ */
+export function generateStoryCaption(mediaItem, currentUser) {
+    const persons = Array.isArray(mediaItem.persons) ? mediaItem.persons : [];
+    const userCode = currentUser?.code;
+
+    const stories = {
+        // Single person stories
+        solo: [
+            "In this moment, time stood still. A memory frozen forever, waiting to be revisited.",
+            "There's something about this photo that tells a story words never could.",
+            "This wasn't just a picture; it was a feeling, a moment, a memory etched in time."
+        ],
+
+        // Two people stories
+        duo: [
+            "Two souls, one frame. A story of friendship that photographs can only begin to tell.",
+            "Some moments are too precious for words. This photo captures a bond that speaks volumes.",
+            "Together in this moment, creating a memory that would become part of their story forever."
+        ],
+
+        // Group stories
+        group: [
+            "Every person in this frame has a story, and together they created this beautiful chapter.",
+            "This wasn't just a gathering; it was where stories intersected and memories were born.",
+            "Look closely and you'll see not just faces, but stories waiting to be told."
+        ]
+    };
+
+    const totalPeople = persons.length;
+    let storyType;
+
+    if (totalPeople === 1) storyType = 'solo';
+    else if (totalPeople === 2) storyType = 'duo';
+    else storyType = 'group';
+
+    const baseStory = selectRandom(stories[storyType]);
+
+    // Add personal names if available
+    if (persons.length > 0 && persons.length <= 3) {
+        const names = persons.map(p => typeof p === 'string' ? p : p.name).join(' and ');
+        return `${baseStory} Featuring ${names}.`;
+    }
+
+    return baseStory;
+}
+
+/**
+ * BATCH GENERATOR WITH VARIETY
+ */
+export function generateBatchMessages(mediaArray, currentUser, count = 5) {
+    const styles = ['reflection', 'celebration', 'story', 'simple', 'detailed'];
+    const results = [];
+
+    // Shuffle media array
+    const shuffled = [...mediaArray].sort(() => Math.random() - 0.5);
+
+    for (let i = 0; i < Math.min(count, shuffled.length); i++) {
+        const media = shuffled[i];
+        const style = styles[i % styles.length];
+
+        let message;
+        switch(style) {
+            case 'story':
+                message = generateStoryCaption(media, currentUser);
+                break;
+            case 'simple':
+                message = generateSimpleCaption(media, currentUser);
+                break;
+            case 'detailed':
+                message = generateDetailedDescription(media, currentUser);
+                break;
+            default:
+                message = generateIntelligentMessage(media, currentUser, {
+                    sentiment: style === 'celebration' ? 'celebratory' : 'auto'
+                }).message;
+        }
+
+        results.push({
+            media: media.src,
+            message,
+            style,
+            persons: media.persons || []
+        });
+    }
+
+    return results;
+}
+
+/**
+ * Simple caption generator
+ */
+function generateSimpleCaption(mediaItem, currentUser) {
+    const persons = Array.isArray(mediaItem.persons) ? mediaItem.persons : [];
+    const userCode = currentUser?.code;
+
+    if (persons.length === 0) {
+        return "A beautiful moment captured 📸";
+    }
+
+    const userInPhoto = persons.some(p => {
+        const code = typeof p === 'string' ? p : p.code;
+        return code === userCode;
+    });
+
+    const otherCount = persons.filter(p => {
+        const code = typeof p === 'string' ? p : p.code;
+        return code !== userCode;
+    }).length;
+
+    if (userInPhoto && otherCount === 0) {
+        return "That's me! Living in the moment 😊";
+    }
+
+    if (otherCount === 1) {
+        const person = persons.find(p => {
+            const code = typeof p === 'string' ? p : p.code;
+            return code !== userCode;
+        });
+        const name = typeof person === 'string' ? person : person.name;
+        return userInPhoto ? `Me with ${name} 👫` : `${name} looking great!`;
+    }
+
+    if (otherCount === 2) {
+        const otherPersons = persons.filter(p => {
+            const code = typeof p === 'string' ? p : p.code;
+            return code !== userCode;
+        });
+        const names = otherPersons.map(p =>
+            typeof p === 'string' ? p : p.name
+        ).join(' & ');
+        return userInPhoto ? `Hanging with ${names} 👥` : `${names} together!`;
+    }
+
+    return `${persons.length} amazing people in one frame! 🎉`;
+}
+
+/**
+ * Detailed description generator
+ */
+function generateDetailedDescription(mediaItem, currentUser) {
+    const persons = Array.isArray(mediaItem.persons) ? mediaItem.persons : [];
+    const totalPeople = persons.length;
+    const userCode = currentUser?.code;
+
+    const userInPhoto = persons.some(p => {
+        const code = typeof p === 'string' ? p : p.code;
+        return code === userCode;
+    });
+
+    const otherPersons = persons.filter(p => {
+        const code = typeof p === 'string' ? p : p.code;
+        return code !== userCode;
+    });
+
+    let description = "";
+
+    // Start with context
+    if (totalPeople === 1) {
+        if (userInPhoto) {
+            description = "A personal moment of reflection";
+        } else {
+            const person = persons[0];
+            const name = typeof person === 'string' ? person : person.name;
+            description = `${name} in a moment of quiet contemplation`;
+        }
+    } else if (totalPeople === 2) {
+        description = "Two friends sharing a special connection";
+    } else if (totalPeople <= 5) {
+        description = `A close-knit group of ${totalPeople} friends`;
+    } else {
+        description = `A vibrant gathering of ${totalPeople} amazing individuals`;
+    }
+
+    // Add details about people
+    if (otherPersons.length > 0 && otherPersons.length <= 3) {
+        const names = otherPersons.map(p =>
+            typeof p === 'string' ? p : p.name
+        ).join(', ');
+        description += userInPhoto ? ` with ${names}` : ` featuring ${names}`;
+    }
+
+    // Add emotional tone
+    const emotions = ['joyful', 'memorable', 'heartwarming', 'unforgettable'];
+    const emotion = emotions[Math.floor(Math.random() * emotions.length)];
+    description += `. A truly ${emotion} memory`;
+
+    // Add closing
+    const closings = [
+        "that will be cherished forever.",
+        "captured in this single frame.",
+        "that tells a beautiful story.",
+        "preserved for years to come."
+    ];
+    description += ` ${selectRandom(closings)}`;
+
+    return description;
+}
+
+/**
+ * SOCIAL MEDIA OPTIMIZER
+ */
+export function optimizeForPlatform(message, platform) {
+    const optimizations = {
+        twitter: {
+            maxLength: 280,
+            hashtagStrategy: 'end', // 'end', 'middle', 'separate'
+            linkPosition: 'end',
+            emojiLimit: 3
+        },
+        instagram: {
+            maxLength: 2200,
+            hashtagStrategy: 'separate',
+            emojiLimit: 5,
+            lineBreaks: true
+        },
+        facebook: {
+            maxLength: 2000,
+            hashtagStrategy: 'minimal',
+            emojiLimit: 2
+        },
+        linkedin: {
+            maxLength: 3000,
+            hashtagStrategy: 'end',
+            emojiLimit: 1,
+            professional: true
+        }
+    };
+
+    const config = optimizations[platform] || optimizations.twitter;
+
+    let optimized = message.message || message;
+
+    // Truncate if too long
+    if (optimized.length > config.maxLength) {
+        optimized = optimized.substring(0, config.maxLength - 3) + '...';
+    }
+
+    // Adjust emojis
+    if (config.emojiLimit) {
+        const emojiRegex = /[\p{Emoji_Presentation}\p{Emoji}\uFE0F]/gu;
+        const emojis = optimized.match(emojiRegex) || [];
+        if (emojis.length > config.emojiLimit) {
+            optimized = optimized.replace(emojiRegex, (match, index) => {
+                return index < config.emojiLimit ? match : '';
+            });
+        }
+    }
+
+    // Format for platform
+    if (platform === 'instagram' && config.lineBreaks) {
+        optimized = optimized.replace(/\. /g, '.\n\n');
+    }
+
+    if (platform === 'linkedin' && config.professional) {
+        optimized = optimized.replace(/[😊😂🤣]/g, '');
+    }
+
+    return optimized;
+}
+/**
+ * Generates a quick, simple caption for photos
+ * Used for tooltips and quick displays
+ */
+export function generateQuickCaption(mediaItem, currentUser) {
+    const persons = Array.isArray(mediaItem.persons) ? mediaItem.persons : [];
+    const userCode = currentUser?.code;
+
+    if (persons.length === 0) {
+        return "A beautiful memory ✨";
+    }
+
+    const userInPhoto = persons.some(p => {
+        const code = typeof p === 'string' ? p : p.code;
+        return code === userCode;
+    });
+
+    const otherPersons = persons.filter(p => {
+        const code = typeof p === 'string' ? p : p.code;
+        return code !== userCode;
+    });
+
+    if (otherPersons.length === 1) {
+        const person = otherPersons[0];
+        const name = typeof person === 'string' ? person : (person.name || person.code);
+        return userInPhoto ? `With ${name} 😊` : `${name} looking great!`;
+    }
+
+    if (otherPersons.length === 2) {
+        const names = otherPersons.map(p =>
+            typeof p === 'string' ? p : (person.name || person.code)
+        ).join(' & ');
+        return userInPhoto ? `Hanging with ${names} 👥` : `${names} together!`;
+    }
+
+    return `${persons.length} amazing people 📸`;
+}
+
+/**
+ * Simple message generator for social sharing
+ */
+export function generateSimpleMessage(mediaItem =[''], currentUser ={}) {
+    const persons = Array.isArray(mediaItem.persons) ? mediaItem.persons : [];
+    const userCode = currentUser?.code;
+
+    if (persons.length === 0) {
+        return "Beautiful memory captured forever ✨";
+    }
+
+    const userInPhoto = persons.some(p => {
+        const code = typeof p === 'string' ? p : p.code;
+        return code === userCode;
+    });
+
+    const otherPersons = persons.filter(p => {
+        const code = typeof p === 'string' ? p : p.code;
+        return code !== userCode;
+    });
+
+    if (otherPersons.length === 1) {
+        const person = otherPersons[0];
+        const name = typeof person === 'string' ? person : (person.name || person.code);
+        return userInPhoto
+            ? `Me with ${name} - great memories! 😊`
+            : `${name} looking amazing! ✨`;
+    }
+
+    if (otherPersons.length === 2) {
+        const names = otherPersons.map(p =>
+            typeof p === 'string' ? p : (p.name || p.code)
+        ).join(' and ');
+        return userInPhoto
+            ? `Amazing times with ${names}! 👥`
+            : `${names} together - what a beautiful memory! 💖`;
+    }
+
+    return `${persons.length-1} amazing people in one frame! 📸`;
+}
+
 // Export the main function and utilities
 export default filterMediaByUser;
   /**

@@ -38,7 +38,7 @@ class Logger {
     this.isWorker = typeof self !== "undefined" && self.location;
     this.performanceMarks = new Map();
     this.workingFolder = "/home/kenne-junior/Desktop/Graduation";
-    this.useBrowserURL = false;
+    this.useBrowserURL = true;
     this.contextStack = [];
     this._detectEnvironment();
     this._setupGlobalErrorHandling();
