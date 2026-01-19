@@ -30,6 +30,10 @@ node_modules/
 dist/
 build/
 coverage/
+/public/sitemap.xml
+/public/offline.template.js
+/public/gallery-data.json
+/public/robots.txt
 
 # environment files
 .env
