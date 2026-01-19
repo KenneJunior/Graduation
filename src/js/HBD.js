@@ -3,6 +3,7 @@ import UltimateModal from "./Modal.js";
 import Notification from "./notification.js";
 import logger from "./utility/logger.js";
 import {ThemeManager} from "./utility/Mode.js";
+import {getDeviceType} from "./utility/logger_info.js";
 
 /**
  * Main Graduation Application Class
@@ -540,6 +541,10 @@ class GraduationAppMemories {
      * @returns {void}
      */
     setupPeriodicEffects() {
+        const device = getDeviceType()
+        if (device === 'mobile') {
+            return;
+        }
         // Periodic confetti and floating elements refresh
         setInterval(() => {
             this.logger.debug("Periodic celebration refresh triggered");
@@ -694,7 +699,12 @@ class GraduationAppMemories {
             { class: "flowers", emoji: "🎉" },
         ];
 
-        const numElements = this.state.confetti.numberOfFloatingElement;
+        let numElements = this.state.confetti.numberOfFloatingElement;
+        const device = getDeviceType()
+        if (device === 'mobile') {
+            numElements = 3
+        }
+
         this.logger.debug("Creating floating elements", {
             count: numElements,
             symbolTypes: symbols.length,
@@ -865,6 +875,10 @@ class GraduationAppMemories {
      * @returns {void}
      */
     triggerCelebration(delay = 0) {
+        const device = getDeviceType()
+        if (device === 'mobile') {
+            return;
+        }
         this.celebrationLogger.time("Trigger celebration");
         this.celebrationLogger.debug("Scheduling celebration effects", { delay });
 
@@ -915,6 +929,10 @@ class GraduationAppMemories {
      * @returns {void}
      */
     animateName() {
+        const device = getDeviceType()
+        if (device === 'mobile') {
+            return;
+        }
         this.logger.time("Animate name");
 
         const nameElement = this.elements.nameElement;
@@ -1198,6 +1216,10 @@ class GraduationAppMemories {
      * @returns {void}
      */
     triggerConfetti() {
+        const device = getDeviceType()
+        if (device === 'mobile') {
+            return;
+        }
         this.confettiLogger.time("Trigger confetti");
 
         this.confettiLogger.debug("Animating confetti elements", {

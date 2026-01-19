@@ -1,3 +1,5 @@
+import logger from "./logger.js";
+
 /**
  * DROPDOWN MANAGER - Enhanced floating dropdown menu with theme integration
  * @class DropdownManager
@@ -8,6 +10,7 @@ export default class DropdownManager {
       position: 'bottom-right',
       showBackdrop: true,
       autoClose: true,
+      logger: logger.withContext({ name: "DropdownManager" }),
       animationDuration: 300,
       themeManager: null,
       enableKeyboardNav: true,
@@ -88,10 +91,10 @@ export default class DropdownManager {
       // Initialize theme state
       this.updateThemeState();
       
-      console.info('DropdownManager initialized successfully');
+      this.options.logger.info('DropdownManager initialized successfully');
       
     } catch (error) {
-      console.error('Failed to initialize DropdownManager:', error);
+      this.options.logger.error('Failed to initialize DropdownManager:', error);
       throw error;
     }
   }
@@ -209,13 +212,14 @@ createMenuItem(item, index) {
   `;
   
   // Add click handler
-  button.addEventListener('click', (e) => this.handleMenuItemClick(e, item));
-  
+
   this.elements.dropdown.appendChild(button);
 }
 
 /**
  * Add custom menu item to dropdown (public API)
+ * @param config {Object}
+ * @return boolean
  */
 addMenuItem(config) {
   // Add to options
@@ -234,7 +238,7 @@ addMenuItem(config) {
   // Re-render the menu item
   this.renderMenuItem(config, index > -1 ? index : this.options.menuItems.length - 1);
   
-  console.debug(`Menu item added: ${config.label}`);
+  this.options.logger.debug(`Menu item added: ${config.label}`);
   return true;
 }
 /**
@@ -293,18 +297,6 @@ renderMenuItem(config, positionIndex) {
   this.updateMenuItemIndices();
 }
 
-/**
- * Update all menu item indices
- */
-updateMenuItemIndices() {
-  const items = Array.from(this.elements.dropdown.querySelectorAll('.dropdown-item'));
-  items.forEach((item, index) => {
-    item.setAttribute('data-index', index);
-  });
-}
-
-
-  
   /**
    * Add divider to dropdown
    */
@@ -592,11 +584,13 @@ addCustomAction(action, handler) {
     });
   }
   
-  console.debug(`Custom action added: ${action}`);
+  this.options.logger.debug(`Custom action added: ${action}`);
 }
 
 /**
- * Execute menu item action (updated version)
+ * Execute menu item action
+ * @param action
+ * @param element {HTMLElement}
  */
 executeAction(action, element) {
   // Check for custom action first
@@ -605,7 +599,7 @@ executeAction(action, element) {
       this.customActions.get(action)(element);
       return;
     } catch (error) {
-      console.error(`Custom action failed: ${action}`, error);
+      this.options.logger.error(`Custom action failed: ${action}`, error);
     }
   }
   
@@ -627,7 +621,7 @@ executeAction(action, element) {
   if (actions[action]) {
     actions[action]();
   } else {
-    console.warn(`Unknown action: ${action}`);
+    this.options.logger.warn(`Unknown action: ${action}`);
   }
 }
 
@@ -740,26 +734,8 @@ handleImportAction() {
   }
   
   /**
-   * Execute menu item action
-   */
-  executeAction(action, element) {
-    const actions = {
-      theme: () => this.handleThemeAction(element),
-      logout: () => this.handleLogoutAction(),
-      settings: () => this.handleSettingsAction(),
-      help: () => this.handleHelpAction(),
-      share: () => this.handleShareAction()
-    };
-    
-    if (actions[action]) {
-      actions[action]();
-    } else {
-      console.warn(`Unknown action: ${action}`);
-    }
-  }
-  
-  /**
    * Handle theme toggle action
+   * @param {Element} element
    */
   handleThemeAction(element) {
     // Check if we have a ThemeManager instance
@@ -856,7 +832,7 @@ handleImportAction() {
         title: document.title,
         text: 'Check out this amazing graduation app!',
         url: window.location.href
-      }).catch(console.error);
+      }).catch(this.options.logger.error);
     } else {
       // Fallback to clipboard
       this.copyToClipboard(window.location.href);
@@ -869,8 +845,8 @@ handleImportAction() {
    */
   copyToClipboard(text) {
     navigator.clipboard.writeText(text)
-      .then(() => console.log('Copied to clipboard:', text))
-      .catch(err => console.error('Copy failed:', err));
+      .then(() => this.options.logger.log('Copied to clipboard:', text))
+      .catch(err => this.options.logger.error('Copy failed:', err));
   }
   
   /**
@@ -969,9 +945,8 @@ handleImportAction() {
    * Update theme state
    */
   updateThemeState() {
-    const theme = localStorage.getItem('theme') || 
-                  (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
-    this.state.currentTheme = theme;
+      this.state.currentTheme = localStorage.getItem('theme') ||
+        (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
     this.updateThemeButtonLabel();
   }
   
@@ -1559,7 +1534,7 @@ playToastSound(type) {
     if (sounds[type]) {
         const audio = new Audio(sounds[type]);
         audio.volume = 0.3;
-        audio.play().catch(e => console.log('Audio playback failed:', e));
+        audio.play().catch(e => this.options.logger.log('Audio playback failed:', e));
     }
 }
   
@@ -1627,16 +1602,7 @@ recreateDropdown() {
     }, 10);
   }
 }
-  
-  /**
-   * Add custom menu item
-   */
-  addMenuItem(config) {
-    const index = this.options.menuItems.length - 1; // Insert before logout
-    this.options.menuItems.splice(index, 0, config);
-    //this.recreateDropdown();
-  }
-  
+
 /**
  * Remove menu item by action
  */
@@ -1662,7 +1628,7 @@ removeMenuItem(action) {
   if (item) {
     item.remove();
     this.updateMenuItemIndices();
-    console.debug(`Menu item removed: ${action}`);
+    this.options.logger.debug(`Menu item removed: ${action}`);
     return true;
   }
   
@@ -1704,7 +1670,7 @@ updateMenuItem(action, updates) {
       }
     }
     
-    console.debug(`Menu item updated: ${action}`);
+    this.options.logger.debug(`Menu item updated: ${action}`);
     return true;
   }
   
@@ -1736,7 +1702,7 @@ updateMenuItem(action, updates) {
     this.elements = {};
     this.state = {};
     
-    console.info('DropdownManager destroyed');
+    this.options.logger.info('DropdownManager destroyed');
   }
 }
 

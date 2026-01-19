@@ -5,7 +5,7 @@ import {
     generateStoryCaption,
     createShareMessage,
     generateQuickCaption,
-    getCurrentUserInfo, generateSimpleMessage
+    getCurrentUserInfo, generateSimpleMessage, generatePhotoMessage
 } from "./utility/utils.js";
 import ColorThief from "colorthief";
 // Create contextual logger for UltimateModal
@@ -1391,11 +1391,11 @@ class UltimateModal {
             message = this.tooltip.getAttribute('data-intelligent-caption');
         } else {
             // Generate new caption
-            message = generateSimpleMessage(this._getCurrentMediaData(), currentUser) || current.alt;
+            message =generatePhotoMessage(this._getCurrentMediaData(), currentUser) || current.alt;
         }
 
         // Update tooltip text
-        this.tooltip.textContent = message;
+        this.tooltip.textContent = message.message;
 
         // OFFSCREEN MEASUREMENT TECHNIQUE: Temporarily position offscreen to measure accurately
         // without affecting the visible UI or relying on hidden visibility
