@@ -1,0 +1,22 @@
+User-agent: *
+
+Allow: /assets/
+Allow: /pics/
+Allow: /vid/
+Allow: /icon/
+Allow: /*.css$
+Allow: /*.js$
+Allow: /*.jpg$
+Allow: /*.png$
+Allow: /*.svg$
+Allow: /*.mp4$
+Allow: /*.mp3$
+Allow: /*.html$
+Allow: /*.json$
+Allow: /*.webmanifest$
+Disallow: /src/
+Disallow: /node_modules/
+Disallow: /dist/src/
+Disallow: /scripts/
+
+Sitemap: https://Kjunior.vercel.app/sitemap.xml

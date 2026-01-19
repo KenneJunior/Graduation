@@ -34,8 +34,5 @@ coverage/
 # environment files
 .env
 .env.local
-/public/sitemap.xml
 /public/offline.template.js
-/public/gallery-data.json
-/public/robots.txt
 .clearCache.js
