@@ -8,6 +8,7 @@ import {
     loadMediaData,
     showMediaLoading
 } from "./utility/utils.js";
+import {getDeviceType} from "./utility/logger_info.js";
 
 
 const appLogger = logger.withContext({
@@ -99,6 +100,11 @@ document.addEventListener("visibilitychange", () => {
  */
 class ConfettiSystem {
   constructor(container, options = {}) {
+      //dont initialise if its a mobile devices
+     const device = getDeviceType()
+      if (device === 'mobile') {
+          return;
+      }
     confettiLogger.time("ConfettiSystem constructor");
     
     this.container = container;
@@ -187,7 +193,8 @@ class ConfettiSystem {
       container: container.className || container.tagName,
       config: this.config
     });
-    
+
+
     // Initialize
     this.init();
     confettiLogger.timeEnd("ConfettiSystem constructor");
@@ -4191,6 +4198,7 @@ class PerformanceMonitor {
     perfLogger.debug("PerformanceMonitor instance created");
     perfLogger.timeEnd("PerformanceMonitor constructor");
   }
+    return;
 
   /**
    * Start performance monitoring
@@ -4487,6 +4495,7 @@ try {
       this.dropdownManager = new DropdownManager({
         position: 'top-right',
         showBackdrop: true,
+          appLogger,
         autoClose: true,
         animationDuration: 300,
         themeManager: this.themeManager,

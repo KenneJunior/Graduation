@@ -82,6 +82,30 @@ button{
     cursor: pointer;
 
 }
+/* ===== Main Content ===== */
+.main-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    padding: 1px;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.1) 0%, transparent 100%); /* Subtle overlay matching the page's gradient */
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-md);
+    transition: var(--transition);
+    position: relative;
+    overflow: hidden;
+}
+
+.main-content:hover {
+    box-shadow: var(--shadow-lg), var(--glow-primary);
+}
+
+[data-theme="dark"] .main-content {
+    background: linear-gradient(180deg, rgba(30, 41, 59, 0.8) 0%, transparent 100%);
+    box-shadow: var(--shadow-md);
+}
 
 /* ===== Layout Components ===== */
 .container {
@@ -115,8 +139,8 @@ button{
 .image-container {
   position: relative;
   width: 100%;
-  max-width: 880px; /* Adjust as needed */
-  height: 400px; /* Fixed height or use aspect ratio */
+  max-width: 850px;
+  height: 730px;
   margin: 0 auto;
   overflow: hidden;
   border-radius: 10px; /* Optional */
@@ -711,7 +735,7 @@ animation: sparkle 1s infinite;
 /* ===== RESPONSIVE ADJUSTMENTS ===== */
 @media (max-width: 768px) {
     .nav-controls {
-        bottom: 1.5rem;
+        bottom: 4.5rem !important;
         padding: 0.5rem 1rem;
         gap: 1rem;
         border-radius: 40px;
@@ -753,6 +777,13 @@ animation: sparkle 1s infinite;
 }
 
 @media (max-width: 480px) {
+    .nav-controls {
+        bottom: 6.5rem !important;
+        padding: 0.5rem 1rem;
+        gap: 1rem;
+        border-radius: 40px;
+    }
+
     .nav-btn {
         width: 36px;
         height: 36px;
@@ -1048,11 +1079,6 @@ animation: sparkle 1s infinite;
 .Graduation-swiper {
     position: relative;
     z-index: 1;
-}
-
-.image-container {
-    position: relative;
-    cursor: pointer;
 }
 
 .nav-controls,

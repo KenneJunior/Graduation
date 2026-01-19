@@ -805,7 +805,13 @@ function determineMessageType(analysis, configuredSentiment) {
     return 'appreciation';
 }
 
-export function generatePhotoMessage(mediaItem, currentUser = null, options = {}) {
+/**
+ * @param {Object} mediaItem
+ * @param {{code: string, name: string}} currentUser
+ * @param {Object} options
+ * @return {{message: string, template: *, scenario: string, style: string, persons: (string|*)[], userInPhoto: boolean, hashtags: *[], metadata: {length: *, charactersUsed: *, maxLength: number, language: string, generatedAt: string}}}
+ */
+export function generatePhotoMessage(mediaItem, currentUser , options = {}) {
     // Default options
     const config = {
         style: 'casual', // 'casual', 'formal', 'funny', 'romantic', 'nostalgic'
@@ -998,7 +1004,6 @@ export function generatePhotoMessage(mediaItem, currentUser = null, options = {}
             return person.name || person.code;
         });
 
-        // Format names: "John" or "John and Mary" or "John, Mary, and Sam"
         if (names.length === 1) {
             return names[0];
         } else if (names.length === 2) {
@@ -1203,7 +1208,7 @@ function buildMessage(analysis, messageType, config) {
     else pattern = contextPatterns.largeGroup;
 
     // SELECT FRAMEWORK
-    const framework = selectFramework(messageType, config.complexity);
+    const fram_getCurrentMediaDataework = selectFramework(messageType, config.complexity);
 
     // BUILD COMPONENTS
     const components = {
