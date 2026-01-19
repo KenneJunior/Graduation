@@ -5,7 +5,7 @@ import { Readable } from "stream";
 
 // Configuration
 const DEFAULT_CONFIG = {
-  hostname: "https://kennejunior.vercel.app",
+  hostname: "https://Kjunior.vercel.app",
   maxDepth: 4,
   excludeDirs: [
     "node_modules",
