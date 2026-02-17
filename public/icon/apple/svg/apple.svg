@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="utf-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1028 1028" width="512px" height="512px">
+  <defs>
+    <radialGradient id="studio_light" cx="50%" cy="35%" r="75%">
+      <stop offset="0" stop-color="#6366F1"/>
+      <stop offset="0.55" stop-color="#1E1B4B"/>
+      <stop offset="1" stop-color="#020617"/>
+    </radialGradient>
+    <filter id="grain">
+      <feTurbulence type="fractalNoise" baseFrequency="0.8" numOctaves="2" stitchTiles="stitch"/>
+      <feColorMatrix type="saturate" values="0"/>
+      <feComponentTransfer>
+        <feFuncA type="linear" slope="0.03"/>
+      </feComponentTransfer>
+    </filter>
+    <filter id="soft_drop" x="-40%" y="-40%" width="180%" height="180%">
+      <feDropShadow dx="0" dy="22" stdDeviation="24" flood-opacity="0.45"/>
+    </filter>
+    <radialGradient gradientUnits="userSpaceOnUse" cx="418" cy="278" r="0" id="gradient-0" gradientTransform="matrix(1, 0, 0, 1, 0, 0)">
+      <stop offset="0" style="stop-color: rgb(0% 0% 0%)"/>
+      <stop offset="1" style=""/>
+    </radialGradient>
+    <linearGradient gradientUnits="userSpaceOnUse" x1="418" y1="238" x2="418" y2="318" id="gradient-2" gradientTransform="matrix(1.000002, 0, 0, 1, -0.000932, 0)">
+      <stop offset="0" style="stop-color: rgb(47.059% 20.784% 5.8824%)"/>
+      <stop offset="1" style="stop-color: rgb(33.342% 9.9086% 0%)"/>
+    </linearGradient>
+    <linearGradient id="gold_premium" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0" stop-color="#78350F"/>
+      <stop offset="0.25" stop-color="#FDE68A"/>
+      <stop offset="0.45" stop-color="#EAB308"/>
+      <stop offset="0.7" stop-color="#A16207"/>
+      <stop offset="1" stop-color="#713F12"/>
+    </linearGradient>
+    <linearGradient id="soft_glint" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0" stop-color="white" stop-opacity="0.18"/>
+      <stop offset="0.45" stop-color="white" stop-opacity="0.04"/>
+      <stop offset="1" stop-color="white" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+  <rect width="1028" height="1028" rx="142" style="fill-rule: nonzero; paint-order: stroke;" fill="url(#studio_light)" ry="142" transform="matrix(1, 0, 0, 1, 0, 2.842170943040401e-14)"/>
+  <rect width="700" height="700" rx="142" filter="url(#grain)" opacity="0.15" style="" ry="142" x="164" y="164" transform="matrix(1, 0, 0, 1, 0, 2.842170943040401e-14)"/>
+  <rect x="230.871" y="200" width="569.129" height="600" rx="220" fill="none" stroke="white" stroke-opacity="0.08" style="stroke-width: 6px;" ry="220" transform="matrix(1, 0, 0, 1, 0, 2.842170943040401e-14)"/>
+  <g filter="url(#soft_drop)" style="" transform="matrix(1.0845489501953125, 0, 0, 1.3850300312042236, 236.3552703857422, 160.81733703613284)">
+    <path d="M150 275V340C150 340 198 390 256 390C314 390 362 340 362 340V275" fill="#020617"/>
+    <path d="M460 228L256 330L52 228V240L256 340L460 240V228Z" fill="#020617"/>
+    <path d="M256 120L460 228L256 330L52 228L256 120Z" fill="#0F172A"/>
+    <path d="M256 120L460 228L256 260Z" fill="white" opacity="0.045"/>
+    <ellipse cx="256" cy="228" rx="11" ry="5.5" fill="#020617"/>
+    <path d="M256 228C256 228 370 232 418 238" stroke="#020617" stroke-width="3" fill="none"/>
+    <path d="M 418.04 237.062 L 415.985 317.626" stroke-linecap="round" style="fill: url(&quot;#gradient-0&quot;); stroke: url(&quot;#gradient-2&quot;); stroke-width: 1.072;"/>
+    <g transform="translate(398,318)">
+      <rect x="12" y="0" width="12" height="9" rx="3" fill="#92400E"/>
+      <path d="M6 9H30L34 62C34 68 24 72 18 72C12 72 2 68 2 62L6 9Z" fill="url(#gold_premium)"/>
+      <path d="M18 9V70" stroke="#713F12" stroke-opacity="0.25" stroke-width="2"/>
+    </g>
+  </g>
+  <path d="M 232.969 362.575 C 269.847 278.983 276.148 248.814 388.464 211.134 L 660.411 200.625 L 231.461 618.39 L 232.969 362.575 Z" fill="url(#soft_glint)" style="" transform="matrix(1, 0, 0, 1, 0, 2.842170943040401e-14)"/>
+</svg>

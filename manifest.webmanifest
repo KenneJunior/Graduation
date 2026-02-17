@@ -11,6 +11,32 @@
   "id": "/",
   "lang": "en",
   "categories": ["entertainment", "social"],
+  "splash_pages": [
+  {
+    "src": "public/icon/apple/img/splash-screen/manifest-icon-192.maskable.png",
+    "sizes": "192x192",
+    "type": "image/png",
+    "purpose": "any"
+  },
+  {
+    "src": "public/icon/apple/img/splash-screen/manifest-icon-192.maskable.png",
+    "sizes": "192x192",
+    "type": "image/png",
+    "purpose": "maskable"
+  },
+  {
+    "src": "public/icon/apple/img/splash-screen/manifest-icon-512.maskable.png",
+    "sizes": "512x512",
+    "type": "image/png",
+    "purpose": "any"
+  },
+  {
+    "src": "public/icon/apple/img/splash-screen/manifest-icon-512.maskable.png",
+    "sizes": "512x512",
+    "type": "image/png",
+    "purpose": "maskable"
+  }
+  ],
   "icons": [
     {
       "src": "/icon/andriod_svg/icon_96X96.svg",
