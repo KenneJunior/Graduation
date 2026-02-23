@@ -899,6 +899,24 @@
       "data-type": "image"
     },
     {
+      "src": "/pics/about.png",
+      "thumb": "/pics/thumbnails/about.webp",
+      "alt": "Memory: about.png",
+      "data-type": "image"
+    },
+    {
+      "src": "/pics/home.png",
+      "thumb": "/pics/thumbnails/home.webp",
+      "alt": "Memory: home.png",
+      "data-type": "image"
+    },
+    {
+      "src": "/pics/memories.png",
+      "thumb": "/pics/thumbnails/memories.webp",
+      "alt": "Memory: memories.png",
+      "data-type": "image"
+    },
+    {
       "thumb": "/pics/thumbnails/[G]_[K]__vid89.webp",
       "alt": "Video: [G]_[K]__vid89.mp4",
       "data-type": "video",
