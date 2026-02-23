@@ -735,7 +735,7 @@ animation: sparkle 1s infinite;
 /* ===== RESPONSIVE ADJUSTMENTS ===== */
 @media (max-width: 768px) {
     .nav-controls {
-        bottom: 4.5rem !important;
+        bottom: clamp(5px, 5vw, 10px) !important;
         padding: 0.5rem 1rem;
         gap: 1rem;
         border-radius: 40px;
@@ -767,18 +767,19 @@ animation: sparkle 1s infinite;
     }
 
     .thumbnail-nav {
-        bottom: 1rem;
+        bottom: clamp(5rem, 5vw, 7rem) !important;
     }
 
     .thumbnail-dot {
-        width: 8px;
-        height: 8px;
+        /*use the clamp */
+        width: clamp(6px, 1.5vw, 8px);
+        height: clamp(6px, 1.5vw, 8px);
     }
 }
 
 @media (max-width: 480px) {
     .nav-controls {
-        bottom: 6.5rem !important;
+        bottom: clamp(5px, 5vw, 10px) !important;
         padding: 0.5rem 1rem;
         gap: 1rem;
         border-radius: 40px;
@@ -810,7 +811,7 @@ animation: sparkle 1s infinite;
     }
 
     .thumbnail-nav {
-        bottom: 5rem;
+        bottom: 3rem;
         gap: 4px;
         max-width: 95%;
         padding: 4px;
@@ -1013,8 +1014,6 @@ animation: sparkle 1s infinite;
   .image-counter,
   .thumbnail-nav {
     opacity: 1 !important;
-    transform: translateY(0) !important;
-      pointer-events: auto !important;
   }
     .nav-controls {
         pointer-events: auto;
@@ -1040,13 +1039,6 @@ animation: sparkle 1s infinite;
   .rotation-progress {
     opacity: 0.7 !important;
   }
-}
-/* =====  FOR HOVER  ===== */
-@media (hover: hover) {
-    .nav-btn:hover,
-    .playback-btn:hover,
-    .thumbnail-dot:hover {
-    }
 }
 
 .nav-btn,
@@ -2680,3 +2672,366 @@ html.theme-transitioning::before {
   left: 0;
   transition: opacity 5s ease;
 }
+/* DIALOG STYLES */
+@keyframes rotate {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+      }
+      
+      @keyframes pulse {
+        0%, 100% { transform: scale(1); }
+        50% { transform: scale(1.05); }
+      }
+      
+      .logo-container:hover .logo-main {
+        animation: pulse 0.6s ease;
+      }
+      
+      .logo-container:hover .logo-shine {
+        transform: rotate(45deg) translateX(100%);
+      }
+      
+      .feature-item:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+        border-color: rgba(102, 126, 234, 0.3) !important;
+      }
+      
+      .btn-primary:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
+      }
+      
+      .btn-primary:hover .btn-glow {
+        transform: translateX(100%);
+      }
+      
+      .btn-secondary:hover {
+        background: var(#f5f5f5);
+        border-color: var(--primary, #667eea);
+        color: var(--primary, #667eea);
+      }
+      
+      .dialog-close-btn:hover {
+        background: rgba(0, 0, 0, 0.1);
+        transform: rotate(90deg);
+        color: var( #333);
+      }
+      .about-dialog-backdrop{
+        position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.7);
+      z-index: 10001;
+      backdrop-filter: blur(8px);
+      opacity: 0;
+      transition: opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      }
+      
+      .about-dialog {
+position: relative;
+      background: var(--dropdown-bg, #ffffff);
+      padding: 0;
+      border-radius: 24px;
+      box-shadow: 
+        0 32px 64px rgba(0, 0, 0, 0.2),
+        0 16px 32px rgba(0, 0, 0, 0.1),
+        inset 0 1px 0 rgba(255, 255, 255, 0.1);
+      z-index: 10002;
+      max-width: 440px;
+      width: 100%;
+      max-height: 90vh;
+      overflow: hidden;
+      transform: translateY(20px) scale(0.95);
+      opacity: 0;
+      transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+      border: 1px solid rgba(255, 255, 255, 0.1);;
+      }
+      .dialog-gradient-border{
+           position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 4px;
+        background: linear-gradient(90deg, 
+          #667eea, 
+          #764ba2, 
+          #f093fb, 
+          #f5576c, 
+          #ffd166
+        );
+        opacity: 0.8;
+        z-index: 2;
+      }
+
+      .dialog-close-btn {
+         position: absolute;
+        top: 16px;
+        right: 16px;
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        background: rgba(0, 0, 0, 0.05);
+        border: none;
+        color: var(--dropdown-text, #666);
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 18px;
+        z-index: 3;
+        transition: all 0.2s ease;
+        backdrop-filter: blur(10px);
+      }      
+
+      .dialog-content {
+        padding: 40px 35px 35px 35px; 
+        overflow-y: auto;
+         max-height: 88vh;
+      }
+      .dialog-header{
+        font-size: 1.8rem;
+        font-weight: 600;
+        text-align: center; margin-bottom: 35px;
+        background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+      }
+      .logo-container{
+         width: 100px;
+            height: 100px;
+            margin: 0 auto 25px;
+            position: relative;
+            cursor: pointer;
+      }
+      .logo-outer-ring{
+                      position: absolute;
+              inset: -6px;
+              border-radius: 50%;
+              background: conic-gradient(
+                from 0deg,
+                #667eea,
+                #764ba2,
+                #f093fb,
+                #f5576c,
+                #ffd166,
+                #667eea
+              );
+              animation: rotate 3s linear infinite;
+              filter: blur(8px);
+              opacity: 0.4;
+      }
+      .logo-main{
+ width: 100%;
+              height: 100%;
+              background: linear-gradient(135deg, 
+                var(--primary, #667eea) 0%, 
+                var(--secondary, #764ba2) 100%
+              );
+              border-radius: 24px;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              color: white;
+              font-size: 48px;
+              position: relative;
+              box-shadow: 
+                0 10px 30px rgba(102, 126, 234, 0.3),
+                inset 0 1px 0 rgba(255, 255, 255, 0.3);
+              transition: all 0.3s ease;
+              overflow: hidden;
+      }
+      .logo-shine{
+
+        position: absolute;
+                top: -50%;
+                left: -50%;
+                width: 200%;
+                height: 200%;
+                background: linear-gradient(
+                  45deg,
+                  transparent 30%,
+                  rgba(255, 255, 255, 0.1) 50%,
+                  transparent 70%
+                );
+                transform: rotate(45deg);
+                transition: transform 0.6s ease;
+      }
+      .about-logo-title{
+         margin: 0 0 8px 0;
+            color: var(--dropdown-text, #333);
+            font-size: 32px;
+            font-weight: 800;
+            letter-spacing: -0.5px;
+            background: linear-gradient(135deg, 
+              var(--primary, #667eea), 
+              var(--secondary, #764ba2)
+            );
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            line-height: 1.2;
+      }
+      .version-badge{
+
+         display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 16px;
+            background: linear-gradient(135deg, 
+              rgba(102, 126, 234, 0.1), 
+              rgba(118, 75, 162, 0.1)
+            );
+            color: var(--primary, #667eea);
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+            border: 1px solid rgba(102, 126, 234, 0.2);
+            margin-bottom: 15px;
+      }
+      .tagline{
+        margin: 0;
+            color: var(--dropdown-text, #666);
+            font-size: 15px;
+            line-height: 1.4;
+            max-width: 320px;
+      }
+
+      .features-grid{
+          display: grid;
+          grid-template-columns: repeat(2, 1fr);
+          gap: 12px;
+          margin-bottom: 30px;
+      }
+      .feature-item{
+        padding: 16px;
+            background: rgba(102, 126, 234, 0.05);
+            border-radius: 16px;
+            text-align: center;
+            border: 1px solid rgba(102, 126, 234, 0.1);
+            transition: all 0.2s ease;
+      }
+      .discription{
+         margin-bottom: 30px;
+          text-align: center;
+            color: var(#444);
+            font-size: 16px;
+            line-height: 1.5;
+        
+
+      }
+      .action-buttons{
+        display: flex;
+        gap: 12px;
+          margin-top: 25px;
+          padding-top: 25px;
+          border-top: 1px solid var(--dropdown-divider, rgba(0, 0, 0, 0.08));
+      }
+      .dialog-btn-secondary{
+         padding: 14px 20px;
+            border: 1px solid var(--dropdown-divider, #e0e0e0);
+            background: transparent;
+            color: var(--dropdown-text, #666);
+            border-radius: 12px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 14px;
+            flex: 1;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+      }
+      .dialog-btn-primary{
+        padding: 14px 20px;
+            border: none;
+            background: linear-gradient(135deg, 
+              var(--primary, #667eea), 
+              var(--secondary, #764ba2)
+            );
+            color: white;
+            border-radius: 12px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 14px;
+            flex: 1;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+            position: relative;
+            overflow: hidden;
+      }
+
+      .btn-glow{
+        position: absolute;
+        top: 0;
+        left: -100%;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(90deg, 
+          rgba(255, 255, 255, 0.2), 
+          rgba(255, 255, 255, 0.6), 
+          rgba(255, 255, 255, 0.2)
+        );
+        transform: translateX(0);
+        transition: transform 0.6s ease;
+      }
+
+      .dialog-btn-primary
+:hover .btn-glow {
+        transform: translateX(100%);
+      }
+
+      .dialog-footer {
+        display: flex;
+        justify-content: flex-end;
+        gap: 12px;
+        margin-top: 30px;
+      }
+      /* Dark theme support */
+      @media (prefers-color-scheme: dark) {
+        .about-dialog-backdrop {
+          background: rgba(0, 0, 0, 0.85);
+        }
+        
+        .about-dialog {
+          background: #1a1a1a;
+          border-color: rgba(255, 255, 255, 0.05);
+        }
+        
+        .dialog-close-btn {
+          background: rgba(255, 255, 255, 0.05);
+          color: rgba(255, 255, 255, 0.6);
+        }
+        
+        .dialog-close-btn:hover {
+          background: rgba(255, 255, 255, 0.1);
+        }
+      }
+      
+      /* Responsive */
+      @media (max-width: 480px) {
+        .features-grid {
+          grid-template-columns: 1fr;
+        }
+        
+        .action-buttons {
+          flex-direction: column;
+        }
+        
+        .dialog-content {
+          padding: 30px 25px 25px 25px;
+        }
+      }

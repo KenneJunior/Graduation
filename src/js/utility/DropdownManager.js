@@ -212,6 +212,10 @@ createMenuItem(item, index) {
   `;
   
   // Add click handler
+  if(
+    item.action === 'logout' || item.action === 'theme'
+  )
+  button.addEventListener('click', (e) => this.handleMenuItemClick(e, item));
 
   this.elements.dropdown.appendChild(button);
 }
@@ -236,7 +240,7 @@ addMenuItem(config) {
   }
   
   // Re-render the menu item
-  this.renderMenuItem(config, index > -1 ? index : this.options.menuItems.length - 1);
+  this.renderMenuItem(config, index > -1? index : this.options.menuItems.length - 1);
   
   this.options.logger.debug(`Menu item added: ${config.label}`);
   return true;

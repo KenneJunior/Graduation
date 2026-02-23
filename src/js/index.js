@@ -1,14 +1,14 @@
 import logger from "../js/utility/logger.js";
 import DropdownManager from "./utility/DropdownManager.js";
+import { getDeviceType } from "./utility/logger_info.js";
 import { ThemeManager } from "./utility/Mode.js";
 import {
-    filterMediaByUser,
-    getCurrentUserInfo,
-    hideMediaLoading,
-    loadMediaData,
-    showMediaLoading
+  filterMediaByUser,
+  getCurrentUserInfo,
+  hideMediaLoading,
+  loadMediaData,
+  showMediaLoading
 } from "./utility/utils.js";
-import {getDeviceType} from "./utility/logger_info.js";
 
 
 const appLogger = logger.withContext({
@@ -96,9 +96,17 @@ document.addEventListener("visibilitychange", () => {
 
 /**
  * CONFETTI SYSTEM - Enhanced canvas-based particle effects with multiple types and better physics
+ * - Features:
+ *  - Multiple shapes (circles, rectangles, triangles, stars, hearts)
  * @class ConfettiSystem
  */
 class ConfettiSystem {
+  /**
+   * 
+   * @param {HTMLDivElement} container 
+   * @param {Object} options 
+   * @returns 
+   */
   constructor(container, options = {}) {
       //dont initialise if its a mobile devices
      const device = getDeviceType()
@@ -244,6 +252,7 @@ class ConfettiSystem {
       
       this.canvas = document.createElement("canvas");
       this.canvas.className = "confetti-canvas";
+      this.canvas.id = "confettiCanvas";
       this.ctx = this.canvas.getContext("2d", { alpha: true });
 
       if (!this.ctx) {
@@ -291,7 +300,11 @@ class ConfettiSystem {
 
  setupCanvas() {
     confettiLogger.time("Canvas setup");
-    
+    if (!this.canvas || !this.canvas) {
+      this.canvas = document.querySelector("#confettiCanvas");
+      this.container = document.querySelector(".Graduation-card");
+    }
+      try{
     // Update canvas size based on container and DPR
     this.updateCanvasSize();
     
@@ -306,12 +319,22 @@ class ConfettiSystem {
     });
     
     confettiLogger.timeEnd("Canvas setup");
+  }catch (error) {
+    confettiLogger.error("Failed during canvas setup", error.message);
   }
+}
 
   /**
    * Update canvas size based on container and device pixel ratio
    */
   updateCanvasSize() {
+    try{
+          if(!this.container || !this.canvas || !this.ctx) {
+            this.canvas = document.querySelector("#confettiCanvas");
+            this.container = document.querySelector(".Graduation-card");
+            this.ctx = this.canvas.getContext("2d", { alpha: true });
+          
+          }
     const rect = this.container.getBoundingClientRect();
     const dpr = window.devicePixelRatio || 1;
 
@@ -337,6 +360,9 @@ class ConfettiSystem {
       canvasWidth: this.canvas.width,
       canvasHeight: this.canvas.height
     });
+  }catch (error) {
+    confettiLogger.error("Failed to update canvas size", error.message);
+  }
   }
 
   /**
@@ -2574,6 +2600,7 @@ class ImageNavigationController {
           }
           this.elements.playButton.setAttribute('data-tooltip', this.isPlaying ? 'Pause (Space)' : 'Play (Space)');
           this.elements.playButton.setAttribute('aria-label', this.isPlaying ? 'Pause slideshow' : 'Play slideshow');
+          this.elements.playButton.setAttribute('title', this.isPlaying ? 'Pause (Space)' : 'Play (Space)');
           this.elements.playButton.classList.toggle('playing', this.isPlaying);
           this.elements.playButton.classList.toggle('paused', !this.isPlaying);
       }
@@ -4277,7 +4304,7 @@ class GraduationApp {
     // App state
     this.state = {
       userAuthenticated: false,
-      currentPage: 'home',
+      currentPage: 'index',
       preferences: this.loadPreferences(),
       sessionStartTime: Date.now()
     };
@@ -4468,6 +4495,7 @@ try {
           action: 'about' 
         },
         { type: 'divider' },
+
         { 
           label: 'Logout', 
           icon: 'fas fa-sign-out-alt', 
@@ -5417,22 +5445,7 @@ showAboutDialog() {
     // Create backdrop with animation
     const backdrop = document.createElement('div');
     backdrop.className = 'about-dialog-backdrop';
-    backdrop.style.cssText = `
-      position: fixed;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      background: rgba(0, 0, 0, 0.7);
-      z-index: 10001;
-      backdrop-filter: blur(8px);
-      opacity: 0;
-      transition: opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      padding: 20px;
-    `;
+    backdrop.setAttribute('role', 'presentation');
     
     // Create dialog container
     const dialog = document.createElement('div');
@@ -5440,202 +5453,49 @@ showAboutDialog() {
     dialog.setAttribute('role', 'dialog');
     dialog.setAttribute('aria-modal', 'true');
     dialog.setAttribute('aria-labelledby', 'about-dialog-title');
-    dialog.style.cssText = `
-      position: relative;
-      background: var(--dropdown-bg, #ffffff);
-      padding: 0;
-      border-radius: 24px;
-      box-shadow: 
-        0 32px 64px rgba(0, 0, 0, 0.2),
-        0 16px 32px rgba(0, 0, 0, 0.1),
-        inset 0 1px 0 rgba(255, 255, 255, 0.1);
-      z-index: 10002;
-      max-width: 440px;
-      width: 100%;
-      max-height: 90vh;
-      overflow: hidden;
-      transform: translateY(20px) scale(0.95);
-      opacity: 0;
-      transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
-      border: 1px solid rgba(255, 255, 255, 0.1);
-    `;
+   
     
     // Dialog content with improved design
     dialog.innerHTML = `
       <!-- Decorative gradient border -->
-      <div class="dialog-gradient-border" style="
-        position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
-        height: 4px;
-        background: linear-gradient(90deg, 
-          #667eea, 
-          #764ba2, 
-          #f093fb, 
-          #f5576c, 
-          #ffd166
-        );
-        opacity: 0.8;
-        z-index: 2;
-      "></div>
+      <div class="dialog-gradient-border" ></div>
       
       <!-- Close button -->
-      <button class="dialog-close-btn" aria-label="Close dialog" style="
-        position: absolute;
-        top: 16px;
-        right: 16px;
-        width: 36px;
-        height: 36px;
-        border-radius: 50%;
-        background: rgba(0, 0, 0, 0.05);
-        border: none;
-        color: var(--dropdown-text, #666);
-        cursor: pointer;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 18px;
-        z-index: 3;
-        transition: all 0.2s ease;
-        backdrop-filter: blur(10px);
-      ">
+      <button class="dialog-close-btn" aria-label="Close dialog">
         <span style="display: block; transform: rotate(45deg);">+</span>
       </button>
       
       <!-- Main content -->
-      <div class="dialog-content" style="padding: 40px 35px 35px 35px; overflow-y: auto; max-height: 88vh;">
+      <div class="dialog-content" >
         <!-- Header -->
-        <div class="dialog-header" style="text-align: center; margin-bottom: 35px;">
+        <div class="dialog-header">
           <!-- Animated logo -->
-          <div class="logo-container" style="
-            width: 100px;
-            height: 100px;
-            margin: 0 auto 25px;
-            position: relative;
-            cursor: pointer;
-          ">
-            <div class="logo-outer-ring" style="
-              position: absolute;
-              inset: -6px;
-              border-radius: 50%;
-              background: conic-gradient(
-                from 0deg,
-                #667eea,
-                #764ba2,
-                #f093fb,
-                #f5576c,
-                #ffd166,
-                #667eea
-              );
-              animation: rotate 8s linear infinite;
-              filter: blur(8px);
-              opacity: 0.4;
-            "></div>
+          <div class="logo-container" >
+            <div class="logo-outer-ring" ></div>
             
-            <div class="logo-main" style="
-              width: 100%;
-              height: 100%;
-              background: linear-gradient(135deg, 
-                var(--primary, #667eea) 0%, 
-                var(--secondary, #764ba2) 100%
-              );
-              border-radius: 24px;
-              display: flex;
-              align-items: center;
-              justify-content: center;
-              color: white;
-              font-size: 48px;
-              position: relative;
-              box-shadow: 
-                0 10px 30px rgba(102, 126, 234, 0.3),
-                inset 0 1px 0 rgba(255, 255, 255, 0.3);
-              transition: all 0.3s ease;
-              overflow: hidden;
-            ">
-              🎓
-              <div class="logo-shine" style="
-                position: absolute;
-                top: -50%;
-                left: -50%;
-                width: 200%;
-                height: 200%;
-                background: linear-gradient(
-                  45deg,
-                  transparent 30%,
-                  rgba(255, 255, 255, 0.1) 50%,
-                  transparent 70%
-                );
-                transform: rotate(45deg);
-                transition: transform 0.6s ease;
-              "></div>
+            <div class="logo-main">
+              <span style="font-size: 32px; color: var(--primary, #667eea);">🎓</span>
+              <div class="logo-shine" ></div>
             </div>
           </div>
           
-          <h2 id="about-dialog-title" style="
-            margin: 0 0 8px 0;
-            color: var(--dropdown-text, #333);
-            font-size: 32px;
-            font-weight: 800;
-            letter-spacing: -0.5px;
-            background: linear-gradient(135deg, 
-              var(--primary, #667eea), 
-              var(--secondary, #764ba2)
-            );
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-            line-height: 1.2;
-          ">
+          <h2 id="about-dialog-title" >
             Graduation App
           </h2>
           
-          <div class="version-badge" style="
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            padding: 6px 16px;
-            background: linear-gradient(135deg, 
-              rgba(102, 126, 234, 0.1), 
-              rgba(118, 75, 162, 0.1)
-            );
-            color: var(--primary, #667eea);
-            border-radius: 20px;
-            font-size: 14px;
-            font-weight: 600;
-            letter-spacing: 0.5px;
-            border: 1px solid rgba(102, 126, 234, 0.2);
-            margin-bottom: 15px;
-          ">
+          <div class="version-badge">
             <span style="font-size: 12px;">⚡</span>
             v2.0.0
           </div>
           
-          <p class="tagline" style="
-            margin: 0;
-            color: var(--dropdown-text, #666);
-            font-size: 15px;
-            line-height: 1.4;
-            max-width: 320px;">
+          <p class="tagline">
             Celebrate achievements with style
           </p>
         </div>
         
         <!-- Features grid -->
-        <div class="features-grid" style="
-          display: grid;
-          grid-template-columns: repeat(2, 1fr);
-          gap: 12px;
-          margin-bottom: 30px;
-        ">
-          <div class="feature-item" style="
-            padding: 16px;
-            background: rgba(102, 126, 234, 0.05);
-            border-radius: 16px;
-            text-align: center;
-            border: 1px solid rgba(102, 126, 234, 0.1);
-            transition: all 0.2s ease;
-          ">
+        <div class="features-grid">
+          <div class="feature-item" style = "background: rgba(102, 126, 234, 0.1);">
             <div style="
               font-size: 24px;
               margin-bottom: 10px;
@@ -5649,14 +5509,7 @@ showAboutDialog() {
             ">Confetti Effects</div>
           </div>
           
-          <div class="feature-item" style="
-            padding: 16px;
-            background: rgba(118, 75, 162, 0.05);
-            border-radius: 16px;
-            text-align: center;
-            border: 1px solid rgba(118, 75, 162, 0.1);
-            transition: all 0.2s ease;
-          ">
+          <div class="feature-item" style = "background: rgba(118, 75, 162, 0.1);">
             <div style="
               font-size: 24px;
               margin-bottom: 10px;
@@ -5670,14 +5523,7 @@ showAboutDialog() {
             ">Image Slideshow</div>
           </div>
           
-          <div class="feature-item" style="
-            padding: 16px;
-            background: rgba(240, 147, 251, 0.05);
-            border-radius: 16px;
-            text-align: center;
-            border: 1px solid rgba(240, 147, 251, 0.1);
-            transition: all 0.2s ease;
-          ">
+          <div class="feature-item" style = "background: rgba(240, 147, 251, 0.1);">
             <div style="
               font-size: 24px;
               margin-bottom: 10px;
@@ -5691,14 +5537,7 @@ showAboutDialog() {
             ">Sharing Features</div>
           </div>
           
-          <div class="feature-item" style="
-            padding: 16px;
-            background: rgba(255, 209, 102, 0.05);
-            border-radius: 16px;
-            text-align: center;
-            border: 1px solid rgba(255, 209, 102, 0.1);
-            transition: all 0.2s ease;
-          ">
+          <div class="feature-item" style = "background: rgba(255, 193, 7, 0.1);">
             <div style="
               font-size: 24px;
               margin-bottom: 10px;
@@ -5714,18 +5553,14 @@ showAboutDialog() {
         </div>
         
         <!-- Description -->
-        <div class="description" style="
-          margin-bottom: 30px;
-          text-align: center;
-        ">
+        <div class="description"
           <p style="
             margin: 0 0 15px 0;
             color: var(--dropdown-text, #666);
             font-size: 15px;
             line-height: 1.6;
           ">
-            A beautifully crafted graduation celebration app that helps you 
-            create memorable moments with interactive features.
+            A beautifully crafted graduation celebration app dedicated to the graduates of 2025 Combine mathematic and Computer Science Department
           </p>
           
           <div style="
@@ -5752,76 +5587,21 @@ showAboutDialog() {
         </div>
         
         <!-- Action buttons -->
-        <div class="action-buttons" style="
-          display: flex;
-          gap: 12px;
-          margin-top: 25px;
-          padding-top: 25px;
-          border-top: 1px solid var(--dropdown-divider, rgba(0, 0, 0, 0.08));
-        ">
-          <button class="btn-secondary" style="
-            padding: 14px 20px;
-            border: 1px solid var(--dropdown-divider, #e0e0e0);
-            background: transparent;
-            color: var(--dropdown-text, #666);
-            border-radius: 12px;
-            cursor: pointer;
-            font-weight: 600;
-            font-size: 14px;
-            flex: 1;
-            transition: all 0.2s ease;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 8px;
-          ">
+        <div class="action-buttons" >
+          <button class="dialog-btn-secondary" >
             <span style="font-size: 16px;">📘</span>
             Learn More
           </button>
           
-          <button class="btn-primary btn-close" style="
-            padding: 14px 20px;
-            border: none;
-            background: linear-gradient(135deg, 
-              var(--primary, #667eea), 
-              var(--secondary, #764ba2)
-            );
-            color: white;
-            border-radius: 12px;
-            cursor: pointer;
-            font-weight: 600;
-            font-size: 14px;
-            flex: 1;
-            transition: all 0.3s ease;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 8px;
-            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
-            position: relative;
-            overflow: hidden;
-          ">
-            <span class="btn-glow" style="
-              position: absolute;
-              inset: 0;
-              background: linear-gradient(90deg, 
-                transparent, 
-                rgba(255, 255, 255, 0.2), 
-                transparent
-              );
-              transform: translateX(-100%);
-              transition: transform 0.6s ease;
-            "></span>
+          <button class="dialog-btn-primary btn-close">
+            <span class="btn-glow" ></span>
             <span style="font-size: 16px;">✨</span>
             Continue
           </button>
         </div>
         
         <!-- Footer -->
-        <div class="dialog-footer" style="
-          margin-top: 25px;
-          text-align: center;
-        ">
+        <div class="dialog-footer">
           <p style="
             margin: 0;
             color: var(--dropdown-text-muted, #999);
@@ -5847,91 +5627,7 @@ showAboutDialog() {
       dialog.style.transform = 'translateY(0) scale(1)';
     }, 10);
     
-    // Add dynamic styles
-    const style = document.createElement('style');
-    style.textContent = `
-      @keyframes rotate {
-        from { transform: rotate(0deg); }
-        to { transform: rotate(360deg); }
-      }
-      
-      @keyframes pulse {
-        0%, 100% { transform: scale(1); }
-        50% { transform: scale(1.05); }
-      }
-      
-      .logo-container:hover .logo-main {
-        animation: pulse 0.6s ease;
-      }
-      
-      .logo-container:hover .logo-shine {
-        transform: rotate(45deg) translateX(100%);
-      }
-      
-      .feature-item:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-        border-color: rgba(102, 126, 234, 0.3) !important;
-      }
-      
-      .btn-primary:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
-      }
-      
-      .btn-primary:hover .btn-glow {
-        transform: translateX(100%);
-      }
-      
-      .btn-secondary:hover {
-        background: var(--dropdown-divider, #f5f5f5);
-        border-color: var(--primary, #667eea);
-        color: var(--primary, #667eea);
-      }
-      
-      .dialog-close-btn:hover {
-        background: rgba(0, 0, 0, 0.1);
-        transform: rotate(90deg);
-        color: var(--dropdown-text, #333);
-      }
-      
-      /* Dark theme support */
-      @media (prefers-color-scheme: dark) {
-        .about-dialog-backdrop {
-          background: rgba(0, 0, 0, 0.85);
-        }
-        
-        .about-dialog {
-          background: #1a1a1a;
-          border-color: rgba(255, 255, 255, 0.05);
-        }
-        
-        .dialog-close-btn {
-          background: rgba(255, 255, 255, 0.05);
-          color: rgba(255, 255, 255, 0.6);
-        }
-        
-        .dialog-close-btn:hover {
-          background: rgba(255, 255, 255, 0.1);
-        }
-      }
-      
-      /* Responsive */
-      @media (max-width: 480px) {
-        .features-grid {
-          grid-template-columns: 1fr;
-        }
-        
-        .action-buttons {
-          flex-direction: column;
-        }
-        
-        .dialog-content {
-          padding: 30px 25px 25px 25px;
-        }
-      }
-    `;
-    document.head.appendChild(style);
+ 
     
     // Close functionality
     const closeBtn = dialog.querySelector('.dialog-close-btn');
