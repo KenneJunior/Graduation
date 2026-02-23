@@ -212,6 +212,7 @@ createMenuItem(item, index) {
   `;
   
   // Add click handler
+  button.addEventListener('click', (e) => this.handleMenuItemClick(e, item));
 
   this.elements.dropdown.appendChild(button);
 }

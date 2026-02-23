@@ -1184,13 +1184,7 @@ a {
     padding: 2rem;
 }
 
-.modal-overlay.fullscreen .modal-image-container {
-    max-width: 90%;
-    max-height: 85%;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-}
+
 
 .modal-overlay.fullscreen .modal-image {
     max-height: 100%;
@@ -1247,10 +1241,10 @@ a {
 
 /* Fullscreen image styling */
 .modal-container:-webkit-full-screen .modal-image-container {
-    height: 90%;
     display: flex;
     align-items: center;
     justify-content: center;
+        box-shadow: 17px 12px 20px 1px rgba(0, 0, 0, 0.534), 16px 20px 12px 20px rgba(0, 0, 0, 0.05) !important;
 }
 
 .modal-container:-webkit-full-screen .modal-image {

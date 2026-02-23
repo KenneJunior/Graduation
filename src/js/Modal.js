@@ -1,13 +1,13 @@
+import ColorThief from "colorthief";
 import logger from "./utility/logger.js";
 import {
-    loadMediaData,
     generateIntelligentMessage,
+    generatePhotoMessage,
+    generateSimpleMessage,
     generateStoryCaption,
-    createShareMessage,
-    generateQuickCaption,
-    getCurrentUserInfo, generateSimpleMessage, generatePhotoMessage
+    getCurrentUserInfo,
+    loadMediaData
 } from "./utility/utils.js";
-import ColorThief from "colorthief";
 // Create contextual logger for UltimateModal
 const modalLogger = logger.withContext({module: "UltimateModal"});
 
@@ -85,7 +85,7 @@ class UltimateModal {
             enableZoom: false,
             isZoomPanSetup: false,
             isMaximized: false,
-            isFullscreen: false,
+            isFullscreen: false, //Track fully expandscreen
             transitionStyle: "", // Can be 'zoom-in', 'fade-in', or 'slide-up'
             panStart: {x: 0, y: 0},
             panOffset: {x: 0, y: 0},
@@ -1372,7 +1372,7 @@ class UltimateModal {
      */
     showImageTooltip(event) {
         // Don't show tooltip if we're in zoomed mode or if tooltip doesn't exist
-        if (this.state.isZoomed || !this.tooltip) {
+        if (this.state.isZoomed || !this.tooltip || this.fullscreen) {
             return;
         }
 
@@ -1774,7 +1774,7 @@ class UltimateModal {
      */
     handleFullscreenChange() {
         modalLogger.debug("Handling fullscreen change event");
-
+        this.toggleTooltip();
         const fullscreenElement =
             document.fullscreenElement ||
             document.webkitFullscreenElement ||
@@ -1786,7 +1786,6 @@ class UltimateModal {
             // Entered browser fullscreen
             modalLogger.debug("Entered browser fullscreen (F11)");
             this.state.isBrowserFullscreen = true;
-
             // Extract palette and apply gradient if showing an image
             const current = this._getCurrentMedia();
             if (current.data_type === 'image') {
@@ -2355,6 +2354,21 @@ class UltimateModal {
         }
     }
 
+    /**
+     * use the d-none class to hide the tooltip when in fullscreen, and show it when exiting fullscreen
+     */
+    toggleTooltip() {
+        if (!this.tooltip) return;
+
+        if (this.state.isBrowserFullscreen) {
+            this.tooltip.classList.add('d-none');
+            modalLogger.debug("Tooltip hidden for fullscreen mode");
+        } else {
+            this.tooltip.classList.remove('d-none');
+            modalLogger.debug("Tooltip shown after exiting fullscreen mode");
+        }
+    }
+     
     /**
      * Generates dynamic caption based on current media
      * Can be used for modal title or other UI elements
