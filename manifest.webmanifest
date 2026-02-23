@@ -83,17 +83,23 @@
   ],
   "screenshots": [
     {
-      "src": "/screenshot.svg",
+      "src": "/pics/home.png",
       "sizes": "1200x630",
-      "type": "image/svg+xml",
+      "type": "image/png",
       "form_factor": "wide"
     },
     {
-      "src": "/pics/screenshot1.jpg",
+      "src": "/pics/memories.png",
       "sizes": "1200x630",
-      "type": "image/svg+xml",
+      "type": "image/png",
       "form_factor": "wide"
-    }
+    },
+    {
+      "src": "/pics/about.png",
+      "sizes": "1200x630",
+      "type": "image/png",
+      "form_factor": "wide"
+    }    
   ],
   "shortcuts": [
     {
