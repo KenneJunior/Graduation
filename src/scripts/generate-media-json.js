@@ -56,7 +56,7 @@ const DEFAULT_CONFIG = {
     "video6.jpg": "Mami play play 😂😂",
   },
 
-  ignoreFile: ["screenshot1.jpg"],
+  ignoreFile: ["screenshot1.jpg", "about.png", "memories.png"],
 };
 
 let CONFIG = {};
@@ -164,7 +164,7 @@ async function generateMediaJSON(config = {}) {
       .filter((dirent) => dirent.isFile() && /\.(jpg|heic|jpeg|png|webp)$/i.test(dirent.name))
       .map((dirent) => dirent.name);
 
-    const videoThumbs = thumbFiles.filter(thumbFile => 
+    const videoThumbs = thumbFiles.filter(thumbFile =>
       thumbFile.includes("vid") && thumbFile !== CONFIG.lastFile.replace(".jpg", ".webp")
     );
 

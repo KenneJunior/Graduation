@@ -2,7 +2,7 @@ import { writeFileSync } from 'fs';
 
 function generateRobotsTxt(environment = 'production') {
   console.log();
-  
+
   const baseConfig = {
     userAgent: '*',
     allow: ['/'],
@@ -26,7 +26,7 @@ function generateRobotsTxt(environment = 'production') {
       '/*.mp3$',
       '/*.webmanifest$'
     );
-    
+
     baseConfig.disallow.push(
       '/src/',
       '/node_modules/',
@@ -54,7 +54,7 @@ function generateRobotsTxt(environment = 'production') {
       '/*.mp3$',
       '/*.webmanifest$'
     );
-    
+
     baseConfig.disallow.push(
       '/node_modules/',
       '/.github/',
@@ -69,30 +69,30 @@ function generateRobotsTxt(environment = 'production') {
   }
 
   // Generate robots.txt content
-  let robotsContent = ;
+  let robotsContent = '';
 
   // Add allow rules
   baseConfig.allow.forEach(path => {
     if (path !== '/') { // Skip the root allow since it's already implied
-      robotsContent += ;
+      robotsContent += `Allow: ${path}\n`;
     }
   });
 
   // Add disallow rules
   baseConfig.disallow.forEach(path => {
-    robotsContent += ;
+    robotsContent += `Disallow: ${path}\n`;
   });
 
-  robotsContent += ;
+  robotsContent += `Sitemap: ${baseConfig.sitemap}\n`;
 
   // Write to file
   writeFileSync('public/robots.txt', robotsContent);
-  
+
   console.log('✅ robots.txt generated successfully!');
   console.log();
   console.log();
   console.log();
-  
+
   return {
     success: true,
     environment,
@@ -104,9 +104,9 @@ function generateRobotsTxt(environment = 'production') {
 }
 
 // Only run if called directly
-if (import.meta.url === ) {
+if (import.meta.url === process.argv[1]) {
   const environment = process.argv[2] || 'production';
   generateRobotsTxt(environment);
 }
 
-export { generateRobotsTxt }; 
+export { generateRobotsTxt };
