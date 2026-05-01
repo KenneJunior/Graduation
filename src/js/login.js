@@ -890,7 +890,7 @@ const PasswordManager = (() => {
           passwordLogger.debug("Auto-hiding password for security");
           _togglePasswordVisibility();
           _showNotification("Password hidden for security", "info");
-          PasswordConfig.SECURE_INPUT_TIMEOUT += 2000; 
+          PasswordConfig.SECURE_INPUT_TIMEOUT += 2000;
         }
       }, PasswordConfig.SECURE_INPUT_TIMEOUT);
     }
@@ -1117,7 +1117,7 @@ export function checkPassword(inputPassword, passwordConfig) {
         isGraduand,
         code,
         name: user.name,
-        accessLevel: 50,
+        accessLevel: code === 'L' ? 100 : 50, //
         message: `Welcome back, ${user.name} 😈`,
       };
     }

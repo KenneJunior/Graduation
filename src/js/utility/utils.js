@@ -64,7 +64,7 @@ export async function loadMediaData() {
   }
 /**
  * ADVANCED MEDIA FILTER - Filters media based on logged-in user with advanced features
- * 
+ *
  * @param {Array} media - Media array from JSON
  * @param {Object} authResult - Authentication result from password check
  * @param {Object} options - Filtering options
@@ -75,14 +75,15 @@ export function filterMediaByUser(media, authResult, options = {}) {
   const config = {
     includeVideos: true,
     includeImages: true,
-    sortBy: 'date', // 'date', 'relevance', 'random', 'personsCount'
-    sortOrder: 'desc', // 'asc', 'desc'
+    sortBy: 'date',          // 'date', 'relevance', 'random', 'personsCount'
+    sortOrder: 'desc',       // 'asc', 'desc'
     shuffle: false,
     limit: null,
     returnAllOnError: false,
     groupByPerson: false,
     excludeSolo: false,
-    onlyWithPerson: null, // Filter to only include media with specific person code
+    onlyWithPerson: null,    // Filter to only include media with specific person code
+    excludeCodes: [],        // NEW: array of person codes to exclude entirely
     minPersons: 1,
     maxPersons: null,
     enhanceMetadata: true,
@@ -99,14 +100,11 @@ export function filterMediaByUser(media, authResult, options = {}) {
 
   if (!authResult || typeof authResult !== 'object') {
     console.warn('filterMediaByUser: authResult is missing or invalid');
-    // Return empty array or all media based on your preference
     return config.returnAllOnError ? media : [];
   }
 
-  const { accessLevel, code, name} = authResult;
+  const { accessLevel, code, name } = authResult;
 
-
-  
   if (config.debug) {
     console.debug('🔍 Advanced Media Filter started:', {
       mediaCount: media.length,
@@ -117,79 +115,51 @@ export function filterMediaByUser(media, authResult, options = {}) {
 
   // PHASE 1: Initial filtering by access level
   let filteredMedia = [...media];
-  
-  // GENERAL access (accessLevel > 50) → show everything
   const hasGeneralAccess = accessLevel && accessLevel > 50;
-  
+
   if (!hasGeneralAccess) {
-    // PERSONAL access → filter by user code
     if (!code) {
       if (config.debug) console.warn('Personal access requested but no code provided');
       return [];
     }
 
     filteredMedia = filteredMedia.filter(item => {
-      // Skip if no persons array
-      if (!Array.isArray(item.persons) || item.persons.length === 0) {
-        if (config.debug) console.debug('Item excluded - no persons array:', item.src);
-        return false;
-      }
-
-      // Check if user's code is in the persons list
-      const hasAccess = item.persons.some(person => {
-        if (typeof person === 'string') {
-          return person === code;
-        } else if (person && person.code) {
-          return person.code === code;
-        }
-        return false;
+      if (!Array.isArray(item.persons) || item.persons.length === 0) return false;
+      return item.persons.some(person => {
+        const personCode = typeof person === 'string' ? person : (person && person.code);
+        return personCode === code;
       });
-
-      if (!hasAccess && config.debug) {
-        console.debug(`Item excluded - code ${code} not found in:`, 
-          item.persons.map(p => typeof p === 'string' ? p : p.code)
-        );
-      }
-
-      return hasAccess;
     });
   }
 
-  if (config.debug) {
-    console.debug('Phase 1 - Access filtering complete:', {
-      originalCount: media.length,
-      accessibleCount: filteredMedia.length,
-      hasGeneralAccess
-    });
-  }
-
-  // PHASE 2: Content type filtering
+  // PHASE 2: Content type filtering (images / videos)
   filteredMedia = filteredMedia.filter(item => {
     const dataType = item['data-type'] || item.type || 'image';
-    
-    if (config.includeImages && config.includeVideos) {
-      return true;
-    }
-    
-    if (config.includeImages && dataType === 'image') {
-      return true;
-    }
-    
-    if (config.includeVideos && dataType === 'video') {
-      return true;
-    }
-    
+    if (config.includeImages && config.includeVideos) return true;
+    if (config.includeImages && dataType === 'image') return true;
+    if (config.includeVideos && dataType === 'video') return true;
     return false;
   });
 
-  // PHASE 3: Person-based filtering (if specified)
+  // PHASE 3: Only include items with a specific person
   if (config.onlyWithPerson) {
     filteredMedia = filteredMedia.filter(item => {
       if (!Array.isArray(item.persons)) return false;
-      
       return item.persons.some(person => {
-        const personCode = typeof person === 'string' ? person : person.code;
+        const personCode = typeof person === 'string' ? person : (person && person.code);
         return personCode === config.onlyWithPerson;
+      });
+    });
+  }
+
+  //  PHASE 3.5: Exclude items that contain any of the specified codes
+  if (config.excludeCodes && config.excludeCodes.length > 0) {
+    filteredMedia = filteredMedia.filter(item => {
+      if (!Array.isArray(item.persons)) return true;
+      // Remove item if it contains any excluded code
+      return !item.persons.some(person => {
+        const personCode = typeof person === 'string' ? person : (person && person.code);
+        return config.excludeCodes.includes(personCode);
       });
     });
   }
@@ -197,22 +167,9 @@ export function filterMediaByUser(media, authResult, options = {}) {
   // PHASE 4: Group size filtering
   filteredMedia = filteredMedia.filter(item => {
     const personCount = Array.isArray(item.persons) ? item.persons.length : 0;
-    
-    // Exclude solo photos if configured
-    if (config.excludeSolo && personCount <= 1) {
-      return false;
-    }
-    
-    // Min persons check
-    if (personCount < config.minPersons) {
-      return false;
-    }
-    
-    // Max persons check
-    if (config.maxPersons !== null && personCount > config.maxPersons) {
-      return false;
-    }
-    
+    if (config.excludeSolo && personCount <= 1) return false;
+    if (personCount < config.minPersons) return false;
+    if (config.maxPersons !== null && personCount > config.maxPersons) return false;
     return true;
   });
 
@@ -220,86 +177,61 @@ export function filterMediaByUser(media, authResult, options = {}) {
   if (config.enhanceMetadata) {
     filteredMedia = filteredMedia.map((item, index) => {
       const enhanced = { ...item };
-      
-      // Add unique ID
       enhanced.id = `media_${code || 'guest'}_${index}_${Date.now()}`;
-      
-      // Calculate relevance score (based on how many persons match)
       if (hasGeneralAccess) {
         enhanced.relevanceScore = 100;
       } else {
         const personCodes = enhanced.persons
-          ? enhanced.persons.map(p => typeof p === 'string' ? p : p.code)
+          ? enhanced.persons.map(p => typeof p === 'string' ? p : (p && p.code))
           : [];
         enhanced.relevanceScore = personCodes.includes(code) ? 90 : 10;
       }
-      
-      // Add person count
       enhanced.personCount = Array.isArray(enhanced.persons) ? enhanced.persons.length : 0;
-      
-      // Generate thumbnail if not present
       if (config.generateThumbnails && !enhanced.thumb) {
         enhanced.thumb = generateThumbnailUrl(enhanced.src);
       }
-      
-      // Add user-specific alt text
       if (!enhanced.alt) {
         enhanced.alt = generateAltText(enhanced, code, name);
       }
-      
-      // Add responsive srcset if not present
       if (!enhanced.srcset && enhanced.src) {
         enhanced.srcset = generateResponsiveSrcset(enhanced.src);
       }
-      
-      // Add sorting metadata
       enhanced.sortDate = enhanced.date || new Date(2023, 0, index + 1).toISOString();
       enhanced.sortPersons = enhanced.personCount;
-      
       return enhanced;
     });
   }
 
-  // PHASE 6: Sorting
+  // PHASE 6: Sorting (unchanged)
   if (config.sortBy !== 'random' && filteredMedia.length > 0) {
     filteredMedia.sort((a, b) => {
       let valueA, valueB;
-      
       switch (config.sortBy) {
         case 'date':
           valueA = new Date(a.sortDate || a.date || 0).getTime();
           valueB = new Date(b.sortDate || b.date || 0).getTime();
           break;
-          
         case 'relevance':
           valueA = a.relevanceScore || 0;
           valueB = b.relevanceScore || 0;
           break;
-          
         case 'personsCount':
           valueA = a.personCount || 0;
           valueB = b.personCount || 0;
           break;
-          
         case 'filename':
           valueA = a.src || '';
           valueB = b.src || '';
           break;
-          
         default:
           valueA = 0;
           valueB = 0;
       }
-      
-      if (config.sortOrder === 'desc') {
-        return valueB - valueA;
-      } else {
-        return valueA - valueB;
-      }
+      return config.sortOrder === 'desc' ? valueB - valueA : valueA - valueB;
     });
   }
 
-  // PHASE 7: Shuffling (if specified, overrides sorting)
+  // PHASE 7: Shuffling (unchanged)
   if (config.shuffle && filteredMedia.length > 0) {
     filteredMedia = [...filteredMedia].sort(() => Math.random() - 0.5);
   }
@@ -309,10 +241,9 @@ export function filterMediaByUser(media, authResult, options = {}) {
     filteredMedia = filteredMedia.slice(0, config.limit);
   }
 
-  // PHASE 9: Grouping (optional)
+  // PHASE 9: Grouping (unchanged)
   if (config.groupByPerson && filteredMedia.length > 0) {
-    const grouped = groupMediaByPerson(filteredMedia, code);
-    return grouped;
+    return groupMediaByPerson(filteredMedia, code);
   }
 
   if (config.debug) {
@@ -320,7 +251,7 @@ export function filterMediaByUser(media, authResult, options = {}) {
       finalCount: filteredMedia.length,
       sample: filteredMedia.slice(0, 3).map(m => ({
         src: m.src,
-        persons: m.persons?.map(p => typeof p === 'string' ? p : p.code),
+        persons: m.persons?.map(p => (typeof p === 'string' ? p : p?.code)),
         relevance: m.relevanceScore
       }))
     });
@@ -338,20 +269,20 @@ export function filterMediaByUser(media, authResult, options = {}) {
  */
 function generateThumbnailUrl(src) {
   if (!src) return '';
-  
+
   // Simple implementation - adjust based on your setup
   const basePath = src.substring(0, src.lastIndexOf('.'));
   const extension = src.substring(src.lastIndexOf('.'));
-  
+
   // Check for WebP support
   const supportsWebP = document.createElement('canvas')
     .toDataURL('image/webp')
     .indexOf('data:image/webp') === 0;
-  
+
   if (supportsWebP) {
     return `${basePath}.webp`;
   }
-  
+
   // Fallback to jpg thumbnail
   return `${basePath}-thumb${extension}`;
 }
@@ -363,11 +294,11 @@ function generateThumbnailUrl(src) {
  */
 function generateResponsiveSrcset(src) {
   if (!src) return '';
-  
+
   const sizes = [320, 640, 960, 1280, 1920];
   const basePath = src.substring(0, src.lastIndexOf('.'));
   const extension = src.substring(src.lastIndexOf('.'));
-  
+
   return sizes
     .map(size => `${basePath}-${size}w${extension} ${size}w`)
     .join(', ');
@@ -385,19 +316,19 @@ function generateAltText(mediaItem, userCode, userName) {
     mediaItem.alt = 'Shared memory';
     return mediaItem;
   }
-  
+
   const persons = mediaItem.persons.map(person => {
     if (typeof person === 'string') {
       return person;
     }
     return person.name || person.code;
   });
-  
+
   // Check if user is in the photo
-  const userInPhoto = persons.some(personCode => 
+  const userInPhoto = persons.some(personCode =>
     typeof personCode === 'string' && personCode === userCode
   );
-  
+
   if (userInPhoto) {
     if (persons.length === 1) {
       mediaItem.alt = `Photo of ${userName || 'you'}`;
@@ -416,10 +347,10 @@ function generateAltText(mediaItem, userCode, userName) {
  */
 function groupMediaByPerson(media, userCode) {
   const groups = {};
-  
+
   media.forEach(item => {
     if (!Array.isArray(item.persons)) return;
-    
+
     // Create group key based on person codes (excluding the user)
     const otherPersons = item.persons
       .filter(person => {
@@ -429,9 +360,9 @@ function groupMediaByPerson(media, userCode) {
       .map(person => typeof person === 'string' ? person : person.code)
       .sort()
       .join('_');
-    
+
     const groupKey = otherPersons || 'solo';
-    
+
     if (!groups[groupKey]) {
       // Extract person info for the group
       const groupPersons = item.persons
@@ -445,7 +376,7 @@ function groupMediaByPerson(media, userCode) {
           }
           return person;
         });
-      
+
       groups[groupKey] = {
         id: `group_${groupKey}`,
         persons: groupPersons,
@@ -454,11 +385,11 @@ function groupMediaByPerson(media, userCode) {
         preview: item.thumb || item.src
       };
     }
-    
+
     groups[groupKey].items.push(item);
     groups[groupKey].count++;
   });
-  
+
   // Convert to array and sort by count
   return Object.values(groups).sort((a, b) => b.count - a.count);
 }
@@ -467,11 +398,11 @@ function groupMediaByPerson(media, userCode) {
  * Get media statistics for user
  */
 export function getMediaStatistics(media, authResult) {
-  const filtered = filterMediaByUser(media, authResult, { 
+  const filtered = filterMediaByUser(media, authResult, {
     enhanceMetadata: false,
-    debug: false 
+    debug: false
   });
-  
+
   const stats = {
     total: media.length,
     accessible: filtered.length,
@@ -480,19 +411,19 @@ export function getMediaStatistics(media, authResult) {
     byPersonCount: {},
     byPerson: {}
   };
-  
+
   // Count by type
   filtered.forEach(item => {
     const type = item['data-type'] || item.type || 'unknown';
     stats.byType[type] = (stats.byType[type] || 0) + 1;
   });
-  
+
   // Count by person count
   filtered.forEach(item => {
     const count = Array.isArray(item.persons) ? item.persons.length : 0;
     stats.byPersonCount[count] = (stats.byPersonCount[count] || 0) + 1;
   });
-  
+
   // Count by individual person
   filtered.forEach(item => {
     if (Array.isArray(item.persons)) {
@@ -510,7 +441,7 @@ export function getMediaStatistics(media, authResult) {
       });
     }
   });
-  
+
   return stats;
 }
 
@@ -519,13 +450,13 @@ export function getMediaStatistics(media, authResult) {
  */
 export function createPersonalizedMediaFeed(media, authResult) {
   const { code, name } = authResult;
-  
+
   // Get all accessible media
   const allMedia = filterMediaByUser(media, authResult, {
     enhanceMetadata: true,
     debug: false
   });
-  
+
   // Create different collections
   const feed = {
     userInfo: { code, name },
@@ -533,7 +464,7 @@ export function createPersonalizedMediaFeed(media, authResult) {
     recommendations: [],
     statistics: getMediaStatistics(media, authResult)
   };
-  
+
   // Collection 1: Solo photos (just the user)
   const soloPhotos = filterMediaByUser(allMedia, authResult, {
     onlyWithPerson: code,
@@ -542,7 +473,7 @@ export function createPersonalizedMediaFeed(media, authResult) {
     sortBy: 'date',
     sortOrder: 'desc'
   });
-  
+
   if (soloPhotos.length > 0) {
     feed.collections.solo = {
       title: `${name || 'Your'} Photos`,
@@ -551,7 +482,7 @@ export function createPersonalizedMediaFeed(media, authResult) {
       count: soloPhotos.length
     };
   }
-  
+
   // Collection 2: Group photos
   const groupPhotos = filterMediaByUser(allMedia, authResult, {
     excludeSolo: true,
@@ -559,7 +490,7 @@ export function createPersonalizedMediaFeed(media, authResult) {
     sortBy: 'personsCount',
     sortOrder: 'desc'
   });
-  
+
   if (groupPhotos.length > 0) {
     feed.collections.groups = {
       title: 'Group Memories',
@@ -568,13 +499,13 @@ export function createPersonalizedMediaFeed(media, authResult) {
       count: groupPhotos.length
     };
   }
-  
+
   // Collection 3: Most relevant (high person overlap)
   const relevantPhotos = [...allMedia]
     .filter(item => item.relevanceScore > 80)
     .sort((a, b) => b.relevanceScore - a.relevanceScore)
     .slice(0, 8);
-  
+
   if (relevantPhotos.length > 0) {
     feed.collections.featured = {
       title: 'Featured Memories',
@@ -583,7 +514,7 @@ export function createPersonalizedMediaFeed(media, authResult) {
       count: relevantPhotos.length
     };
   }
-  
+
   // Generate recommendations (photos user might like based on common persons)
   const allPersons = new Set();
   allMedia.forEach(item => {
@@ -596,14 +527,14 @@ export function createPersonalizedMediaFeed(media, authResult) {
       });
     }
   });
-  
+
   // For each person user appears with, find other photos with that person
   Array.from(allPersons).forEach(personCode => {
     const personPhotos = filterMediaByUser(allMedia, authResult, {
       onlyWithPerson: personCode,
       limit: 3
     });
-    
+
     if (personPhotos.length > 0) {
       feed.recommendations.push({
         basedOn: personCode,
@@ -611,10 +542,10 @@ export function createPersonalizedMediaFeed(media, authResult) {
       });
     }
   });
-  
+
   // Add total count
   feed.totalMemories = allMedia.length;
-  
+
   return feed;
 }
 

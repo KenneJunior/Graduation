@@ -71,7 +71,8 @@ let CONFIG = {};
   G: "Goto",
   LG: "Grace",
   W: "Wales",
-  MN: "Marie",
+  MN:"Marie",
+  L: "Lux Mea",
 });
 
 async function generateMediaJSON(config = {}) {

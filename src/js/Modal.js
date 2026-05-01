@@ -1871,12 +1871,15 @@ class UltimateModal {
         const user = getCurrentUserInfo();
 
         let filteredMedia = [];
-        if (data && user.code==='L') {
+        if (data ){
+            if(user.code==='L') {
             // If filterMediaByUser is available and should be used, apply it
             filteredMedia = filterMediaByUser(data.media, user, { includeVideos: false });
             this.mediaData.media = filteredMedia;
-        }else
-            this.mediaData = data;
+        }else{
+            this.mediaData.media = filterMediaByUser(data.media, user, {excludeCodes:'L' });
+        }
+    }
 
         this.mediaData.media.forEach((mediaData, index) => {
             const figure = this.createGalleryFigure(mediaData, index);

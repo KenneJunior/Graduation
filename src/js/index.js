@@ -2039,9 +2039,8 @@ async initializeSwiper() {
                 throw new Error("No media data available");
             }
             const auth = getCurrentUserInfo()
-            if (auth.isGraduand) {
-                this.mediaData.media = filterMediaByUser(this.mediaData.media, auth);
-            }
+                this.mediaData.media = filterMediaByUser(this.mediaData.media, auth, {excludeCodes:['L']});
+
             imageLogger.debug("Media data loaded", {
                 count: this.mediaData.media.length
             });
