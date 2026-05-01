@@ -1,326 +1,392 @@
 <!DOCTYPE html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
 
-    <!--Primary site Tags-->
-    <title id="title">Amore Amica 💝</title>
-    <meta
-      name="title"
-      content="Hey There Beautiful 💝 - Special Graduation Wishes"
-    />
-    <meta
-      name="description"
-      content="A special interactive greeting page dedicated to celebrating someone special with heartfelt messages and beautiful interactive elements."
-    />
-    <meta
-      name="keywords"
-      content="Graduation, love, celebration, wishes, special message, beautiful"
-    />
-    <meta name="author" content="Kenne Boniface" />
-    <meta name="google-site-verification" content="MkSGyIgRD1zc5QZ8pLzY-yBCME_CqFFVRyFUW-9iPmk" />
-    <meta name="robots" content="index, follow" />
-    <meta name="language" content="English" />
-    <link rel="canonical" href="https://Kjunior.vercel.app/LuxMea.html" />
+  <!-- ═══════════════════════════════
+       Primary SEO & Identity
+  ═══════════════════════════════ -->
+  <title>Lux Mea — A Letter Worth Reading 💝</title>
+  <meta name="title"       content="Lux Mea — A Letter Worth Reading 💝" />
+  <meta name="description" content="A heartfelt, hand-crafted digital letter — an intimate celebration of connection, courage, and a very special question." />
+  <meta name="keywords"    content="love letter, graduation, celebration, heartfelt message, special greeting" />
+  <meta name="author"      content="Kenne Boniface" />
+  <meta name="robots"      content="index, follow" />
+  <meta name="language"    content="English" />
+  <link rel="canonical"    href="https://kjunior.vercel.app/LuxMea.html" />
 
-    <!-- Favicon & App Icons -->
-    <link
-      rel="icon"
-      href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🎂</text></svg>"
-    />
-    <meta name="color-scheme" content="light dark" />
-    <meta name="msapplication-TileColor" content="#4A00E0" />
-    <link rel="manifest" href="manifest.webmanifest" />
+  <!-- ═══════════════════════════════
+       Open Graph
+  ═══════════════════════════════ -->
+  <meta property="og:type"        content="website" />
+  <meta property="og:url"         content="https://kjunior.vercel.app/LuxMea.html" />
+  <meta property="og:title"       content="Lux Mea — A Letter Worth Reading 💝" />
+  <meta property="og:description" content="A heartfelt, hand-crafted digital letter — an intimate celebration of connection, courage, and a very special question." />
+  <meta property="og:image"       content="https://kjunior.vercel.app/icon/apple/img/apple-touch-icon.png" />
+  <meta property="og:locale"      content="en_US" />
 
-    <!-- Apple Touch Icons (Multiple sizes for different devices) -->
-    <link
-      rel="apple-touch-icon"
-      sizes="180x180"
-      href="/icon/apple/img/apple-touch-icon.png"
-    />
-    <link
-      rel="apple-touch-icon"
-      sizes="167x167"
-      href="/icon/apple/img/apple-touch-icon-167x167.png"
-    />
-    <link
-      rel="apple-touch-icon"
-      sizes="152x152"
-      href="/icon/apple/img/apple-touch-icon-152x152.png"
-    />
-    <link
-      rel="apple-touch-icon"
-      sizes="120x120"
-      href="/icon/apple/img/apple-touch-icon-120x120.png"
-    />
-        <meta name="theme-color" content="pink" />
+  <!-- ═══════════════════════════════
+       Twitter / X Card
+  ═══════════════════════════════ -->
+  <meta name="twitter:card"        content="summary_large_image" />
+  <meta name="twitter:url"         content="https://kjunior.vercel.app/LuxMea.html" />
+  <meta name="twitter:title"       content="Lux Mea — A Letter Worth Reading 💝" />
+  <meta name="twitter:description" content="A heartfelt, hand-crafted digital letter — an intimate celebration of connection, courage, and a very special question." />
+  <meta name="twitter:image"       content="https://kjunior.vercel.app/icon/apple/img/apple-touch-icon.png" />
 
+  <!-- ═══════════════════════════════
+       Theme & Manifest
+  ═══════════════════════════════ -->
+  <meta name="theme-color"            content="#4A0020" />
+  <meta name="msapplication-TileColor" content="#4A0020" />
+  <meta name="color-scheme"           content="dark" />
+  <link rel="manifest"                href="/manifest.webmanifest" />
 
-    <!-- Stylesheets -->
-    <link rel="stylesheet" href="/src/css/Lux Mea.css" />
-    <link rel="stylesheet" href="/src/css/loading.css" />
-  </head>
+  <!-- SVG favicon — lightweight, no network request -->
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>💌</text></svg>" />
 
+  <!-- ═══════════════════════════════
+       Apple Touch Icons
+  ═══════════════════════════════ -->
+  <link rel="apple-touch-icon" sizes="180x180" href="/icon/apple/img/apple-touch-icon.png" />
+  <link rel="apple-touch-icon" sizes="167x167" href="/icon/apple/img/apple-touch-icon-167x167.png" />
+  <link rel="apple-touch-icon" sizes="152x152" href="/icon/apple/img/apple-touch-icon-152x152.png" />
+  <link rel="apple-touch-icon" sizes="120x120" href="/icon/apple/img/apple-touch-icon-120x120.png" />
+
+  <!-- ═══════════════════════════════
+       Stylesheets  (preconnect first)
+  ═══════════════════════════════ -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet"  href="/src/css/Lux%20Mea.css" />
+  <link rel="stylesheet"  href="/src/css/loading.css" />
+
+  <!-- ═══════════════════════════════
+       Structured Data (JSON-LD)
+  ═══════════════════════════════ -->
   <script type="application/ld+json">
-    {
-      "@context": "https://schema.org",
-      "@type": "CreativeWork",
-      "name": "Interactive Greeting Experience",
-      "description": "A beautiful interactive greeting with animated gradient background",
-      "author": {
-        "@type": "Person",
-        "name": "Junior"
-      },
-      "creator": {
-        "@type": "Person",
-        "name": "Junior"
+  {
+    "@context": "https://schema.org",
+    "@type": "CreativeWork",
+    "name": "Lux Mea — Interactive Letter",
+    "description": "A heartfelt, interactive digital letter celebrating a special connection.",
+    "inLanguage": "en",
+    "author":  { "@type": "Person", "name": "Kenne Boniface" },
+    "creator": { "@type": "Person", "name": "Kenne Boniface" }
+  }
+  </script>
+</head>
+
+<body>
+  <!-- ══════════════════════════════════════════
+       Accessibility: Skip to main content
+  ══════════════════════════════════════════ -->
+  <a class="skip-link" href="#main-content">Skip to main content</a>
+
+  <!-- ══════════════════════════════════════════
+       Loading Screen
+  ══════════════════════════════════════════ -->
+  <div
+    class="loading-container is-visible"
+    id="loadingSpinner"
+    role="status"
+    aria-live="polite"
+    aria-label="Loading your special message"
+  >
+    <div class="loading-spinner" aria-hidden="true"></div>
+    <p class="loading-text">
+      Loading<span class="loading-dots" aria-hidden="true">
+        <span class="loading-dots__dot"></span>
+        <span class="loading-dots__dot"></span>
+        <span class="loading-dots__dot"></span>
+      </span>
+    </p>
+    <div class="loading-progress" role="progressbar" aria-valuemin="0" aria-valuemax="100">
+      <div class="loading-progress__bar"></div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════
+       Custom Cursor (desktop only, decorative)
+  ══════════════════════════════════════════ -->
+  <div class="cursor-follower" aria-hidden="true">
+    <div class="cursor-inner"></div>
+  </div>
+
+  <!-- ══════════════════════════════════════════
+       Main Content
+  ══════════════════════════════════════════ -->
+  <main id="main-content" class="main-content" role="main">
+
+    <article class="card" aria-labelledby="greeting-heading">
+      <div class="card-inner">
+
+        <!-- Decorative card effects (purely visual) -->
+        <div class="card-effects" aria-hidden="true">
+          <svg
+            class="noise"
+            viewBox="0 0 800 800"
+            xmlns="http://www.w3.org/2000/svg"
+            preserveAspectRatio="xMidYMid slice"
+          >
+            <filter id="noiseFilter">
+              <feTurbulence
+                type="fractalNoise"
+                baseFrequency="0.85"
+                numOctaves="6"
+                stitchTiles="stitch"
+              />
+            </filter>
+            <rect width="100%" height="100%" filter="url(#noiseFilter)" />
+          </svg>
+          <div class="card-shine"></div>
+          <div class="card-glare"></div>
+        </div>
+        <!-- /card-effects -->
+
+        <!-- ── Content ────────────────────────── -->
+        <div class="content">
+
+          <!-- Header -->
+          <header class="content-header">
+            <h1 id="greeting-heading" class="greeting-title">
+              <span class="title-word">Lux</span><!--
+           --><span class="title-word title-word--accent"> Mea</span>
+              <span class="title-punctuation" aria-hidden="true">.</span>
+            </h1>
+            <div class="decoration-line" aria-hidden="true"></div>
+          </header>
+
+          <!-- Letter body -->
+          <section class="message-content" id="letterBody" aria-label="Personal message">
+
+            <p class="message-text message-text--opening">
+              First of all, I still remember you always sitting in front of me.
+              I kept telling myself I'd have to be completely blind not to notice
+              the most gorgeous girl in the room — right in my line of sight.
+              Honestly, it's a miracle I ever paid attention to anything else.&nbsp;🤣
+            </p>
+
+            <p class="message-text">
+              Luckily, I managed to work up the nerve to get your number, and we
+              started chatting — hardly knowing then that those daily messages would
+              lead us exactly to where we are today.
+            </p>
+
+            <p class="message-text">
+              I want to be completely honest with you: I don't just admire who you are —
+              I'm really falling for you.&nbsp;😍 Honestly, I think the reason I cried
+              when I was born is because I opened my eyes and you weren't by my side.&nbsp;🤣
+            </p>
+
+            <p class="message-text">
+              If I could give you one thing in life, it would be the ability to see
+              yourself through my eyes. Only then would you realise how ridiculously
+              beautiful and irresistible you truly are to me.
+              You're exactly the kind of trouble I've been waiting for.
+            </p>
+
+            <p class="message-text message-text--closing">
+              I can't promise a flawless movie romance — but I can promise to keep
+              those butterflies alive and make you smile the exact same way you make
+              me smile every single day.<br /><br />
+              So, here I am, putting all my cards on the table:
+            </p>
+
+            <p class="message-text message-text--question" aria-live="polite">
+              Would you do me the honour of being my girlfriend?&nbsp;💕
+            </p>
+
+          </section>
+          <!-- /message-content -->
+
+          <!-- Response buttons -->
+          <footer class="content-footer">
+            <nav
+              class="interaction-buttons"
+              aria-label="Your response options"
+              role="group"
+            >
+
+              <button
+                type="button"
+                class="cta-button cta-button--yes"
+                id="yes-btn"
+                aria-label="Yes — I'm happy to be your girlfriend"
+              >
+                <span class="button-icon button-icon--left" aria-hidden="true">💕</span>
+                <span class="button-text">I'm happy to</span>
+                <span class="button-icon button-icon--arrow" aria-hidden="true">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                    <path d="M5 12H19M19 12L12 5M19 12L12 19"
+                      stroke="currentColor" stroke-width="2"
+                      stroke-linecap="round" stroke-linejoin="round" />
+                  </svg>
+                </span>
+              </button>
+
+              <button
+                type="button"
+                class="cta-button cta-button--maybe"
+                id="maybe-btn"
+                aria-label="I will think about it"
+              >
+                <span class="button-icon button-icon--left" aria-hidden="true">🙈</span>
+                <span class="button-text">I will think about it</span>
+                <span class="button-icon button-icon--arrow" aria-hidden="true">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                    <path d="M5 12H19M19 12L12 5M19 12L12 19"
+                      stroke="currentColor" stroke-width="2"
+                      stroke-linecap="round" stroke-linejoin="round" />
+                  </svg>
+                </span>
+              </button>
+
+              <button
+                type="button"
+                class="cta-button cta-button--no"
+                id="nope-btn"
+                aria-label="No, but thank you"
+              >
+                <span class="button-icon button-icon--left" aria-hidden="true">🤍</span>
+                <span class="button-text">No, but thanks</span>
+                <span class="button-icon button-icon--arrow" aria-hidden="true">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                    <path d="M5 12H19M19 12L12 5M19 12L12 19"
+                      stroke="currentColor" stroke-width="2"
+                      stroke-linecap="round" stroke-linejoin="round" />
+                  </svg>
+                </span>
+              </button>
+
+            </nav>
+            <!-- /interaction-buttons -->
+
+            <!-- Subtle attribution -->
+            <p class="card-footer-note" aria-label="Signed by">
+              Written with love by
+              <span class="card-footer-name">Junior</span>
+              <span aria-hidden="true"> ✦ </span>
+              <time datetime="2025">2025</time>
+            </p>
+
+          </footer>
+          <!-- /content-footer -->
+
+        </div>
+        <!-- /content -->
+
+      </div>
+      <!-- /card-inner -->
+    </article>
+    <!-- /card -->
+
+  </main>
+  <!-- /main-content -->
+
+  <!-- ══════════════════════════════════════════
+       Animated Gradient Background
+  ══════════════════════════════════════════ -->
+  <div class="gradient-bg" aria-hidden="true">
+    <!-- Noise texture overlay -->
+    <svg
+      class="noiseBg"
+      viewBox="0 0 512 512"
+      xmlns="http://www.w3.org/2000/svg"
+      preserveAspectRatio="xMidYMid slice"
+    >
+      <filter id="noiseFilterBg">
+        <feTurbulence type="fractalNoise" baseFrequency="0.6" stitchTiles="stitch" />
+      </filter>
+      <rect width="100%" height="100%" filter="url(#noiseFilterBg)" />
+    </svg>
+
+    <!-- Goo / blob filter definition -->
+    <svg class="svgBlur" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <filter id="goo">
+          <feGaussianBlur in="SourceGraphic" stdDeviation="10" result="blur" />
+          <feColorMatrix
+            in="blur"
+            mode="matrix"
+            values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 18 -8"
+            result="goo"
+          />
+          <feBlend in="SourceGraphic" in2="goo" />
+        </filter>
+      </defs>
+    </svg>
+
+    <!-- Animated orbs -->
+    <div class="gradients-container">
+      <div class="g1" aria-hidden="true"></div>
+      <div class="g2" aria-hidden="true"></div>
+      <div class="g3" aria-hidden="true"></div>
+      <div class="g4" aria-hidden="true"></div>
+      <div class="g5" aria-hidden="true"></div>
+      <div class="interactive" aria-hidden="true"></div>
+    </div>
+  </div>
+  <!-- /gradient-bg -->
+
+  <!-- ══════════════════════════════════════════
+       Particle Canvas (hidden until activated)
+  ══════════════════════════════════════════ -->
+  <div class="particles-container" hidden aria-hidden="true">
+    <canvas id="particles-canvas" role="presentation"></canvas>
+  </div>
+
+  <!-- ══════════════════════════════════════════
+       Ambient Audio (hover / interaction sound)
+  ══════════════════════════════════════════ -->
+  <audio id="hover-sound" preload="none" aria-hidden="true">
+    <source src="/public/Ruth-B_-Dandelions-(TopGhanaMusic.Com).mp3" type="audio/mpeg" />
+    <!-- Intentionally no track element: purely ambient, not dialogue -->
+  </audio>
+
+  <!-- ══════════════════════════════════════════
+       Scripts
+  ══════════════════════════════════════════ -->
+  <!-- Core interaction module -->
+  <script src="/src/js/LuxMea.js" type="module" defer></script>
+  <!-- Site-wide utilities -->
+  <script src="/src/main.js" defer type="module"></script>
+
+  <!-- Auth guard — inline module so it runs early without render-blocking -->
+  <script type="module">
+    import logger from '/src/js/utility/logger.js';
+    import { getAuthManager } from '/src/auth-check.js';
+
+    async function initProtectedPage() {
+      try {
+        const auth = await getAuthManager();
+        auth.updateLoadingText('Lux Mea — preparing your special experience…');
+        auth.showLoading();
+
+        const result = await auth.setupAuthProtection();
+
+        if (result.authenticated) {
+          auth.hideLoading(3000);
+        } else {
+          logger.warn('Not authenticated — redirecting.');
+          window.location.href = '/login.html';
+        }
+      } catch (err) {
+        logger.error('Auth error:', err);
+        const auth = await getAuthManager();
+        auth.hideLoading();
+        window.location.href = '/login.html';
       }
+    }
+
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', initProtectedPage);
+    } else {
+      initProtectedPage();
     }
   </script>
 
-  <body>
-    <div class="loading-container is-visible" id="loadingSpinner" aria-hidden="false" aria-live="off">
-        <div class="loading-spinner"></div>
-        <div class="loading-text">
-            Loading<span class="loading-dots">
-                <span class="loading-dots__dot"></span>
-                <span class="loading-dots__dot"></span>
-                <span class="loading-dots__dot"></span>
-            </span>
-        </div>
-        <div class="loading-progress">
-            <div class="loading-progress__bar"></div>
-        </div>
-    </div>
-
-    <div class="cursor-follower" aria-hidden="true">
-      <div class="cursor-inner"></div>
-      <div class="cursor-outer"></div>
-    </div>
-
-    <main
-      id="main-content"
-      class="main-content"
-      id="protectedContent"
-      role="main"
-    >
-      <div class="card" role="article" aria-labelledby="greeting-heading">
-        <div class="card-inner">
-          <div class="card-effects">
-            <svg
-              viewBox="0 0 100% 100%"
-              xmlns="http://www.w3.org/2000/svg"
-              class="noise"
-            >
-              <filter id="noiseFilter">
-                <feTurbulence
-                  type="fractalNoise"
-                  baseFrequency="0.85"
-                  numOctaves="6"
-                  stitchTiles="stitch"
-                />
-              </filter>
-
-              <rect
-                width="100%"
-                height="100%"
-                preserveAspectRatio="xMidYMid meet"
-                filter="url(#noiseFilter)"
-              />
-            </svg>
-            <div class="card-shine" ariHeya-hidden="true"></div>
-            <div class="card-glare" aria-hidden="true"></div>
-          </div>
-          <div class="content">
-            <header class="content-header">
-              <h1 id="greeting-heading" class="greeting-title">
-                <span class="title-word">Lux Mea</span>
-                <span class="title-punctuation">!</span>
-              </h1>
-              <div class="decoration-line" aria-hidden="true"></div>
-            </header>
-            <div class="message-content" id="proposalCard">
-              <p class="message-text">
-               Dear Lulu, i want to express and let you know what you really mean to me
-
-            </div>
-
-            <footer class="content-footer">
-              <div class="interaction-buttons">
-                <button
-                  class="cta-button primary"
-                  id="yes-btn"
-                  aria-label="Continue to next experience"
-                >
-                  <span class="button-text">Im happy to </span>
-                  <span class="button-icon" aria-hidden="true">
-                    <svg
-                      width="20"
-                      height="20"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      xmlns="http://www.w3.org/2000/svg"
-                    >
-                      <path
-                        d="M5 12H19M19 12L12 5M19 12L12 19"
-                        stroke="currentColor"
-                        stroke-width="2"
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                      />
-                    </svg>
-                  </span>
-                </button>
-                <button
-                  class="cta-button primary"
-                  id="maybe-btn"
-                  aria-label="Continue to next experience"
-                >
-                  <span class="button-text">i will think about it</span>
-                  <span class="button-icon" aria-hidden="true">
-                    <svg
-                      width="20"
-                      height="20"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      xmlns="http://www.w3.org/2000/svg"
-                    >
-                      <path
-                        d="M5 12H19M19 12L12 5M19 12L12 19"
-                        stroke="currentColor"
-                        stroke-width="2"
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                      />
-                    </svg>
-                  </span>
-                </button>
-                <button
-                  class="cta-button primary"
-                  id="nope-btn"
-                  aria-label="Continue to next experience"
-                >
-                  <span class="button-text">No But thanks </span>
-                  <span class="button-icon" aria-hidden="true">
-                    <svg
-                      width="20"
-                      height="20"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      xmlns="http://www.w3.org/2000/svg"
-                    >
-                      <path
-                        d="M5 12H19M19 12L12 5M19 12L12 19"
-                        stroke="currentColor"
-                        stroke-width="2"
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                      />
-                    </svg>
-                  </span>
-                </button>
-              </div>
-            </footer>
-          </div>
-        </div>
-      </div>
-    </main>
-
-    <div class="gradient-bg">
-      <svg
-        viewBox="0 0 100vw 100vw"
-        xmlns="http://www.w3.org/2000/svg"
-        class="noiseBg"
-      >
-        <filter id="noiseFilterBg">
-          <feTurbulence
-            type="fractalNoise"
-            baseFrequency="0.6"
-            stitchTiles="stitch"
-          />
-        </filter>
-
-        <rect
-          width="100%"
-          height="100%"
-          preserveAspectRatio="xMidYMid meet"
-          filter="url(#noiseFilterBg)"
-        />
-      </svg>
-      <svg xmlns="http://www.w3.org/2000/svg" class="svgBlur">
-        <defs>
-          <filter id="goo">
-            <feGaussianBlur
-              in="SourceGraphic"
-              stdDeviation="10"
-              result="blur"
-            />
-            <feColorMatrix
-              in="blur"
-              mode="matrix"
-              values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 18 -8"
-              result="goo"
-            />
-            <feBlend in="SourceGraphic" in2="goo" />
-          </filter>
-        </defs>
-      </svg>
-      <div class="gradients-container">
-        <div class="g1"></div>
-        <div class="g2"></div>
-        <div class="g3"></div>
-        <div class="g4"></div>
-        <div class="g5"></div>
-        <div class="interactive"></div>
-      </div>
-    </div>
-    <div class="particles-container" hidden aria-hidden="true">
-      <canvas id="particles-canvas" role="presentation"></canvas>
-    </div>
-
-    <audio id="hover-sound">
-      <source
-        src="/public/Ruth-B_-Dandelions-(TopGhanaMusic.Com).mp3"
-        type="audio/mpeg"
-      />
-    </audio>
-    <script src="/src/js/LuxMea.js" type="module"></script>
-    <script src="/src/main.js"></script>
-
-<script type="module">
-  import logger from '/src/js/utility/logger.js';
-  import { getAuthManager } from "/src/auth-check.js";
-
-  async function initializeProtectedPage() {
-    try {
-      const authManager = await getAuthManager();
-      authManager.updateLoadingText("Lux Mea, Preparing your special experience...");
-      authManager.showLoading();
-
-      const authResult = await authManager.setupAuthProtection();
-
-      if (authResult.authenticated) {
-        // Hide loading with smooth transition
-        authManager.hideLoading(3000); // 1 second fade out
-
-      }else {
-        logger.warn("User is not authenticated. Redirecting to login page.");
-       window.location.href = "/login.html";
-      }
-    } catch (error) {
-      const authManager = await getAuthManager();
-      authManager.hideLoading();
-      logger.error("Authentication failed:", error);
-      window.location.href = "/login.html";
-    }
-  }
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", initializeProtectedPage);
-  } else {
-    initializeProtectedPage();
-  }
-</script>
-  </body>
+</body>
 </html>
