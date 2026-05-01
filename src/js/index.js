@@ -102,10 +102,10 @@ document.addEventListener("visibilitychange", () => {
  */
 class ConfettiSystem {
   /**
-   * 
-   * @param {HTMLDivElement} container 
-   * @param {Object} options 
-   * @returns 
+   *
+   * @param {HTMLDivElement} container
+   * @param {Object} options
+   * @returns
    */
   constructor(container, options = {}) {
       //dont initialise if its a mobile devices
@@ -114,9 +114,9 @@ class ConfettiSystem {
           return;
       }
     confettiLogger.time("ConfettiSystem constructor");
-    
+
     this.container = container;
-    
+
     // Default configuration
     this.config = {
       // Particle settings
@@ -125,37 +125,37 @@ class ConfettiSystem {
       gravity: 0.1,
       wind: 0,
       drag: 0.01,
-      
+
       // Explosion settings
       explosionSpeed: { min: 2, max: 6 },
       rotationSpeed: { min: -0.02, max: 0.02 },
       opacityDecay: 0.005,
-      
+
       // Visual settings
       colors: ["#8E2DE2", "#4A00E0", "#FF6B6B", "#FECA57", "#1DD1A1", "#00B4D8", "#FF9E00"],
       shapes: ["circle", "rect", "triangle", "star", "heart"],
       shapeDistribution: { circle: 0.3, rect: 0.3, triangle: 0.2, star: 0.1, heart: 0.1 },
-      
+
       // Performance settings
       fpsLimit: 60,
       batchSize: 50,
       useRequestAnimationFrame: true,
-      
+
       // Interaction settings
       interactive: true,
       followMouse: false,
       mouseForce: 0.5,
       autoTrigger: false,
       autoTriggerInterval: 5000,
-      
+
       // Debug settings
       showStats: false,
       showParticleCount: false
     };
-    
+
     // Merge user options
     Object.assign(this.config, options);
-    
+
     // Core properties
     this.canvas = null;
     this.ctx = null;
@@ -165,7 +165,7 @@ class ConfettiSystem {
     this.isActive = false;
     this.lastFrameTime = 0;
     this.frameInterval = 1000 / this.config.fpsLimit;
-    
+
     // Performance tracking
     this.performanceStats = {
       fps: 0,
@@ -174,14 +174,14 @@ class ConfettiSystem {
       maxParticlesReached: 0,
       totalParticlesCreated: 0
     };
-    
+
     // Interaction state
     this.mouse = { x: 0, y: 0, isDown: false };
     this.touch = { x: 0, y: 0, isActive: false };
-    
+
     // Auto trigger
     this.autoTriggerTimer = null;
-    
+
     // Bind methods
     this.animate = this.animate.bind(this);
     this.handleResize = this.handleResize.bind(this);
@@ -191,12 +191,12 @@ class ConfettiSystem {
     this.handleTouchStart = this.handleTouchStart.bind(this);
     this.handleTouchMove = this.handleTouchMove.bind(this);
     this.handleTouchEnd = this.handleTouchEnd.bind(this);
-    
+
     // Validate container
     if (!container || !(container instanceof HTMLElement)) {
       throw new Error("ConfettiSystem requires a valid container element");
     }
-    
+
     confettiLogger.debug("ConfettiSystem instance created", {
       container: container.className || container.tagName,
       config: this.config
@@ -214,28 +214,28 @@ class ConfettiSystem {
   init() {
     try {
       confettiLogger.time("Confetti initialization");
-      
+
       this.createCanvas();
       this.setupCanvas();
       this.setupEventListeners();
       this.setupResizeObserver();
-      
+
       this.isActive = true;
-      
+
       // Start auto trigger if enabled
       if (this.config.autoTrigger) {
         this.startAutoTrigger();
       }
-      
+
       // Start animation loop
       this.startAnimation();
-      
+
       confettiLogger.info("Confetti system initialized successfully", {
         maxParticles: this.config.maxParticles,
         interactive: this.config.interactive,
         autoTrigger: this.config.autoTrigger
       });
-      
+
       confettiLogger.timeEnd("Confetti initialization");
     } catch (error) {
       confettiLogger.error("Failed to initialize confetti system", error);
@@ -249,7 +249,7 @@ class ConfettiSystem {
   createCanvas() {
     try {
       confettiLogger.time("Canvas creation");
-      
+
       this.canvas = document.createElement("canvas");
       this.canvas.className = "confetti-canvas";
       this.canvas.id = "confettiCanvas";
@@ -261,7 +261,7 @@ class ConfettiSystem {
 
       // Setup canvas dimensions and styles
       this.updateCanvasSize();
-      
+
       Object.assign(this.canvas.style, {
         position: "absolute",
         top: "0",
@@ -279,13 +279,13 @@ class ConfettiSystem {
 
       // Append to container
       this.container.appendChild(this.canvas);
-      
+
       confettiLogger.debug("Canvas created and configured", {
         width: this.canvas.width,
         height: this.canvas.height,
         dpr: window.devicePixelRatio
       });
-      
+
       confettiLogger.timeEnd("Canvas creation");
     } catch (error) {
       confettiLogger.error("Failed to create canvas", error);
@@ -307,17 +307,17 @@ class ConfettiSystem {
       try{
     // Update canvas size based on container and DPR
     this.updateCanvasSize();
-    
+
     // Get container background color for fade effect
     const containerStyle = window.getComputedStyle(this.container);
     this.containerBackground = containerStyle.backgroundColor || "rgba(255, 255, 255, 1)";
-    
+
     confettiLogger.debug("Canvas setup completed", {
       width: this.canvas.width,
       height: this.canvas.height,
       containerBackground: this.containerBackground
     });
-    
+
     confettiLogger.timeEnd("Canvas setup");
   }catch (error) {
     confettiLogger.error("Failed during canvas setup", error.message);
@@ -333,7 +333,7 @@ class ConfettiSystem {
             this.canvas = document.querySelector("#confettiCanvas");
             this.container = document.querySelector(".Graduation-card");
             this.ctx = this.canvas.getContext("2d", { alpha: true });
-          
+
           }
     const rect = this.container.getBoundingClientRect();
     const dpr = window.devicePixelRatio || 1;
@@ -370,7 +370,7 @@ class ConfettiSystem {
    */
   setupEventListeners() {
     confettiLogger.time("Event listeners setup");
-    
+
     if (this.config.interactive) {
       // Bind interactions on the container instead of the canvas so the canvas
       // doesn't block clicks on interactive elements that live above it.
@@ -388,7 +388,7 @@ class ConfettiSystem {
       this.container.addEventListener("touchmove", this.handleTouchMove, { passive: true });
       this.container.addEventListener("touchend", this.handleTouchEnd, { passive: true });
       this.container.addEventListener("touchcancel", this.handleTouchEnd, { passive: true });
-      
+
       // Click events for name highlight
       const nameHighlight = document.querySelector(".name-highlight");
       if (nameHighlight) {
@@ -406,12 +406,12 @@ class ConfettiSystem {
         });
       }
     }
-    
+
     confettiLogger.debug("Event listeners setup completed", {
       interactive: this.config.interactive,
       followMouse: this.config.followMouse
     });
-    
+
     confettiLogger.timeEnd("Event listeners setup");
   }
 
@@ -445,7 +445,7 @@ class ConfettiSystem {
     const rect = this.canvas.getBoundingClientRect();
     this.mouse.x = e.clientX - rect.left;
     this.mouse.y = e.clientY - rect.top;
-    
+
     // Create particles on mouse move if following
     if (this.config.followMouse && this.mouse.isDown) {
       this.triggerConfetti(5, { x: this.mouse.x, y: this.mouse.y });
@@ -534,12 +534,12 @@ class ConfettiSystem {
    */
   handleTouchMove(e) {
     if (!this.touch.isActive) return;
-    
+
     const touch = e.touches[0];
     const rect = this.canvas.getBoundingClientRect();
     this.touch.x = touch.clientX - rect.left;
     this.touch.y = touch.clientY - rect.top;
-    
+
     // Create particles on touch move if following
     if (this.config.followMouse) {
       this.triggerConfetti(5, { x: this.touch.x, y: this.touch.y });
@@ -560,13 +560,13 @@ class ConfettiSystem {
     if (this.autoTriggerTimer) {
       clearInterval(this.autoTriggerTimer);
     }
-    
+
     this.autoTriggerTimer = setInterval(() => {
       if (this.particleCount < this.config.maxParticles * 0.7) {
         this.triggerRandomExplosion();
       }
     }, this.config.autoTriggerInterval);
-    
+
     confettiLogger.debug("Auto trigger started", {
       interval: this.config.autoTriggerInterval
     });
@@ -590,7 +590,7 @@ class ConfettiSystem {
     if (this.animationId) {
       cancelAnimationFrame(this.animationId);
     }
-    
+
     this.lastFrameTime = performance.now();
     this.animationId = requestAnimationFrame(this.animate);
     confettiLogger.debug("Animation started");
@@ -615,7 +615,7 @@ class ConfettiSystem {
       confettiLogger.debug("Max particles reached, skipping creation");
       return null;
     }
-    
+
     // Determine shape based on distribution
     let shape = options.shape;
     if (!shape) {
@@ -629,7 +629,7 @@ class ConfettiSystem {
         }
       }
     }
-    
+
     const particle = {
       id: this.performanceStats.totalParticlesCreated,
       x: x || Math.random() * this.canvas.width,
@@ -651,12 +651,12 @@ class ConfettiSystem {
       maxTrailLength: 5,
       isSpecial: options.isSpecial || false
     };
-    
+
     this.particles.push(particle);
     this.particleCount++;
     this.performanceStats.totalParticlesCreated++;
     this.performanceStats.maxParticlesReached = Math.max(this.performanceStats.maxParticlesReached, this.particleCount);
-    
+
     return particle;
   }
 
@@ -680,35 +680,35 @@ class ConfettiSystem {
       lastInteraction: this.lastInteraction,
       stack
     });
-    
+
     if (this.particleCount + count > this.config.maxParticles) {
       count = Math.max(0, this.config.maxParticles - this.particleCount);
       confettiLogger.debug("Reducing particle count due to limit", { newCount: count });
     }
-    
-    confettiLogger.debug("Triggering confetti", { 
+
+    confettiLogger.debug("Triggering confetti", {
       particleCount: count,
       origin: origin,
       currentParticles: this.particleCount
     });
-    
+
     const rect = this.container.getBoundingClientRect();
     const baseX = origin ? origin.x : Math.random() * rect.width;
     const baseY = origin ? origin.y : -20;
-    
+
     // Create particles in batches for performance
     const batchSize = Math.min(count, this.config.batchSize);
     const batches = Math.ceil(count / batchSize);
-    
+
     for (let batch = 0; batch < batches; batch++) {
       const batchCount = Math.min(batchSize, count - (batch * batchSize));
-      
+
       // Use setTimeout to spread creation over multiple frames
       setTimeout(() => {
         for (let i = 0; i < batchCount; i++) {
           const angle = (i / batchCount) * Math.PI * 2;
           const distance = Math.random() * 50;
-          
+
           this.createParticle(
             baseX + Math.cos(angle) * distance,
             baseY + Math.sin(angle) * distance,
@@ -722,7 +722,7 @@ class ConfettiSystem {
         }
       }, batch * 16); // ~60fps spacing
     }
-    
+
     // Ensure animation is running
     if (!this.animationId) {
       this.startAnimation();
@@ -736,7 +736,7 @@ class ConfettiSystem {
     const rect = this.container.getBoundingClientRect();
     const x = Math.random() * rect.width;
     const y = Math.random() * rect.height * 0.3; // Top 30% of container
-    
+
     this.triggerConfetti(
       Math.floor(Math.random() * 30) + 20,
       { x, y },
@@ -768,13 +768,13 @@ class ConfettiSystem {
         lifetime: 2000
       }
     };
-    
+
     const effect = effects[effectType];
     if (!effect) {
       confettiLogger.warn("Unknown effect type", { effectType });
       return;
     }
-    
+
     this.triggerConfetti(count, origin, {
       ...effect,
       isSpecial: true
@@ -789,18 +789,18 @@ class ConfettiSystem {
       this.animationId = null;
       return;
     }
-    
+
     // Calculate delta time
     const deltaTime = currentTime - this.lastFrameTime;
-    
+
     // Skip frame if too soon (for FPS limiting)
     if (deltaTime < this.frameInterval) {
       this.animationId = requestAnimationFrame(this.animate);
       return;
     }
-    
+
     this.lastFrameTime = currentTime - (deltaTime % this.frameInterval);
-    
+
     // Update performance stats
     this.updatePerformanceStats(currentTime);
 
@@ -814,15 +814,15 @@ class ConfettiSystem {
           this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
       }
 
-    
+
     // Update and draw particles
     this.updateParticles(deltaTime);
-    
+
     // Draw performance stats if enabled
     if (this.config.showStats) {
       this.drawPerformanceStats();
     }
-    
+
     // Continue animation
     this.animationId = requestAnimationFrame(this.animate);
   }
@@ -832,15 +832,15 @@ class ConfettiSystem {
    */
   updateParticles(deltaTime) {
     const delta = deltaTime / 16; // Normalize to ~60fps
-    
+
     let particlesRemoved = 0;
-    
+
     for (let i = this.particles.length - 1; i >= 0; i--) {
       const p = this.particles[i];
-      
+
       // Calculate age
       const age = performance.now() - p.createdAt;
-      
+
       // Remove old particles
       if (age > p.lifetime || p.opacity <= 0) {
         this.particles.splice(i, 1);
@@ -848,7 +848,7 @@ class ConfettiSystem {
         particlesRemoved++;
         continue;
       }
-      
+
       // Update trail (for special effects)
       if (p.isSpecial && p.trail) {
         p.trail.push({ x: p.x, y: p.y });
@@ -856,48 +856,48 @@ class ConfettiSystem {
           p.trail.shift();
         }
       }
-      
+
       // Update physics
       p.speedY += p.gravity * delta;
       p.speedX += (p.wind - p.speedX * p.drag) * delta;
       p.speedY -= p.speedY * p.drag * delta;
-      
+
       p.x += p.speedX * delta;
       p.y += p.speedY * delta;
       p.angle += p.rotationSpeed * delta;
-      
+
       // Apply mouse force if following
       if (this.config.followMouse && (this.mouse.isDown || this.touch.isActive)) {
         const target = this.mouse.isDown ? this.mouse : this.touch;
         const dx = target.x - p.x;
         const dy = target.y - p.y;
         const distance = Math.sqrt(dx * dx + dy * dy);
-        
+
         if (distance < 100) {
           const force = this.config.mouseForce * (1 - distance / 100);
           p.speedX += (dx / distance) * force * delta;
           p.speedY += (dy / distance) * force * delta;
         }
       }
-      
+
       // Opacity decay based on lifetime
       p.opacity = Math.max(0, 1 - (age / p.lifetime));
-      
+
       // Boundary checking with bounce
       if (p.x < 0 || p.x > this.canvas.width) {
         p.speedX *= -0.8; // Bounce with energy loss
         p.x = Math.max(0, Math.min(this.canvas.width, p.x));
       }
-      
+
       if (p.y > this.canvas.height) {
         p.speedY *= -0.6; // Bounce with more energy loss
         p.y = this.canvas.height;
       }
-      
+
       // Draw particle
       this.drawParticle(p);
     }
-    
+
     // Clean up if no particles
     if (this.particleCount === 0) {
       this.stopAnimation();
@@ -913,44 +913,44 @@ class ConfettiSystem {
     this.ctx.translate(p.x, p.y);
     this.ctx.rotate(p.angle);
     this.ctx.globalAlpha = p.opacity;
-    
+
     // Draw trail for special particles
     if (p.isSpecial && p.trail.length > 1) {
       this.ctx.beginPath();
       this.ctx.moveTo(0, 0);
-      
+
       for (let j = p.trail.length - 1; j >= 0; j--) {
         const point = p.trail[j];
         const trailX = point.x - p.x;
         const trailY = point.y - p.y;
-        
+
         // Rotate trail point to match particle rotation
         const rotatedX = trailX * Math.cos(-p.angle) - trailY * Math.sin(-p.angle);
         const rotatedY = trailX * Math.sin(-p.angle) + trailY * Math.cos(-p.angle);
-        
+
         this.ctx.lineTo(rotatedX, rotatedY);
       }
-      
+
       this.ctx.strokeStyle = p.color;
       this.ctx.lineWidth = p.size / 4;
       this.ctx.lineCap = "round";
       this.ctx.stroke();
     }
-    
+
     // Draw particle shape
     this.ctx.fillStyle = p.color;
-    
+
     switch (p.shape) {
       case "circle":
         this.ctx.beginPath();
         this.ctx.arc(0, 0, p.size / 2, 0, Math.PI * 2);
         this.ctx.fill();
         break;
-        
+
       case "rect":
         this.ctx.fillRect(-p.size / 2, -p.size / 2, p.size, p.size);
         break;
-        
+
       case "triangle":
         this.ctx.beginPath();
         this.ctx.moveTo(0, -p.size / 2);
@@ -959,30 +959,30 @@ class ConfettiSystem {
         this.ctx.closePath();
         this.ctx.fill();
         break;
-        
+
       case "star":
         this.drawStar(0, 0, 5, p.size / 2, p.size / 4);
         break;
-        
+
       case "heart":
         this.drawHeart(0, 0, p.size);
         break;
     }
-    
+
     // Add highlight for 3D effect
     if (p.shape === "circle" || p.shape === "rect") {
       this.ctx.fillStyle = "rgba(255, 255, 255, 0.3)";
       this.ctx.beginPath();
-      
+
       if (p.shape === "circle") {
         this.ctx.arc(-p.size / 4, -p.size / 4, p.size / 4, 0, Math.PI * 2);
       } else {
         this.ctx.fillRect(-p.size / 2 + 2, -p.size / 2 + 2, p.size / 2, p.size / 2);
       }
-      
+
       this.ctx.fill();
     }
-    
+
     this.ctx.restore();
   }
 
@@ -994,22 +994,22 @@ class ConfettiSystem {
     let x = cx;
     let y = cy;
     const step = Math.PI / spikes;
-    
+
     this.ctx.beginPath();
     this.ctx.moveTo(cx, cy - outerRadius);
-    
+
     for (let i = 0; i < spikes; i++) {
       x = cx + Math.cos(rot) * outerRadius;
       y = cy + Math.sin(rot) * outerRadius;
       this.ctx.lineTo(x, y);
       rot += step;
-      
+
       x = cx + Math.cos(rot) * innerRadius;
       y = cy + Math.sin(rot) * innerRadius;
       this.ctx.lineTo(x, y);
       rot += step;
     }
-    
+
     this.ctx.lineTo(cx, cy - outerRadius);
     this.ctx.closePath();
     this.ctx.fill();
@@ -1021,38 +1021,38 @@ class ConfettiSystem {
   drawHeart(x, y, size) {
     const height = size * 0.8;
     const width = size * 0.9;
-    
+
     this.ctx.beginPath();
     this.ctx.moveTo(x, y + height / 4);
-    
+
     // Top left curve
     this.ctx.bezierCurveTo(
       x, y,
       x - width / 2, y,
       x - width / 2, y + height / 4
     );
-    
+
     // Bottom left curve
     this.ctx.bezierCurveTo(
       x - width / 2, y + height / 2,
       x, y + height * 0.75,
       x, y + height
     );
-    
+
     // Bottom right curve
     this.ctx.bezierCurveTo(
       x, y + height * 0.75,
       x + width / 2, y + height / 2,
       x + width / 2, y + height / 4
     );
-    
+
     // Top right curve
     this.ctx.bezierCurveTo(
       x + width / 2, y,
       x, y,
       x, y + height / 4
     );
-    
+
     this.ctx.closePath();
     this.ctx.fill();
   }
@@ -1062,7 +1062,7 @@ class ConfettiSystem {
    */
   updatePerformanceStats(currentTime) {
     this.performanceStats.frameCount++;
-    
+
     // Update FPS every second
     if (currentTime - this.performanceStats.lastFpsUpdate >= 1000) {
       this.performanceStats.fps = Math.round(
@@ -1111,7 +1111,7 @@ class ConfettiSystem {
       maxParticlesReached: 0,
       totalParticlesCreated: 0
     };
-    
+
     confettiLogger.debug("System reset");
   }
 
@@ -1120,7 +1120,7 @@ class ConfettiSystem {
    */
   updateConfig(newConfig) {
     Object.assign(this.config, newConfig);
-    
+
     // Restart auto trigger if changed
     if (newConfig.autoTrigger !== undefined) {
       if (newConfig.autoTrigger) {
@@ -1129,7 +1129,7 @@ class ConfettiSystem {
         this.stopAutoTrigger();
       }
     }
-    
+
     confettiLogger.debug("Configuration updated", { newConfig });
   }
 
@@ -1166,11 +1166,11 @@ class ConfettiSystem {
    */
   destroy() {
     confettiLogger.time("Confetti system cleanup");
-    
+
     this.isActive = false;
     this.stopAutoTrigger();
     this.stopAnimation();
-    
+
     // Remove event listeners
     if (this.canvas) {
       this.canvas.removeEventListener("mousemove", this.handleMouseMove);
@@ -1182,28 +1182,28 @@ class ConfettiSystem {
       this.canvas.removeEventListener("touchend", this.handleTouchEnd);
       this.canvas.removeEventListener("touchcancel", this.handleTouchEnd);
     }
-    
+
     // Remove resize observer
     if (this.resizeObserver) {
       this.resizeObserver.disconnect();
     } else {
       window.removeEventListener("resize", this.debounce(this.handleResize, 200));
     }
-    
+
     // Remove canvas from DOM
     if (this.canvas && this.canvas.parentNode) {
       this.canvas.parentNode.removeChild(this.canvas);
     }
-    
+
     // Clear arrays
     this.particles = [];
     this.particleCount = 0;
-    
+
     confettiLogger.info("Confetti system destroyed", {
       totalParticlesCreated: this.performanceStats.totalParticlesCreated,
       maxParticlesReached: this.performanceStats.maxParticlesReached
     });
-    
+
     confettiLogger.timeEnd("Confetti system cleanup");
   }
 }
@@ -1364,23 +1364,23 @@ class ImageLoader {
      */
     filterUndefinedMedia() {
         if (!this.mediaData?.media) return;
-        
+
         const originalCount = this.mediaData.media.length;
         this.mediaData.media = this.mediaData.media.filter(item => {
             // Keep only images with valid src
             const hasValidSrc = item.src && item.src !== 'undefined' && !item.src.includes('undefined');
             const isImage = !item.type || item.type === 'image' || item.type.includes('image');
-            
+
             if (!hasValidSrc) {
                 imageLogger.debug("Filtered out invalid media", {
                     src: item.src,
                     type: item.type
                 });
             }
-            
+
             return hasValidSrc && isImage;
         });
-        
+
         imageLogger.debug("Media filtered", {
             originalCount,
             filteredCount: this.mediaData.media.length,
@@ -1393,7 +1393,7 @@ class ImageLoader {
      */
 async initializeSwiper() {
     imageLogger.time("Initialize Swiper");
-    
+
     try {
         if (typeof Swiper === 'undefined') {
             throw new Error('Swiper.js library not loaded');
@@ -1407,72 +1407,72 @@ async initializeSwiper() {
 
         // Get pagination container
         const paginationContainer = this.image.querySelector('.swiper-pagination');
-        
+
         // Create event handlers first
         const eventHandlers = {
             init: (swiperInstance) => {
                 // Store the swiper instance
                 this.swiper = swiperInstance;
                 this.currentIndex = swiperInstance.realIndex;
-                
+
                 imageLogger.debug("Swiper initialized via init event", {
                     realIndex: swiperInstance.realIndex,
                     activeIndex: swiperInstance.activeIndex,
                     slides: swiperInstance.slides.length
                 });
-                
+
                 this.showSwiperContainer();
                 this.updateImageCounter();
                 this.updateThumbnailNav();
-                
+
                 // Manually load first few images
                 this.preloadAdjacentImages();
             },
-            
+
             slideChange: (swiperInstance) => {
                 const oldIndex = this.currentIndex;
                 this.currentIndex = swiperInstance.realIndex;
-                
+
                 imageLogger.debug("Slide changed via slideChange event", {
                     fromIndex: oldIndex,
                     toIndex: this.currentIndex,
                     realIndex: swiperInstance.realIndex
                 });
-                
+
                 this.updateImageCounter();
                 this.updateThumbnailNav();
-                
+
                 if (this.navigationController) {
                     this.navigationController.currentIndex = this.currentIndex;
                     this.navigationController.updateUI();
                 }
             },
-            
+
             slideChangeTransitionStart: () => {
                 imageLogger.debug("Slide transition started");
             },
-            
+
             slideChangeTransitionEnd: () => {
                 imageLogger.debug("Slide transition ended");
                 // Preload next images after transition
                 this.preloadAdjacentImages();
             },
-            
+
             autoplayStart: () => {
                 imageLogger.debug("Autoplay started");
                 this.updatePlaybackButtons();
             },
-            
+
             autoplayStop: () => {
                 imageLogger.debug("Autoplay stopped");
                 this.updatePlaybackButtons();
             },
-            
+
             imagesReady: () => {
                 imageLogger.debug("All images ready");
                 this.hideMediaLoading();
             },
-            
+
             lazyImageReady: (swiper, slideEl, imageEl) => {
                 const index = Array.from(swiper.slides).indexOf(slideEl);
                 imageLogger.debug("Lazy image ready", { index });
@@ -1489,7 +1489,7 @@ async initializeSwiper() {
             loop: true,
             centeredSlides: false,
             grabCursor: true,
-            
+
             // Autoplay
             autoplay: this.config.automaticRotate ? {
                 delay: this.config.rotationDelay,
@@ -1498,21 +1498,21 @@ async initializeSwiper() {
                 stopOnLastSlide: false,
                 waitForTransition: true
             } : false,
-            
+
             // Speed and effects
             speed: this.config.transitionDuration,
             effect: 'fade',
-            fadeEffect: { 
-                crossFade: true 
+            fadeEffect: {
+                crossFade: true
             },
-            
+
             // Navigation
             navigation: this.htmlElements.prevBtn && this.htmlElements.nextBtn ? {
                 nextEl: this.htmlElements.nextBtn,
                 prevEl: this.htmlElements.prevBtn,
                 disabledClass: 'disabled'
             } : false,
-            
+
             // Pagination
             pagination: paginationContainer ? {
                 el: paginationContainer,
@@ -1522,18 +1522,18 @@ async initializeSwiper() {
                     return `<span class="${className}" aria-label="Go to slide ${index + 1}"></span>`;
                 }
             } : false,
-            
+
             // Lazy loading - DISABLED for now to fix opacity issue
             lazy: false,
-            
+
             // Preload images
             preloadImages: true,
             updateOnImagesReady: true,
-            
+
             // Watch slides visibility
             watchSlidesProgress: true,
             watchSlidesVisibility: true,
-            
+
             // Accessibility
             a11y: {
                 enabled: true,
@@ -1543,19 +1543,19 @@ async initializeSwiper() {
                 lastSlideMessage: 'This is the last slide',
                 paginationBulletMessage: 'Go to slide {{index}}'
             },
-            
+
             // Keyboard
             keyboard: {
                 enabled: true,
                 onlyInViewport: true
             },
-            
+
             // Mousewheel
             mousewheel: {
                 forceToAxis: true,
                 sensitivity: 0.5
             },
-            
+
             // Breakpoints
             breakpoints: {
                 320: {
@@ -1568,34 +1568,34 @@ async initializeSwiper() {
                     slidesPerView: 1
                 }
             },
-            
+
             // Event handlers - use the pre-defined handlers
             on: eventHandlers
         };
-        
+
         // Initialize Swiper
         this.swiper = new Swiper(this.image, swiperConfig);
-        
+
         // Show pagination
         if (paginationContainer) {
             paginationContainer.classList.remove('d-none');
         }
-        
+
         // Show the swiper container
         this.image.classList.remove('d-none');
-        
+
         // If swiper wasn't set via init event (shouldn't happen), set it now
         if (!this.swiper) {
             this.swiper = this.image.swiper;
         }
-        
+
         imageLogger.info("Swiper initialized", {
             totalSlides: this.mediaData.media.length,
             hasNavigation: !!this.htmlElements.prevBtn && !!this.htmlElements.nextBtn,
             hasPagination: !!paginationContainer,
             swiperInstance: !!this.swiper
         });
-        
+
     } catch (error) {
         imageLogger.error("Failed to initialize Swiper", error);
         throw error;
@@ -1608,16 +1608,16 @@ async initializeSwiper() {
      */
     async prepareSlides() {
         imageLogger.time("Prepare slides");
-        
+
         try {
             const wrapper = this.image.querySelector('.swiper-wrapper');
             if (!wrapper) {
                 throw new Error('Swiper wrapper not found');
             }
-            
+
             // Clear existing slides
             wrapper.innerHTML = '';
-            
+
             // Create slides
             this.mediaData.media.forEach((mediaItem, index) => {
                 const slide = document.createElement('div');
@@ -1625,13 +1625,13 @@ async initializeSwiper() {
                 slide.setAttribute('role', 'group');
                 slide.setAttribute('aria-label', `${index + 1} / ${this.mediaData.media.length}`);
                 slide.setAttribute('data-swiper-slide-index', index);
-                
+
                 // Create image - load immediately instead of lazy loading
                 const img = document.createElement('img');
                 img.alt = mediaItem.alt || `Graduation image ${index + 1}`;
                 img.loading = 'eager'; // Change to eager loading
                 img.decoding = 'async';
-                
+
                 // Set styles
                 img.style.cssText = `
                     width: 100%;
@@ -1641,25 +1641,25 @@ async initializeSwiper() {
                     opacity: 0;
                     transition: opacity 0.3s ease;
                 `;
-                
+
                 // Store the src for later
                 img.dataset.srcToLoad = mediaItem.src;
-                
+
                 // Add load event
                 img.addEventListener('load', () => this.handleImageLoad(img, index));
                 img.addEventListener('error', () => this.handleImageError(img, mediaItem, index));
-                
+
                 slide.appendChild(img);
                 wrapper.appendChild(slide);
-                
+
                 imageLogger.debug("Slide created", { index, src: mediaItem.src });
             });
-            
+
             // Load first few images immediately
             setTimeout(() => {
                 this.loadInitialImages();
             }, 100);
-            
+
         } catch (error) {
             imageLogger.error("Failed to prepare slides", error);
             throw error;
@@ -1673,10 +1673,10 @@ async initializeSwiper() {
      */
     loadInitialImages() {
         if (!this.swiper) return;
-        
+
         const slides = this.swiper.slides;
         const loadCount = Math.min(3, slides.length);
-        
+
         for (let i = 0; i < loadCount; i++) {
             const slide = slides[i];
             const img = slide.querySelector('img');
@@ -1693,16 +1693,16 @@ async initializeSwiper() {
      */
     preloadAdjacentImages() {
         if (!this.swiper) return;
-        
+
         const currentIndex = this.swiper.realIndex;
         const slides = this.swiper.slides;
         const preloadCount = this.config.preloadCount;
-        
+
         // Preload next few slides
         for (let i = 1; i <= preloadCount; i++) {
             const nextIndex = (currentIndex + i) % slides.length;
             const prevIndex = (currentIndex - i + slides.length) % slides.length;
-            
+
             // Preload next slide
             const nextSlide = slides[nextIndex];
             if (nextSlide) {
@@ -1712,7 +1712,7 @@ async initializeSwiper() {
                     this.loadedImages.add(nextImg.dataset.srcToLoad);
                 }
             }
-            
+
             // Preload previous slide
             const prevSlide = slides[prevIndex];
             if (prevSlide) {
@@ -1729,15 +1729,15 @@ async initializeSwiper() {
      * Handle image load
      */
     handleImageLoad(img, index) {
-        imageLogger.debug("Image loaded successfully", { 
-            index, 
+        imageLogger.debug("Image loaded successfully", {
+            index,
             src: img.src,
             naturalSize: `${img.naturalWidth}x${img.naturalHeight}`
         });
-        
+
         // Fade in the image
         img.style.opacity = '1';
-        
+
         // Check if all initial images are loaded
         if (this.loadedImages.size >= Math.min(3, this.mediaData.media.length)) {
             this.hideMediaLoading();
@@ -1749,7 +1749,7 @@ async initializeSwiper() {
      */
     handleImageError(img, mediaItem, index) {
         imageLogger.error("Failed to load image", { index, src: mediaItem.src });
-        
+
         // Try fallback
         const fallbackMedia = this.getFallbackMedia();
         if (fallbackMedia.length > 0) {
@@ -1797,14 +1797,14 @@ async initializeSwiper() {
      */
     showSwiperContainer() {
         if (!this.image) return;
-        
+
         this.image.style.opacity = '0';
         this.image.style.transition = 'opacity 0.5s ease-in-out';
-        
+
         this.image.offsetHeight; // Trigger reflow
-        
+
         this.image.style.opacity = '1';
-        
+
         setTimeout(() => {
             this.image.style.transition = '';
         }, 500);
@@ -1815,18 +1815,18 @@ async initializeSwiper() {
      */
     setupPlaybackControls() {
         const { pauseBtn, resumeBtn } = this.htmlElements;
-        
+
         if (pauseBtn && resumeBtn) {
             pauseBtn.addEventListener('click', () => {
                 this.pauseRotation();
                 this.updatePlaybackButtons();
             });
-            
+
             resumeBtn.addEventListener('click', () => {
                 this.resumeRotation();
                 this.updatePlaybackButtons();
             });
-            
+
             this.updatePlaybackButtons();
         }
     }
@@ -1837,7 +1837,7 @@ async initializeSwiper() {
     updatePlaybackButtons() {
         const { pauseBtn, resumeBtn } = this.htmlElements;
         const isPlaying = this.swiper?.autoplay?.running || false;
-        
+
         if (pauseBtn && resumeBtn) {
             if (isPlaying) {
                 pauseBtn.classList.remove('d-none');
@@ -1855,14 +1855,14 @@ async initializeSwiper() {
     updateImageCounter() {
         const { imageCounter } = this.htmlElements;
         if (!imageCounter) return;
-        
+
         const currentSpan = imageCounter.querySelector('.current');
         const totalSpan = imageCounter.querySelector('.total');
-        
+
         if (currentSpan) {
             currentSpan.textContent = (this.currentIndex + 1).toString();
         }
-        
+
         if (totalSpan) {
             totalSpan.textContent = this.mediaData?.media?.length?.toString() || '0';
         }
@@ -1874,10 +1874,10 @@ async initializeSwiper() {
     updateThumbnailNav() {
         const { thumbnailNav } = this.htmlElements;
         if (!thumbnailNav || !this.mediaData?.media) return;
-        
+
         thumbnailNav.classList.remove('d-none');
         thumbnailNav.innerHTML = '';
-        
+
         this.mediaData.media.forEach((_, index) => {
             const dot = document.createElement('button');
             dot.className = `thumbnail-dot ${index === this.currentIndex ? 'active' : ''}`;
@@ -1885,11 +1885,11 @@ async initializeSwiper() {
             dot.setAttribute('aria-selected', index === this.currentIndex ? 'true' : 'false');
             dot.setAttribute('aria-label', `Go to image ${index + 1}`);
             dot.setAttribute('data-index', index);
-            
+
             dot.addEventListener('click', () => {
                 this.jumpToImage(index);
             });
-            
+
             thumbnailNav.appendChild(dot);
         });
     }
@@ -1899,18 +1899,18 @@ async initializeSwiper() {
      */
     onSlideChange() {
         if (!this.swiper) return;
-        
+
         const oldIndex = this.currentIndex;
         this.currentIndex = this.swiper.realIndex;
-        
+
         imageLogger.debug("Slide changed", {
             fromIndex: oldIndex,
             toIndex: this.currentIndex
         });
-        
+
         this.updateImageCounter();
         this.updateThumbnailNav();
-        
+
         if (this.navigationController) {
             this.navigationController.currentIndex = this.currentIndex;
             this.navigationController.updateUI();
@@ -1986,16 +1986,16 @@ async initializeSwiper() {
         }
 
         this.config.rotationDelay = speed;
-        
+
         if (this.swiper?.autoplay) {
             const wasRunning = this.swiper.autoplay.running;
-            
+
             if (wasRunning) {
                 this.swiper.autoplay.stop();
             }
-            
+
             this.swiper.params.autoplay.delay = speed;
-            
+
             if (wasRunning) {
                 this.swiper.autoplay.start();
             }
@@ -2006,7 +2006,7 @@ async initializeSwiper() {
 
     updateConfig(newConfig) {
         this.config = { ...this.config, ...newConfig };
-        
+
         if (newConfig.automaticRotate !== undefined && this.swiper) {
             if (newConfig.automaticRotate) {
                 this.startRotation();
@@ -2014,7 +2014,7 @@ async initializeSwiper() {
                 this.stopRotation();
             }
         }
-        
+
         if (newConfig.rotationDelay && this.swiper) {
             this.setRotationSpeed(newConfig.rotationDelay);
         }
@@ -2069,21 +2069,25 @@ async initializeSwiper() {
     }
 
     handleNetworkChange() {
-        // Handle network changes
+        if (navigator.onLine) {
+            imageLogger.info("Network status: Online");
+          } else {
+            imageLogger.warn("Network status: Offline");
+        }
     }
 
     destroy() {
         imageLogger.time("ImageLoader cleanup");
-        
+
         if (this.swiper?.destroy) {
             this.swiper.destroy(true, true);
         }
-        
+
         // Remove event listeners
         document.removeEventListener('visibilitychange', this.handleVisibilityChange);
         window.removeEventListener('online', this.handleNetworkChange);
         window.removeEventListener('offline', this.handleNetworkChange);
-        
+
         imageLogger.info("ImageLoader destroyed");
         imageLogger.timeEnd("ImageLoader cleanup");
     }
@@ -2113,7 +2117,7 @@ class ImageNavigationController {
     this.hideTimeout = null;
     this.hideDelay = 3000; // 3 seconds
     this.container = imageLoader.image.parentElement;
-    
+
     // DOM Elements - Use existing HTML elements
       this.elements = {
           controls: null,
@@ -2125,7 +2129,7 @@ class ImageNavigationController {
           thumbnailNav: null,
           keyboardHints: null
       };
-    
+
     // Bind methods
       this.handlePrevClick = this.handlePrevClick.bind(this);
       this.handleNextClick = this.handleNextClick.bind(this);
@@ -2140,32 +2144,32 @@ class ImageNavigationController {
     // Initialize
     this.init();
   }
-  
+
   /**
    * Initialize the navigation controller for Swiper
    */
   init() {
     imageLogger.time("ImageNavigationController initialization (Swiper)");
-    
+
     try {
       this.cacheElements();
       this.setupEventListeners();
       this.setupKeyboardShortcuts();
       this.isInitialized = true;
-      
+
       // Initial update
       this.updateTotalImages();
       this.updateUI();
-      
+
       // Show keyboard hints briefly
       this.showKeyboardHints();
-      
+
       // Listen to Swiper events
       this.setupSwiperEventListeners();
         // Show controls initially for a moment
         this.showControls();
         this.startHideTimer();
-      
+
       imageLogger.info("ImageNavigationController initialized successfully for Swiper");
       imageLogger.timeEnd("ImageNavigationController initialization (Swiper)");
     } catch (error) {
@@ -2176,7 +2180,7 @@ class ImageNavigationController {
 
     }
   }
-  
+
   /**
    * Cache DOM elements that already exist in HTML
    */
@@ -2191,38 +2195,38 @@ class ImageNavigationController {
       thumbnailNav: this.container.querySelector('.thumbnail-nav'),
       keyboardHints: document.querySelector('.keyboard-hints'),
     };
-    
+
     imageLogger.debug("Navigation elements cached for Swiper", {
       elementsFound: Object.keys(this.elements).filter(key => !!this.elements[key]).length,
       totalElements: Object.keys(this.elements).length
     });
   }
-  
+
   /**
    * Setup event listeners for Swiper navigation
    */
   setupEventListeners() {
     imageLogger.time("Navigation event listeners setup (Swiper)");
-    
+
     // Navigation buttons - use Swiper's built-in navigation
     if (this.elements.navPrev) {
       this.elements.navPrev.addEventListener('click', this.handlePrevClick);
     }
-    
+
     if (this.elements.navNext) {
       this.elements.navNext.addEventListener('click', this.handleNextClick);
     }
-    
+
       // Playback button
       if (this.elements.playButton) {
           this.elements.playButton.addEventListener('click', this.handlePlaybackClick);
       }
-    
+
     // Thumbnail navigation
     if (this.elements.thumbnailNav) {
       this.elements.thumbnailNav.addEventListener('click', this.handleThumbnailClick);
     }
-    
+
     // Mouse events for showing/hiding controls
     if (this.container || this.elements.controls) {
 // Show controls on mouse enter/touch
@@ -2246,32 +2250,32 @@ class ImageNavigationController {
           this.elements.controls.addEventListener('mouseenter', this.handleControlsMouseEnter);
           this.elements.controls.addEventListener('mouseleave', this.handleControlsMouseLeave);
       }
-    
+
     imageLogger.timeEnd("Navigation event listeners setup (Swiper)");
   }
-  
+
   /**
    * Setup Swiper event listeners
    */
   setupSwiperEventListeners() {
     if (!this.imageLoader || !this.imageLoader.image) return;
-    
+
     // Listen to Swiper custom events
     this.imageLoader.image.addEventListener('swiper:slideChange', (e) => {
       this.currentIndex = e.detail.index;
       this.updateUI();
     });
-    
+
     this.imageLoader.image.addEventListener('swiper:autoplayStart', () => {
       this.isPlaying = true;
       this.updatePlaybackButtons();
     });
-    
+
     this.imageLoader.image.addEventListener('swiper:autoplayStop', () => {
       this.isPlaying = false;
       this.updatePlaybackButtons();
     });
-    
+
     // Also listen to document events
     document.addEventListener('swiper:slideChange', (e) => {
       if (e.detail.swiper === this.imageLoader.swiper) {
@@ -2279,10 +2283,10 @@ class ImageNavigationController {
         this.updateUI();
       }
     });
-    
+
     imageLogger.debug("Swiper event listeners setup");
   }
-  
+
   /**
    * Setup keyboard shortcuts
    */
@@ -2318,94 +2322,94 @@ class ImageNavigationController {
         this.isMouseOverControls = false;
         this.startHideTimer();
     }
-  
+
   /**
    * Handle previous button click
    */
   async handlePrevClick() {
     imageLogger.debug("Previous button clicked");
     this.animateButton(this.elements.navPrev);
-    
+
     // Navigate to previous image using Swiper
     await this.previousImage();
-    
+
     // Update UI
     this.updateUI();
       this.showControls();
       this.resetHideTimer();
   }
-  
+
   /**
    * Handle next button click
    */
   async handleNextClick() {
     imageLogger.debug("Next button clicked");
     this.animateButton(this.elements.navNext);
-    
+
     // Navigate to next image using Swiper
     await this.nextImage();
-    
+
     // Update UI
     this.updateUI();
 
     this.showControls();
       this.resetHideTimer();
   }
-  
+
   /**
    * Handle playback button click
    */
   handlePlaybackClick() {
     imageLogger.debug("Playback button clicked");
-    
+
     // Toggle play/pause using Swiper
     if (this.isPlaying) {
       this.pauseRotation();
     } else {
       this.resumeRotation();
     }
-    
+
     // Update UI
     this.updateUI();
       this.showControls();
       this.resetHideTimer();
   }
-  
+
   /**
    * Handle thumbnail click
    */
   async handleThumbnailClick(event) {
     const thumbnail = event.target.closest('.thumbnail-dot');
     if (!thumbnail) return;
-    
+
     const index = Array.from(this.elements.thumbnailNav.children).indexOf(thumbnail);
     if (index >= 0 && index !== this.currentIndex) {
       imageLogger.debug("Thumbnail clicked", { index });
       this.animateButton(thumbnail);
-      
+
       // Jump to selected image using Swiper
       await this.jumpToImage(index);
-      
+
       // Update UI
       this.updateUI();
         this.showControls();
         this.resetHideTimer();
     }
   }
-  
+
   /**
    * Handle keyboard navigation
    */
   handleKeyDown(event) {
     if (!this.keyboardShortcutsEnabled) return;
-    
+
     // Don't trigger if user is typing in an input
-    if (event.target.tagName === 'INPUT' || 
-        event.target.tagName === 'TEXTAREA' || 
+    if (event.target.tagName === 'INPUT' ||
+        event.target.tagName === 'TEXTAREA' ||
         event.target.isContentEditable) {
       return;
     }
-    
+
     switch (event.key) {
       case 'ArrowLeft':
       case 'Left':
@@ -2413,14 +2417,14 @@ class ImageNavigationController {
         imageLogger.debug("Left arrow key pressed");
         this.handlePrevClick();
         break;
-        
+
       case 'ArrowRight':
       case 'Right':
         event.preventDefault();
         imageLogger.debug("Right arrow key pressed");
         this.handleNextClick();
         break;
-        
+
       case ' ':
       case 'Spacebar':
         if (event.target === document.body || event.target === this.imageLoader.image) {
@@ -2429,13 +2433,13 @@ class ImageNavigationController {
           this.handlePlaybackClick();
         }
         break;
-        
+
       case 'Escape':
         this.hideKeyboardHints();
         break;
     }
   }
-  
+
   /**
    * Navigate to previous image using Swiper
    */
@@ -2444,7 +2448,7 @@ class ImageNavigationController {
       imageLogger.warn("No media available for navigation");
       return;
     }
-    
+
     // Use Swiper's slidePrev method
     if (this.imageLoader.swiper) {
       this.imageLoader.swiper.slidePrev();
@@ -2453,7 +2457,7 @@ class ImageNavigationController {
       await this.imageLoader.previousImage();
     }
   }
-  
+
   /**
    * Navigate to next image using Swiper
    */
@@ -2462,7 +2466,7 @@ class ImageNavigationController {
       imageLogger.warn("No media available for navigation");
       return;
     }
-    
+
     // Use Swiper's slideNext method
     if (this.imageLoader.swiper) {
       this.imageLoader.swiper.slideNext();
@@ -2471,7 +2475,7 @@ class ImageNavigationController {
       await this.imageLoader.nextImage();
     }
   }
-  
+
   /**
    * Jump to specific image using Swiper
    */
@@ -2480,7 +2484,7 @@ class ImageNavigationController {
       imageLogger.warn("No media available for navigation");
       return;
     }
-    
+
     if (index >= 0 && index < this.imageLoader.mediaData.media.length) {
       // Use Swiper's slideToLoop method
       if (this.imageLoader.swiper) {
@@ -2491,43 +2495,43 @@ class ImageNavigationController {
       }
     }
   }
-  
+
   /**
    * Pause image rotation using Swiper
    */
   pauseRotation() {
     if (!this.isPlaying) return;
-    
+
     imageLogger.debug("Pausing image rotation via Swiper");
     this.isPlaying = false;
-    
+
     // Use ImageLoader's pauseRotation method
     if (this.imageLoader.pauseRotation) {
       this.imageLoader.pauseRotation();
     }
-    
+
     // Update button state
     this.updatePlaybackButtons();
   }
-  
+
   /**
    * Resume image rotation using Swiper
    */
   resumeRotation() {
     if (this.isPlaying) return;
-    
+
     imageLogger.debug("Resuming image rotation via Swiper");
     this.isPlaying = true;
-    
+
     // Use ImageLoader's resumeRotation method
     if (this.imageLoader.resumeRotation) {
       this.imageLoader.resumeRotation();
     }
-    
+
     // Update button state
     this.updatePlaybackButtons();
   }
-  
+
   /**
    * Toggle play/pause state
    */
@@ -2539,7 +2543,7 @@ class ImageNavigationController {
     }
     this.updateUI();
   }
-  
+
   /**
    * Update all UI elements
    */
@@ -2550,7 +2554,7 @@ class ImageNavigationController {
     this.updateThumbnailNav();
     this.updateNavigationButtons();
   }
-  
+
   /**
    * Update total images count
    */
@@ -2559,36 +2563,36 @@ class ImageNavigationController {
       this.totalImages = this.imageLoader.mediaData.media.length;
     }
   }
-  
+
   /**
    * Update image counter
    */
   updateImageCounter() {
     if (!this.elements.imageCounter) return;
-    
+
     const currentSpan = this.elements.imageCounter.querySelector('.current');
     const totalSpan = this.elements.imageCounter.querySelector('.total');
-    
+
     if (currentSpan) {
       currentSpan.textContent = (this.currentIndex + 1).toString();
     }
-    
+
     if (totalSpan) {
       totalSpan.textContent = this.totalImages.toString();
     }
-    
+
     // Update aria label
     this.elements.imageCounter.setAttribute(
       'aria-label',
       `Image ${this.currentIndex + 1} of ${this.totalImages}`
     );
-    
+
     imageLogger.debug("Image counter updated", {
       current: this.currentIndex + 1,
       total: this.totalImages
     });
   }
-  
+
   /**
    * Update playback button state for Swiper
    */
@@ -2605,19 +2609,19 @@ class ImageNavigationController {
           this.elements.playButton.classList.toggle('paused', !this.isPlaying);
       }
   }
-  
+
   /**
    * Update thumbnail navigation for Swiper
    */
   updateThumbnailNav() {
     if (!this.elements.thumbnailNav) return;
-    
+
     const media = this.imageLoader?.mediaData?.media;
     if (!media || !Array.isArray(media)) return;
-    
+
     // Check if thumbnails already exist (created by ImageLoader)
     const existingThumbnails = this.elements.thumbnailNav.querySelectorAll('.thumbnail-dot');
-    
+
     if (existingThumbnails.length === 0) {
       // Create thumbnails if they don't exist
       media.forEach((_, index) => {
@@ -2628,16 +2632,16 @@ class ImageNavigationController {
         thumbnail.setAttribute('aria-label', `Image ${index + 1}`);
         thumbnail.setAttribute('data-index', index);
         thumbnail.setAttribute('tabindex', index === this.currentIndex ? '0' : '-1');
-        
+
         // Add click handler
         thumbnail.addEventListener('click', (e) => {
           e.preventDefault();
           this.jumpToImage(index);
         });
-        
+
         this.elements.thumbnailNav.appendChild(thumbnail);
       });
-      
+
       imageLogger.debug("Thumbnail navigation created", {
         thumbnails: media.length
       });
@@ -2650,33 +2654,33 @@ class ImageNavigationController {
         dot.setAttribute('tabindex', isActive ? '0' : '-1');
       });
     }
-    
+
     // Update ARIA attributes
     this.elements.thumbnailNav.setAttribute(
       'aria-label',
       `Image thumbnails, ${this.currentIndex + 1} of ${media.length} selected`
     );
   }
-  
+
   /**
    * Update navigation buttons state
    */
   updateNavigationButtons() {
     const swiper = this.imageLoader.swiper;
-    
+
     // Update previous button
     if (this.elements.navPrev) {
       const isBeginning = swiper ? swiper.isBeginning && !swiper.params.loop : this.currentIndex === 0;
       this.elements.navPrev.disabled = isBeginning && this.totalImages > 1;
       this.elements.navPrev.setAttribute('aria-disabled', isBeginning.toString());
-      
+
       if (isBeginning && this.totalImages > 1) {
         this.elements.navPrev.classList.add('disabled');
       } else {
         this.elements.navPrev.classList.remove('disabled');
       }
     }
-    
+
     // Update next button
     if (this.elements.navNext) {
       const isEnd = swiper ? swiper.isEnd && !swiper.params.loop : this.currentIndex === this.totalImages - 1;
@@ -2686,7 +2690,7 @@ class ImageNavigationController {
 
     }
   }
-  
+
   /**
    * Show navigation controls
    */
@@ -2695,7 +2699,7 @@ class ImageNavigationController {
           this.elements.controls.classList.add('show-controls');
       }
   }
-  
+
   /**
    * Hide navigation controls
    */
@@ -2729,49 +2733,49 @@ class ImageNavigationController {
             this.hideTimeout = null;
         }
     }
-  
+
   /**
    * Show keyboard hints
    */
   showKeyboardHints() {
     if (!this.elements.keyboardHints) return;
-    
+
     imageLogger.debug("Showing keyboard hints");
-    
+
     this.elements.keyboardHints.classList.add('show');
-    
+
     // Auto-hide after 5 seconds
     setTimeout(() => {
       this.hideKeyboardHints();
     }, 5000);
   }
-  
+
   /**
    * Hide keyboard hints
    */
   hideKeyboardHints() {
     if (!this.elements.keyboardHints) return;
-    
+
     this.elements.keyboardHints.classList.remove('show');
   }
-  
+
   /**
    * Animate button on click
    */
   animateButton(button) {
     if (!button) return;
-    
+
     button.style.transform = 'scale(0.9)';
-    
+
     setTimeout(() => {
       button.style.transform = 'scale(1.1)';
-      
+
       setTimeout(() => {
         button.style.transform = '';
       }, 150);
     }, 150);
   }
-  
+
   /**
    * Set rotation speed - delegate to ImageLoader
    */
@@ -2780,7 +2784,7 @@ class ImageNavigationController {
       this.imageLoader.setRotationSpeed(speed);
     }
   }
-  
+
   /**
    * Set playback speed multiplier - adjust Swiper autoplay delay
    */
@@ -2789,28 +2793,28 @@ class ImageNavigationController {
       imageLogger.warn("Playback speed must be between 0.25 and 4", { multiplier });
       return;
     }
-    
+
     imageLogger.debug("Setting playback speed multiplier", { multiplier });
     this.playbackSpeed = multiplier;
-    
+
     // Calculate effective rotation speed
     const currentDelay = this.imageLoader.config?.rotationDelay || 5000;
     const effectiveSpeed = currentDelay / multiplier;
-    
+
     // Update image loader speed
     if (this.imageLoader.setRotationSpeed) {
       this.imageLoader.setRotationSpeed(effectiveSpeed);
     }
-    
+
     this.updateUI();
   }
-  
+
   /**
    * Get current navigation state
    */
   getState() {
     const swiperState = this.imageLoader.getRotationState?.() || {};
-    
+
     return {
       currentIndex: this.currentIndex,
       totalImages: this.totalImages,
@@ -2819,36 +2823,36 @@ class ImageNavigationController {
       ...swiperState
     };
   }
-  
+
   /**
    * Cleanup resources
    */
   destroy() {
     imageLogger.time("ImageNavigationController cleanup (Swiper)");
-    
+
     // Remove event listeners
     if (this.elements.navPrev) {
       this.elements.navPrev.removeEventListener('click', this.handlePrevClick);
     }
-    
+
     if (this.elements.navNext) {
       this.elements.navNext.removeEventListener('click', this.handleNextClick);
     }
-    
+
     if (this.elements.playButton) {
       this.elements.playButton.removeEventListener('click', this.handlePlaybackClick);
     }
-    
+
     if (this.elements.pauseButton) {
       this.elements.pauseButton.removeEventListener('click', this.handlePlaybackClick);
     }
-    
+
     if (this.elements.thumbnailNav) {
       this.elements.thumbnailNav.removeEventListener('click', this.handleThumbnailClick);
     }
-    
+
     document.removeEventListener('keydown', this.handleKeyDown);
-    
+
     // Remove Swiper event listeners
     if (this.imageLoader && this.imageLoader.image) {
       const imageElement = this.imageLoader.image;
@@ -2858,7 +2862,7 @@ class ImageNavigationController {
       });
       delete imageElement.__swiperEventListeners;
     }
-    
+
     this.isInitialized = false;
     imageLogger.info("ImageNavigationController destroyed for Swiper");
     imageLogger.timeEnd("ImageNavigationController cleanup (Swiper)");
@@ -3443,7 +3447,7 @@ class ScrollAnimator {
 class ShareManager {
   constructor(options = {}) {
     shareLogger.time("ShareManager constructor");
-    
+
     this.options = {
       // Default share text
       shareText: "Beautiful Graduation wishes! Send to your loved ones using this website",
@@ -3497,27 +3501,27 @@ class ShareManager {
         notSupported: "Sharing not supported on this device"
       }
     };
-    
+
     // Merge user options
     Object.assign(this.options, options);
-    
+
     // State management
     this.buttons = [];
     this.isInitialized = false;
     this.clipboardSupported = 'clipboard' in navigator;
     this.nativeShareSupported = 'share' in navigator;
     this.shareData = this.prepareShareData();
-    
+
     // Bind methods
     this.handleShare = this.handleShare.bind(this);
     this.handleKeyDown = this.handleKeyDown.bind(this);
-    
+
     shareLogger.debug("ShareManager instance created", {
       clipboardSupported: this.clipboardSupported,
       nativeShareSupported: this.nativeShareSupported,
       options: this.options
     });
-    
+
     shareLogger.timeEnd("ShareManager constructor");
     this.init();
   }
@@ -3533,26 +3537,26 @@ class ShareManager {
 
     try {
       shareLogger.time("ShareManager initialization");
-      
+
       // Update share data with current page info
       this.shareData = this.prepareShareData();
-      
+
       this.cacheButtons();
       this.setupListeners();
       this.setupAccessibility();
-      
+
       // Add sharing hints if native sharing is supported
       if (this.nativeShareSupported) {
         this.addNativeShareHint();
       }
-      
+
       this.isInitialized = true;
       shareLogger.info("ShareManager initialized successfully", {
         totalButtons: this.buttons.length,
         nativeShare: this.nativeShareSupported,
         clipboard: this.clipboardSupported
       });
-      
+
       shareLogger.timeEnd("ShareManager initialization");
     } catch (error) {
       shareLogger.error("Failed to initialize share manager", error);
@@ -3566,7 +3570,7 @@ class ShareManager {
   prepareShareData() {
     const pageUrl = window.location.href;
     const pageTitle = document.title || "Graduation Wishes";
-    
+
     return {
       title: pageTitle,
       text: this.options.shareText,
@@ -3581,26 +3585,26 @@ class ShareManager {
    */
   cacheButtons() {
     shareLogger.time("Button caching");
-    
+
     // Find all share buttons
     const buttonElements = document.querySelectorAll(".share-btn, [data-share], [data-platform]");
-    
+
     this.buttons = Array.from(buttonElements)
       .filter(btn => {
         // Ensure button is visible and not disabled
         const style = window.getComputedStyle(btn);
-        return style.display !== 'none' && 
-               style.visibility !== 'hidden' && 
+        return style.display !== 'none' &&
+               style.visibility !== 'hidden' &&
                !btn.disabled;
       })
       .map(btn => {
         // Determine platform from various sources
         const platform = this.detectPlatform(btn);
-        
+
         // Add data attributes for tracking
         btn.dataset.sharePlatform = platform;
         btn.dataset.shareInitialized = "true";
-        
+
         // Add ARIA label if not present
         if (!btn.hasAttribute('aria-label')) {
           const platformConfig = this.options.platforms[platform];
@@ -3608,7 +3612,7 @@ class ShareManager {
             btn.setAttribute('aria-label', `Share on ${platformConfig.label}`);
           }
         }
-        
+
         return {
           element: btn,
           platform: platform,
@@ -3616,13 +3620,13 @@ class ShareManager {
           originalClasses: btn.className
         };
       });
-    
+
     shareLogger.debug("Share buttons cached", {
       buttonCount: this.buttons.length,
       platforms: this.buttons.map(b => b.platform),
       nativeSupport: this.nativeShareSupported
     });
-    
+
     shareLogger.timeEnd("Button caching");
   }
 
@@ -3633,16 +3637,16 @@ class ShareManager {
     // Check data attributes first
     if (button.dataset.platform) return button.dataset.platform;
     if (button.dataset.share) return button.dataset.share;
-    
+
     // Check class names
     const platformClasses = Object.keys(this.options.platforms);
-    const foundClass = platformClasses.find(cls => 
-      button.classList.contains(cls) || 
+    const foundClass = platformClasses.find(cls =>
+      button.classList.contains(cls) ||
       button.classList.contains(`share-${cls}`)
     );
-    
+
     if (foundClass) return foundClass;
-    
+
     // Default to clipboard
     return 'clipboard';
   }
@@ -3652,55 +3656,55 @@ class ShareManager {
    */
   setupListeners() {
     shareLogger.time("Listener setup");
-    
+
     this.buttons.forEach((btnData, index) => {
       const { element, platform } = btnData;
-      
+
       // Remove existing listeners to avoid duplicates
       element.removeEventListener('click', this.handleShare);
       element.removeEventListener('keydown', this.handleKeyDown);
-      
+
       // Add click listener
       element.addEventListener('click', (e) => {
         e.preventDefault();
         e.stopPropagation();
-        
+
         shareLogger.debug("Share button clicked", {
           index,
           platform,
           element: element.tagName,
           classes: element.className
         });
-        
+
         this.handleShare(platform, element);
       });
-      
+
       // Add keyboard listener
       element.addEventListener('keydown', (e) => {
         if (e.key === 'Enter' || e.key === ' ' || e.key === 'Spacebar') {
           e.preventDefault();
           e.stopPropagation();
-          
+
           shareLogger.debug("Share button keyboard activated", {
             index,
             platform,
             key: e.key
           });
-          
+
           this.handleShare(platform, element);
         }
       });
-      
+
       // Add touch feedback for mobile
       element.addEventListener('touchstart', () => {
         element.classList.add('share-touch-active');
       }, { passive: true });
-      
+
       element.addEventListener('touchend', () => {
         element.classList.remove('share-touch-active');
       }, { passive: true });
     });
-    
+
     // Listen for page visibility changes to update share data
     document.addEventListener('visibilitychange', () => {
       if (!document.hidden) {
@@ -3708,11 +3712,11 @@ class ShareManager {
         shareLogger.debug("Share data refreshed on page visibility change");
       }
     });
-    
+
     shareLogger.debug("Event listeners attached", {
       totalButtons: this.buttons.length
     });
-    
+
     shareLogger.timeEnd("Listener setup");
   }
 
@@ -3721,32 +3725,32 @@ class ShareManager {
    */
   setupAccessibility() {
     shareLogger.time("Accessibility setup");
-    
+
     this.buttons.forEach(btnData => {
       const { element, platform } = btnData;
-      
+
       // Ensure proper role
       if (element.getAttribute('role') !== 'button') {
         element.setAttribute('role', 'button');
       }
-      
+
       // Ensure tabindex
       if (!element.hasAttribute('tabindex')) {
         element.setAttribute('tabindex', '0');
       }
-      
+
       // Add platform-specific instructions
       const platformConfig = this.options.platforms[platform];
       if (platformConfig) {
-        const title = element.getAttribute('title') || 
-                     element.getAttribute('aria-label') || 
+        const title = element.getAttribute('title') ||
+                     element.getAttribute('aria-label') ||
                      `Share on ${platformConfig.label}`;
-        
+
         element.setAttribute('title', title);
         element.setAttribute('aria-label', title);
       }
     });
-    
+
     shareLogger.debug("Accessibility setup completed");
     shareLogger.timeEnd("Accessibility setup");
   }
@@ -3756,47 +3760,47 @@ class ShareManager {
    */
   async handleShare(platform, buttonElement) {
     shareLogger.time(`Share to ${platform}`);
-    
+
     try {
       // Animate button
       this.animateButton(buttonElement);
-      
+
       // Track analytics if enabled
       if (this.options.enableAnalytics) {
         this.trackShareEvent(platform);
       }
-      
+
       // Try native sharing first (if supported and not a specific platform)
       if (this.nativeShareSupported && platform === 'native') {
         await this.shareNative();
         return;
       }
-      
+
       // Use platform-specific sharing
       const success = await this.shareToPlatform(platform, buttonElement);
-      
+
       if (success) {
         this.showSuccessFeedback(buttonElement, platform);
       } else {
         this.showErrorFeedback(buttonElement, platform);
       }
-      
+
     } catch (error) {
       shareLogger.error("Share action failed", {
         platform,
         error: error.message,
         element: buttonElement?.tagName
       });
-      
+
       this.showErrorFeedback(buttonElement, platform);
-      
+
       // Fallback to clipboard if enabled
       if (this.options.enableClipboardFallback && this.clipboardSupported) {
         setTimeout(() => {
           this.shareToClipboard(buttonElement);
         }, 500);
       }
-      
+
     } finally {
       shareLogger.timeEnd(`Share to ${platform}`);
     }
@@ -3820,7 +3824,7 @@ class ShareManager {
    */
   async shareToPlatform(platform, buttonElement) {
     shareLogger.time(`Platform share: ${platform}`);
-    
+
     const shareUrls = {
       whatsapp: `https://wa.me/?text=${encodeURIComponent(`${this.shareData.text} ${this.shareData.url}`)}`,
       facebook: `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(this.shareData.url)}&quote=${encodeURIComponent(this.shareData.text)}`,
@@ -3831,37 +3835,37 @@ class ShareManager {
       pinterest: `https://pinterest.com/pin/create/button/?url=${encodeURIComponent(this.shareData.url)}&description=${encodeURIComponent(this.shareData.text)}`,
       reddit: `https://www.reddit.com/submit?url=${encodeURIComponent(this.shareData.url)}&title=${encodeURIComponent(this.shareData.text)}`
     };
-    
+
     const url = shareUrls[platform];
-    
+
     if (!url) {
       shareLogger.warn("No share URL for platform", { platform });
-      
+
       // Fallback to clipboard
       if (this.clipboardSupported) {
         return await this.shareToClipboard(buttonElement);
       }
-      
+
       return false;
     }
-    
+
     // Special handling for Instagram (no direct sharing)
     if (platform === 'instagram') {
       this.showMessage("Open Instagram app to share", buttonElement);
       return false;
     }
-    
+
     // Open share window
     const shareWindow = window.open(
       url,
       'share-dialog',
       `width=600,height=400,left=${window.screenX + 100},top=${window.screenY + 100},noopener,noreferrer`
     );
-    
+
     // Focus the window
     if (shareWindow) {
       shareWindow.focus();
-      
+
       // Check if window was blocked
       setTimeout(() => {
         if (shareWindow.closed || !shareWindow.location.href) {
@@ -3869,11 +3873,11 @@ class ShareManager {
           this.showMessage("Pop-up blocked. Please allow pop-ups to share.", buttonElement);
         }
       }, 1000);
-      
+
       shareLogger.info("Share window opened", { platform, url });
       return true;
     }
-    
+
     shareLogger.warn("Failed to open share window", { platform });
     return false;
   }
@@ -3886,16 +3890,16 @@ class ShareManager {
       if (!this.nativeShareSupported) {
         throw new Error("Native sharing not supported");
       }
-      
+
       await navigator.share({
         title: this.shareData.title,
         text: this.shareData.text,
         url: this.shareData.url
       });
-      
+
       shareLogger.info("Native share successful");
       return true;
-      
+
     } catch (error) {
       if (error.name !== 'AbortError') {
         shareLogger.error("Native share failed", error);
@@ -3913,11 +3917,11 @@ class ShareManager {
       if (this.clipboardSupported) {
         await navigator.clipboard.writeText(this.shareData.url);
         shareLogger.info("Clipboard write successful");
-        
+
         this.showMessage(this.options.messages.copied, buttonElement, 'success');
         return true;
       }
-      
+
       // Fallback to legacy method
       const textArea = document.createElement('textarea');
       textArea.value = this.shareData.url;
@@ -3925,18 +3929,18 @@ class ShareManager {
       textArea.style.opacity = '0';
       document.body.appendChild(textArea);
       textArea.select();
-      
+
       const success = document.execCommand('copy');
       document.body.removeChild(textArea);
-      
+
       if (success) {
         shareLogger.info("Legacy clipboard write successful");
         this.showMessage(this.options.messages.copied, buttonElement, 'success');
         return true;
       }
-      
+
       throw new Error("Clipboard write failed");
-      
+
     } catch (error) {
       shareLogger.error("Clipboard write failed", error);
       this.showMessage(this.options.messages.copiedFailed, buttonElement, 'error');
@@ -3949,27 +3953,27 @@ class ShareManager {
    */
   animateButton(button) {
     if (!button) return;
-    
+
     shareLogger.debug("Animating button");
-    
+
     // Store original transform
     const originalTransform = button.style.transform;
     const originalTransition = button.style.transition;
-    
+
     // Apply animation
     button.style.transition = `transform ${this.options.animation.duration}ms ease`;
     button.style.transform = `scale(${this.options.animation.scale})`;
-    
+
     // Reset after animation
     setTimeout(() => {
       button.style.transform = originalTransform;
-      
+
       // Remove transition after reset
       setTimeout(() => {
         button.style.transition = originalTransition;
       }, this.options.animation.duration);
     }, this.options.animation.duration);
-    
+
     // Add visual feedback class
     button.classList.add('share-active');
     setTimeout(() => {
@@ -3983,20 +3987,20 @@ class ShareManager {
   showSuccessFeedback(button, platform) {
     const platformConfig = this.options.platforms[platform];
     if (!platformConfig) return;
-    
+
     // Add success class
     button.classList.add('share-success');
-    
+
     // Temporarily change button content
     const originalHTML = button.innerHTML;
     button.innerHTML = `<i class="fas fa-check"></i> Shared!`;
-    
+
     // Reset after delay
     setTimeout(() => {
       button.classList.remove('share-success');
       button.innerHTML = originalHTML;
     }, 2000);
-    
+
     shareLogger.debug("Success feedback shown", { platform });
   }
 
@@ -4005,11 +4009,11 @@ class ShareManager {
    */
   showErrorFeedback(button, platform) {
     button.classList.add('share-error');
-    
+
     setTimeout(() => {
       button.classList.remove('share-error');
     }, 1000);
-    
+
     shareLogger.debug("Error feedback shown", { platform });
   }
 
@@ -4023,7 +4027,7 @@ class ShareManager {
     messageEl.textContent = message;
     messageEl.setAttribute('role', 'alert');
     messageEl.setAttribute('aria-live', 'polite');
-    
+
     // Position near the button
     const rect = element.getBoundingClientRect();
     messageEl.style.cssText = `
@@ -4038,9 +4042,9 @@ class ShareManager {
       z-index: 10000;
       animation: fadeInUp 0.3s ease;
     `;
-    
+
     document.body.appendChild(messageEl);
-    
+
     // Remove after delay
     setTimeout(() => {
       if (messageEl.parentNode) {
@@ -4059,24 +4063,24 @@ class ShareManager {
    */
   addNativeShareHint() {
     // Check if we should show native share button
-    if (!this.nativeShareSupported || 
+    if (!this.nativeShareSupported ||
         document.querySelector('.share-native') ||
         !this.buttons.length) {
       return;
     }
-    
+
     // Create native share button
     const nativeButton = document.createElement('button');
     nativeButton.className = 'share-btn share-native';
     nativeButton.innerHTML = '<i class="fas fa-share-alt"></i> Share';
     nativeButton.setAttribute('aria-label', 'Share using device options');
     nativeButton.setAttribute('title', 'Share using device options');
-    
+
     // Insert near other share buttons
     const firstButton = this.buttons[0]?.element;
     if (firstButton && firstButton.parentNode) {
       firstButton.parentNode.insertBefore(nativeButton, firstButton.nextSibling);
-      
+
       // Add to buttons array
       this.buttons.push({
         element: nativeButton,
@@ -4084,13 +4088,13 @@ class ShareManager {
         originalHTML: nativeButton.innerHTML,
         originalClasses: nativeButton.className
       });
-      
+
       // Add event listener
       nativeButton.addEventListener('click', (e) => {
         e.preventDefault();
         this.handleShare('native', nativeButton);
       });
-      
+
       shareLogger.debug("Native share button added");
     }
   }
@@ -4100,14 +4104,14 @@ class ShareManager {
    */
   trackShareEvent(platform) {
     if (!this.options.enableAnalytics) return;
-    
+
     const eventData = {
       event: 'share',
       platform: platform,
       url: this.shareData.url,
       timestamp: new Date().toISOString()
     };
-    
+
     // Google Analytics
     if (typeof gtag !== 'undefined') {
       gtag('event', 'share', {
@@ -4116,15 +4120,15 @@ class ShareManager {
         item_id: this.shareData.url
       });
     }
-    
+
     // Custom event dispatch
     const shareEvent = new CustomEvent('share', {
       detail: eventData,
       bubbles: true
     });
-    
+
     document.dispatchEvent(shareEvent);
-    
+
     shareLogger.debug("Share event tracked", eventData);
   }
 
@@ -4163,22 +4167,22 @@ class ShareManager {
    */
   destroy() {
     shareLogger.time("ShareManager cleanup");
-    
+
     try {
       // Remove all event listeners
       this.buttons.forEach((btnData, index) => {
         const { element } = btnData;
-        
+
         // Remove listeners
         element.removeEventListener('click', this.handleShare);
         element.removeEventListener('keydown', this.handleKeyDown);
         element.removeEventListener('touchstart', () => {});
         element.removeEventListener('touchend', () => {});
-        
+
         // Remove data attributes
         delete element.dataset.sharePlatform;
         delete element.dataset.shareInitialized;
-        
+
         // Restore original state if modified
         if (btnData.originalHTML) {
           element.innerHTML = btnData.originalHTML;
@@ -4186,23 +4190,23 @@ class ShareManager {
         if (btnData.originalClasses) {
           element.className = btnData.originalClasses;
         }
-        
+
         shareLogger.debug("Button cleaned up", { index });
       });
-      
+
       // Remove native share button if added
       const nativeButton = document.querySelector('.share-native');
       if (nativeButton && nativeButton.parentNode) {
         nativeButton.parentNode.removeChild(nativeButton);
       }
-      
+
       // Clear arrays
       this.buttons = [];
-      
+
       this.isInitialized = false;
-      
+
       shareLogger.info("ShareManager destroyed successfully");
-      
+
     } catch (error) {
       shareLogger.error("Error during ShareManager cleanup", error);
     } finally {
@@ -4300,7 +4304,7 @@ class GraduationApp {
     // Dropdown and Theme Managers
     this.dropdownManager = null;
     this.themeManager = null;
-    
+
     // App state
     this.state = {
       userAuthenticated: false,
@@ -4308,7 +4312,7 @@ class GraduationApp {
       preferences: this.loadPreferences(),
       sessionStartTime: Date.now()
     };
-    
+
     appLogger.debug("GraduationApp instance created");
     appLogger.timeEnd("GraduationApp constructor");
   }
@@ -4339,41 +4343,41 @@ try {
     }
       // Check authentication
       await this.checkAuthentication();
-      
+
       // Initialize modules
       await this.initializeModules();
-      
+
       // Setup dropdown and theme
       this.initDropdownManager();
-      
+
       // Setup event listeners
       this.setupEventListeners();
 
       this.setupKeyboardShortcuts();
-      
+
       // Start the app
       this.startApp();
 
       this.updateMenuItems();
-      
+
       // Start animations
       this.animateMessagesOneByOne();
       this.changeTitleName();
-      
+
       // Mark as initialized
       this.isInitialized = true;
-      
+
       // Track successful initialization
       this.trackEvent("app_startup_complete", {
         loadTime: performance.now(),
         moduleCount: Object.keys(this.modules).length
       });
-      
+
       appLogger.info("GraduationApp initialized successfully", {
         userAuthenticated: this.state.userAuthenticated,
         preferences: this.state.preferences
       });
-      
+
     } catch (error) {
       appLogger.error("Failed to initialize GraduationApp", error);
       this.handleInitializationError(error);
@@ -4387,14 +4391,14 @@ try {
    */
   async checkAuthentication() {
     appLogger.time("Authentication check");
-    
+
     try {
       const authString = localStorage.getItem("GraduationAppPassword");
       if (authString) {
         const auth = JSON.parse(authString);
         this.state.userAuthenticated = !!auth?.name;
         this.state.userName = auth.name || "Friend";
-        
+
         appLogger.debug("User authenticated", {
           name: this.state.userName,
           timestamp: auth.timestamp
@@ -4456,7 +4460,7 @@ try {
    */
   initDropdownManager() {
     appLogger.time("DropdownManager initialization");
-    
+
     try {
       // Create ThemeManager instance
       this.themeManager = new ThemeManager();
@@ -4464,61 +4468,61 @@ try {
       this.state.preferences.theme === 'auto' ? this.state.preferences.theme = this.themeManager.getCurrentTheme() : null;
 
       this.themeManager.applyTheme(this.state.preferences.theme);
-      
+
       // Custom menu items based on app state
       const menuItems = [
-        { 
-          label: 'Toggle Theme', 
-          icon: 'fas fa-moon', 
-          action: 'theme', 
+        {
+          label: 'Toggle Theme',
+          icon: 'fas fa-moon',
+          action: 'theme',
           className: 'theme-toggle',
-          dynamicLabel: true 
+          dynamicLabel: true
         },
-        { 
-          label: 'Image Settings', 
-          icon: 'fas fa-images', 
-          action: 'image-settings' 
+        {
+          label: 'Image Settings',
+          icon: 'fas fa-images',
+          action: 'image-settings'
         },
-        { 
-          label: 'Confetti Settings', 
-          icon: 'fas fa-birthday-cake', 
-          action: 'confetti-settings' 
+        {
+          label: 'Confetti Settings',
+          icon: 'fas fa-birthday-cake',
+          action: 'confetti-settings'
         },
-        { 
-          label: 'Share App', 
-          icon: 'fas fa-share-alt', 
-          action: 'share' 
+        {
+          label: 'Share App',
+          icon: 'fas fa-share-alt',
+          action: 'share'
         },
-        { 
-          label: 'About', 
-          icon: 'fas fa-info-circle', 
-          action: 'about' 
+        {
+          label: 'About',
+          icon: 'fas fa-info-circle',
+          action: 'about'
         },
         { type: 'divider' },
 
-        { 
-          label: 'Logout', 
-          icon: 'fas fa-sign-out-alt', 
-          action: 'logout', 
-          className: 'logout' 
+        {
+          label: 'Logout',
+          icon: 'fas fa-sign-out-alt',
+          action: 'logout',
+          className: 'logout'
         }
       ];
        if (this.state.userAuthenticated) {
-      menuItems.splice(5, 0, 
+      menuItems.splice(5, 0,
         { type: 'divider' },
-        { 
-          label: 'Export Data', 
-          icon: 'fas fa-download', 
-          action: 'export' 
+        {
+          label: 'Export Data',
+          icon: 'fas fa-download',
+          action: 'export'
         },
-        { 
-          label: 'Import Data', 
-          icon: 'fas fa-upload', 
-          action: 'import' 
+        {
+          label: 'Import Data',
+          icon: 'fas fa-upload',
+          action: 'import'
         }
       );
     }
-      
+
       // Create DropdownManager
       this.dropdownManager = new DropdownManager({
         position: 'top-right',
@@ -4531,15 +4535,15 @@ try {
         enableKeyboardNav: true,
         enableRippleEffect: this.state.preferences.animations
       });
-      
+
       // Listen to dropdown events
       this.setupDropdownListeners();
-      
+
       // Apply initial theme to components
       this.applyThemeToComponents(this.themeManager.getCurrentTheme());
-      
+
       appLogger.info("DropdownManager initialized successfully");
-      
+
     } catch (error) {
       appLogger.error("Failed to initialize DropdownManager", error);
       this.showErrorMessage("Failed to initialize menu system becuase of "+ error.message);
@@ -4556,17 +4560,17 @@ setupDropdownListeners() {
   document.addEventListener('user:logout', () => {
     this.handleLogout();
   });
-  
+
   // Theme change handler
   document.addEventListener('theme:change', (e) => {
     this.handleThemeChange(e.detail?.theme);
   });
-  
+
   // Custom action handlers
   document.addEventListener('dropdown:action', (e) => {
     this.handleDropdownAction(e.detail?.action, e.detail?.data);
   });
-  
+
   // Setup custom actions for built-in functionality
   this.setupBuiltinCustomActions();
 }
@@ -4576,32 +4580,32 @@ setupDropdownListeners() {
  */
 setupBuiltinCustomActions() {
   if (!this.dropdownManager) return;
-  
+
   // Image settings
   this.dropdownManager.addCustomAction('image-settings', () => {
     this.openImageSettings();
   });
-  
+
   // Confetti settings
   this.dropdownManager.addCustomAction('confetti-settings', () => {
     this.openConfettiSettings();
   });
-  
+
   // About
   this.dropdownManager.addCustomAction('about', () => {
     this.showAboutDialog();
   });
-  
+
   // Refresh
   this.dropdownManager.addCustomAction('refresh', () => {
     this.refreshApp();
   });
-  
+
   // Export
   this.dropdownManager.addCustomAction('export', () => {
     this.exportData();
   });
-  
+
   // Import
   this.dropdownManager.addCustomAction('import', () => {
     this.importData();
@@ -4613,7 +4617,7 @@ setupBuiltinCustomActions() {
  */
 handleDropdownAction(action, data) {
   appLogger.debug("Dropdown action received", { action, data });
-  
+
   // Route to appropriate handler
   const actionHandlers = {
     'image-settings': () => this.openImageSettings(),
@@ -4626,7 +4630,7 @@ handleDropdownAction(action, data) {
     'settings': () => this.handleSettings(),
     'help': () => this.handleHelp()
   };
-  
+
   const handler = actionHandlers[action];
   if (handler) {
     handler();
@@ -4655,7 +4659,7 @@ handleHelp() {
  */
 handleShare() {
   this.dispatchAppEvent('share:open');
-  
+
   // Use Web Share API if available
   if (navigator.share) {
     navigator.share({
@@ -4701,20 +4705,20 @@ copyToClipboard(text) {
    */
   handleThemeChange(theme) {
     appLogger.info("Theme changed", { theme });
-    
+
     // Update preferences
-    this.state.preferences.theme = theme === 'light' ? 'light' : 
+    this.state.preferences.theme = theme === 'light' ? 'light' :
                                   theme === 'dark' ? 'dark' : 'auto';
     this.savePreferences();
-    
+
     // Apply theme to all components
     this.applyThemeToComponents(theme);
-    
+
     // Update confetti colors if needed
     if (this.modules.confetti) {
       this.updateConfettiForTheme(theme);
     }
-    
+
     // Dispatch app-wide theme change event
     this.dispatchAppEvent('themeChanged', { theme });
   }
@@ -4725,20 +4729,20 @@ copyToClipboard(text) {
   applyThemeToComponents(theme) {
     // Update CSS variables
     this.updateThemeVariables(theme);
-    
+
     // Update image loader if exists
     if (this.modules.imageLoader) {
       this.modules.imageLoader.updateTheme?.(theme);
     }
-    
+
     // Update navigation controller if exists
     if (this.modules.imageLoader?.navigationController) {
       this.modules.imageLoader.navigationController.updateTheme?.(theme);
     }
-    
+
     // Update share buttons
     this.updateShareButtonsTheme(theme);
-    
+
     // Update any other theme-aware components
     document.querySelectorAll('[data-theme-aware]').forEach(element => {
       element.classList.toggle('dark-mode', theme === 'dark');
@@ -4750,7 +4754,7 @@ copyToClipboard(text) {
    */
   updateThemeVariables(theme) {
     const root = document.documentElement;
-    
+
     if (theme === 'dark') {
       root.style.setProperty('--primary', '#8E2DE2');
       root.style.setProperty('--secondary', '#4A00E0');
@@ -4767,12 +4771,12 @@ copyToClipboard(text) {
    */
   updateConfettiForTheme(theme) {
     if (this.modules.confetti?.updateConfig) {
-      const colors = theme === 'dark' 
+      const colors = theme === 'dark'
         ? ["#8E2DE2", "#4A00E0", "#FF6B6B", "#FECA57", "#1DD1A1", "#00B4D8"]
         : ["#667eea", "#764ba2", "#f093fb", "#f5576c", "#4facfe", "#00f2fe"];
-      
+
       this.modules.confetti.updateConfig({ colors });
-      
+
       appLogger.debug("Confetti colors updated for theme", { theme, colors });
     }
   }
@@ -4798,29 +4802,29 @@ copyToClipboard(text) {
    */
   handleLogout() {
     appLogger.info("User initiated logout");
-    
+
     // Show confirmation
     const confirmed = window.confirm(
       'Are you sure you want to logout? You will need to re-enter the password.'
     );
-    
+
     if (!confirmed) {
       appLogger.debug("Logout cancelled by user");
       return;
     }
-    
+
     // Show logout animation
     this.showLogoutAnimation();
-    
+
     // Clear all app data
     this.clearAppData();
 
-    
+
     // Track logout event
     this.trackEvent("user_logout", {
       sessionDuration: Date.now() - this.state.sessionStartTime
     });
-    
+
     // Redirect to login page
     setTimeout(() => {
       window.location.href = '/logout.html';
@@ -4833,23 +4837,23 @@ copyToClipboard(text) {
   clearAppData() {
     try {
       // Clear authentication
-      localStorage.removeItem("GraduationAppPassword"); 
-     
+      localStorage.removeItem("GraduationAppPassword");
+
       // Clear any other app-specific data
       localStorage.removeItem("pwa-prompt-dismissal");
       localStorage.removeItem("pwa-prompt-display-history");
       localStorage.removeItem("Welcome_Notification");
       localStorage.removeItem("last_visited");
-      
+
       // Clear session cookies
       document.cookie.split(";").forEach((c) => {
         document.cookie = c
           .replace(/^ +/, "")
           .replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/");
       });
-      
+
       appLogger.info("App data cleared successfully");
-      
+
     } catch (error) {
       appLogger.error("Failed to clear app data", error);
     }
@@ -4862,7 +4866,7 @@ showLogoutAnimation() {
     // Remove any existing logout overlay
     const existingOverlay = document.querySelector('.logout-overlay');
     if (existingOverlay) existingOverlay.remove();
-    
+
     // Create backdrop overlay
     const overlay = document.createElement('div');
     overlay.className = 'logout-overlay';
@@ -4887,7 +4891,7 @@ showLogoutAnimation() {
         animation: fadeInOverlay 0.8s cubic-bezier(0.4, 0, 0.2, 1) forwards;
         overflow: hidden;
     `;
-    
+
     // Create animated background elements
     const particles = document.createElement('div');
     particles.className = 'logout-particles';
@@ -4896,7 +4900,7 @@ showLogoutAnimation() {
         inset: 0;
         pointer-events: none;
     `;
-    
+
     // Create floating particles
     for (let i = 0; i < 15; i++) {
         const particle = document.createElement('div');
@@ -4914,7 +4918,7 @@ showLogoutAnimation() {
         `;
         particles.appendChild(particle);
     }
-    
+
     // Create animated wave
     const wave = document.createElement('div');
     wave.className = 'logout-wave';
@@ -4933,7 +4937,7 @@ showLogoutAnimation() {
         border-radius: 100% 100% 0 0;
         animation: waveMove 8s ease-in-out infinite;
     `;
-    
+
     overlay.innerHTML = `
         <div class="logout-content" style="
             text-align: center;
@@ -4957,7 +4961,7 @@ showLogoutAnimation() {
                     border: 3px solid rgba(255, 255, 255, 0.1);
                     border-radius: 50%;
                 "></div>
-                
+
                 <!-- Middle ring -->
                 <div class="logout-ring-middle" style="
                     position: absolute;
@@ -4966,7 +4970,7 @@ showLogoutAnimation() {
                     border-radius: 50%;
                     animation: spin 2s linear infinite;
                 "></div>
-                
+
                 <!-- Inner ring -->
                 <div class="logout-ring-inner" style="
                     position: absolute;
@@ -4975,7 +4979,7 @@ showLogoutAnimation() {
                     border-radius: 50%;
                     animation: spin 1.5s linear infinite reverse;
                 "></div>
-                
+
                 <!-- Center icon -->
                 <div class="logout-icon" style="
                     position: absolute;
@@ -4989,7 +4993,7 @@ showLogoutAnimation() {
                     👋
                 </div>
             </div>
-            
+
             <!-- Main message -->
             <div class="logout-message" style="
                 margin-bottom: 30px;
@@ -5009,7 +5013,7 @@ showLogoutAnimation() {
                 ">
                     Until Next Time!
                 </h2>
-                
+
                 <p style="
                     margin: 0 0 10px 0;
                     font-size: 18px;
@@ -5018,7 +5022,7 @@ showLogoutAnimation() {
                 ">
                     Thank you for celebrating with Graduation App
                 </p>
-                
+
                 <p style="
                     margin: 0;
                     font-size: 16px;
@@ -5027,7 +5031,7 @@ showLogoutAnimation() {
                     Your moments are saved for next time
                 </p>
             </div>
-            
+
             <!-- Progress indicator -->
             <div class="logout-progress" style="
                 width: 200px;
@@ -5047,7 +5051,7 @@ showLogoutAnimation() {
                     animation: progressFill 2s ease-in-out forwards;
                 "></div>
             </div>
-            
+
             <!-- Countdown text -->
             <div class="logout-countdown" style="
                 margin-top: 20px;
@@ -5059,7 +5063,7 @@ showLogoutAnimation() {
             ">
                 Redirecting in <span class="countdown-number">3</span> seconds
             </div>
-            
+
             <!-- Decorative elements -->
             <div class="logout-decoration" style="
                 position: absolute;
@@ -5074,108 +5078,108 @@ showLogoutAnimation() {
             </div>
         </div>
     `;
-    
+
     // Add elements to overlay
     overlay.appendChild(particles);
     overlay.appendChild(wave);
     document.body.appendChild(overlay);
-    
+
     // Add CSS animations
     if (!document.querySelector('#logout-animation-styles')) {
         const style = document.createElement('style');
         style.id = 'logout-animation-styles';
         style.textContent = `
             @keyframes fadeInOverlay {
-                from { 
-                    opacity: 0; 
+                from {
+                    opacity: 0;
                     backdrop-filter: blur(0px);
                 }
-                to { 
-                    opacity: 1; 
+                to {
+                    opacity: 1;
                     backdrop-filter: blur(10px);
                 }
             }
-            
+
             @keyframes fadeInUp {
-                from { 
-                    opacity: 0; 
-                    transform: translateY(20px); 
+                from {
+                    opacity: 0;
+                    transform: translateY(20px);
                 }
-                to { 
-                    opacity: 1; 
-                    transform: translateY(0); 
+                to {
+                    opacity: 1;
+                    transform: translateY(0);
                 }
             }
-            
+
             @keyframes fadeIn {
                 from { opacity: 0; }
                 to { opacity: 1; }
             }
-            
+
             @keyframes spin {
                 from { transform: rotate(0deg); }
                 to { transform: rotate(360deg); }
             }
-            
+
             @keyframes pulse {
-                0%, 100% { 
-                    transform: scale(1); 
+                0%, 100% {
+                    transform: scale(1);
                     opacity: 1;
                 }
-                50% { 
-                    transform: scale(1.1); 
+                50% {
+                    transform: scale(1.1);
                     opacity: 0.8;
                 }
             }
-            
+
             @keyframes progressFill {
                 0% { width: 0%; }
                 100% { width: 100%; }
             }
-            
+
             @keyframes floatParticle {
-                0%, 100% { 
-                    transform: translateY(0) rotate(0deg); 
+                0%, 100% {
+                    transform: translateY(0) rotate(0deg);
                 }
-                50% { 
-                    transform: translateY(-30px) rotate(180deg); 
+                50% {
+                    transform: translateY(-30px) rotate(180deg);
                 }
             }
-            
+
             @keyframes waveMove {
-                0%, 100% { 
+                0%, 100% {
                     transform: translateY(0) scaleX(1);
                 }
-                50% { 
+                50% {
                     transform: translateY(-20px) scaleX(1.2);
                 }
             }
-            
+
             @keyframes floatDecoration {
-                0%, 100% { 
+                0%, 100% {
                     transform: translateX(-50%) translateY(0) rotate(0deg);
                 }
-                50% { 
+                50% {
                     transform: translateX(-50%) translateY(-20px) rotate(10deg);
                 }
             }
-            
+
             /* Remove overlay animation */
             @keyframes fadeOutOverlay {
-                from { 
+                from {
                     opacity: 1;
                     transform: scale(1);
                 }
-                to { 
+                to {
                     opacity: 0;
                     transform: scale(1.1);
                 }
             }
-            
+
             .logout-overlay {
                 transition: opacity 0.5s ease;
             }
-            
+
             /* Dark theme adjustments */
             @media (prefers-color-scheme: dark) {
                 .logout-overlay {
@@ -5186,7 +5190,7 @@ showLogoutAnimation() {
                         #0f3460 100%
                     );
                 }
-                
+
                 .logout-progress-bar {
                     background: linear-gradient(90deg, #4cc9f0, #4361ee);
                 }
@@ -5194,27 +5198,27 @@ showLogoutAnimation() {
         `;
         document.head.appendChild(style);
     }
-    
+
     // Add countdown functionality
     const countdownNumber = overlay.querySelector('.countdown-number');
     let countdown = 10;
-    
+
     const countdownInterval = setInterval(() => {
         countdown--;
         if (countdownNumber) {
             countdownNumber.textContent = countdown;
-            
+
             // Add animation to number change
             countdownNumber.style.animation = 'none';
             countdownNumber.offsetHeight; // Trigger reflow
             countdownNumber.style.animation = 'pulse 0.5s ease';
-            
+
             if (countdown <= 0) {
                 clearInterval(countdownInterval);
-                
+
                 // Fade out animation before redirect
                 overlay.style.animation = 'fadeOutOverlay 0.8s ease forwards';
-                
+
                 setTimeout(() => {
                     overlay.remove();
                     // Add your redirect logic here
@@ -5223,13 +5227,13 @@ showLogoutAnimation() {
             }
         }
     }, 1000);
-    
+
     // Add click to skip functionality
     overlay.addEventListener('click', (e) => {
         if (e.target === overlay || e.target.classList.contains('logout-content')) {
             clearInterval(countdownInterval);
             overlay.style.animation = 'fadeOutOverlay 0.5s ease forwards';
-            
+
             setTimeout(() => {
                 overlay.remove();
                 // Add your redirect logic here
@@ -5237,25 +5241,25 @@ showLogoutAnimation() {
             }, 500);
         }
     });
-    
+
     // Add keyboard support (Escape to skip)
     const handleKeyDown = (e) => {
         if (e.key === 'Escape') {
             clearInterval(countdownInterval);
             overlay.style.animation = 'fadeOutOverlay 0.5s ease forwards';
-            
+
             setTimeout(() => {
                 overlay.remove();
                 // Add your redirect logic here
                 // window.location.href = '/login';
             }, 500);
-            
+
             document.removeEventListener('keydown', handleKeyDown);
         }
     };
-    
+
     document.addEventListener('keydown', handleKeyDown);
-    
+
     // Cleanup event listener on remove
     const observer = new MutationObserver((mutations) => {
         mutations.forEach((mutation) => {
@@ -5269,7 +5273,7 @@ showLogoutAnimation() {
             }
         });
     });
-    
+
     observer.observe(document.body, { childList: true });
 }
 
@@ -5281,7 +5285,7 @@ showLogoutAnimation() {
       this.showToast('Image loader not available', 'error');
       return;
     }
-    
+
     // Create settings dialog
     const dialog = document.createElement('div');
     dialog.className = 'settings-dialog';
@@ -5298,17 +5302,17 @@ showLogoutAnimation() {
       min-width: 300px;
       max-width: 90vw;
     `;
-    
+
     const state = this.modules.imageLoader.getRotationState?.() || {};
     dialog.innerHTML = `
       <h3 style="margin: 0 0 20px 0; color: var(--dropdown-text, #333);">Image Settings</h3>
-      
+
       <div class="setting-item" style="margin-bottom: 20px;">
         <label style="display: block; margin-bottom: 8px; color: var(--dropdown-text, #666);">
           Rotation Speed
         </label>
-        <input type="range" id="rotation-speed" min="1000" max="10000" step="500" 
-               value="${state.rotationDelay || 5000}" 
+        <input type="range" id="rotation-speed" min="1000" max="10000" step="500"
+               value="${state.rotationDelay || 5000}"
                style="width: 100%;">
         <div style="display: flex; justify-content: space-between; margin-top: 5px;">
           <span style="font-size: 12px; color: var(--dropdown-text, #999);">Slow</span>
@@ -5318,7 +5322,7 @@ showLogoutAnimation() {
           <span style="font-size: 12px; color: var(--dropdown-text, #999);">Fast</span>
         </div>
       </div>
-      
+
       <div class="setting-item" style="margin-bottom: 20px;">
         <label style="display: flex; align-items: center; gap: 10px; color: var(--dropdown-text, #666);">
           <input type="checkbox" id="auto-rotate" ${state.automaticRotate ? 'checked' : ''}>
@@ -5332,14 +5336,14 @@ showLogoutAnimation() {
           Enable Image Rotation
         </label>
       </div>
-      
+
       <div class="setting-item" style="margin-bottom: 30px;">
         <label style="display: flex; align-items: center; gap: 10px; color: var(--dropdown-text, #666);">
           <input type="checkbox" id="pause-on-hover" ${state.pauseOnHover ? 'checked' : ''}>
           Pause on Hover
         </label>
       </div>
-      
+
       <div style="display: flex; gap: 10px; justify-content: flex-end;">
         <button class="btn-secondary" style="
           padding: 10px 20px;
@@ -5359,9 +5363,9 @@ showLogoutAnimation() {
         ">Save</button>
       </div>
     `;
-    
+
     document.body.appendChild(dialog);
-    
+
     // Add backdrop
     const backdrop = document.createElement('div');
     backdrop.className = 'dialog-backdrop';
@@ -5376,11 +5380,11 @@ showLogoutAnimation() {
       backdrop-filter: blur(5px);
     `;
     document.body.appendChild(backdrop);
-    
+
     // Add event listeners
     const speedInput = dialog.querySelector('#rotation-speed');
     const speedValue = dialog.querySelector('#speed-value');
-    
+
     speedInput.addEventListener('input', (e) => {
       speedValue.textContent = `${e.target.value / 1000}s`;
     });
@@ -5406,19 +5410,19 @@ showLogoutAnimation() {
       this.state.preferences.rotationEnabled = rotationEnabled;
       this.state.preferences.rotationDelay = newSpeed;
       this.savePreferences();
-      
+
       // Close dialog
       dialog.remove();
       backdrop.remove();
-      
+
       this.showToast('Image settings saved', 'success');
     });
-    
+
     dialog.querySelector('.btn-secondary').addEventListener('click', () => {
       dialog.remove();
       backdrop.remove();
     });
-    
+
     backdrop.addEventListener('click', () => {
       dialog.remove();
       backdrop.remove();
@@ -5433,7 +5437,7 @@ showLogoutAnimation() {
       this.showToast('Confetti system not available', 'error');
       return;
     }
-    
+
     // Similar implementation to image settings
     this.showToast('Confetti settings dialog would open here', 'info');
   }
@@ -5446,25 +5450,25 @@ showAboutDialog() {
     const backdrop = document.createElement('div');
     backdrop.className = 'about-dialog-backdrop';
     backdrop.setAttribute('role', 'presentation');
-    
+
     // Create dialog container
     const dialog = document.createElement('div');
     dialog.className = 'about-dialog';
     dialog.setAttribute('role', 'dialog');
     dialog.setAttribute('aria-modal', 'true');
     dialog.setAttribute('aria-labelledby', 'about-dialog-title');
-   
-    
+
+
     // Dialog content with improved design
     dialog.innerHTML = `
       <!-- Decorative gradient border -->
       <div class="dialog-gradient-border" ></div>
-      
+
       <!-- Close button -->
       <button class="dialog-close-btn" aria-label="Close dialog">
         <span style="display: block; transform: rotate(45deg);">+</span>
       </button>
-      
+
       <!-- Main content -->
       <div class="dialog-content" >
         <!-- Header -->
@@ -5472,27 +5476,27 @@ showAboutDialog() {
           <!-- Animated logo -->
           <div class="logo-container" >
             <div class="logo-outer-ring" ></div>
-            
+
             <div class="logo-main">
               <span style="font-size: 32px; color: var(--primary, #667eea);">🎓</span>
               <div class="logo-shine" ></div>
             </div>
           </div>
-          
+
           <h2 id="about-dialog-title" >
             Graduation App
           </h2>
-          
+
           <div class="version-badge">
             <span style="font-size: 12px;">⚡</span>
             v2.0.0
           </div>
-          
+
           <p class="tagline">
             Celebrate achievements with style
           </p>
         </div>
-        
+
         <!-- Features grid -->
         <div class="features-grid">
           <div class="feature-item" style = "background: rgba(102, 126, 234, 0.1);">
@@ -5508,7 +5512,7 @@ showAboutDialog() {
               line-height: 1.3;
             ">Confetti Effects</div>
           </div>
-          
+
           <div class="feature-item" style = "background: rgba(118, 75, 162, 0.1);">
             <div style="
               font-size: 24px;
@@ -5522,7 +5526,7 @@ showAboutDialog() {
               line-height: 1.3;
             ">Image Slideshow</div>
           </div>
-          
+
           <div class="feature-item" style = "background: rgba(240, 147, 251, 0.1);">
             <div style="
               font-size: 24px;
@@ -5536,7 +5540,7 @@ showAboutDialog() {
               line-height: 1.3;
             ">Sharing Features</div>
           </div>
-          
+
           <div class="feature-item" style = "background: rgba(255, 193, 7, 0.1);">
             <div style="
               font-size: 24px;
@@ -5551,7 +5555,7 @@ showAboutDialog() {
             ">Custom Themes</div>
           </div>
         </div>
-        
+
         <!-- Description -->
         <div class="description"
           <p style="
@@ -5562,14 +5566,14 @@ showAboutDialog() {
           ">
             A beautifully crafted graduation celebration app dedicated to the graduates of 2025 Combine mathematic and Computer Science Department
           </p>
-          
+
           <div style="
             display: inline-flex;
             align-items: center;
             gap: 8px;
             padding: 12px 20px;
-            background: linear-gradient(135deg, 
-              rgba(102, 126, 234, 0.08), 
+            background: linear-gradient(135deg,
+              rgba(102, 126, 234, 0.08),
               rgba(118, 75, 162, 0.08)
             );
             border-radius: 50px;
@@ -5585,21 +5589,21 @@ showAboutDialog() {
             </span>
           </div>
         </div>
-        
+
         <!-- Action buttons -->
         <div class="action-buttons" >
           <button class="dialog-btn-secondary" >
             <span style="font-size: 16px;">📘</span>
             Learn More
           </button>
-          
+
           <button class="dialog-btn-primary btn-close">
             <span class="btn-glow" ></span>
             <span style="font-size: 16px;">✨</span>
             Continue
           </button>
         </div>
-        
+
         <!-- Footer -->
         <div class="dialog-footer">
           <p style="
@@ -5615,59 +5619,59 @@ showAboutDialog() {
         </div>
       </div>
     `;
-    
+
     // Append to document
     document.body.appendChild(backdrop);
     backdrop.appendChild(dialog);
-    
+
     // Animate in
     setTimeout(() => {
       backdrop.style.opacity = '1';
       dialog.style.opacity = '1';
       dialog.style.transform = 'translateY(0) scale(1)';
     }, 10);
-    
- 
-    
+
+
+
     // Close functionality
     const closeBtn = dialog.querySelector('.dialog-close-btn');
     const closeDialogBtn = dialog.querySelector('.btn-close');
-    
+
     const closeDialog = () => {
       dialog.style.opacity = '0';
       dialog.style.transform = 'translateY(20px) scale(0.95)';
       backdrop.style.opacity = '0';
-      
+
       setTimeout(() => {
         dialog.remove();
         backdrop.remove();
         style.remove();
       }, 300);
     };
-    
+
     closeBtn.addEventListener('click', closeDialog);
     closeDialogBtn.addEventListener('click', closeDialog);
-    
+
     backdrop.addEventListener('click', (e) => {
       if (e.target === backdrop) {
         closeDialog();
       }
     });
-    
+
     // Keyboard support
     const handleKeyDown = (e) => {
       if (e.key === 'Escape') {
         closeDialog();
       }
     };
-    
+
     document.addEventListener('keydown', handleKeyDown);
-    
+
     // Focus trap for accessibility
     const focusableElements = dialog.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])');
     const firstElement = focusableElements[0];
     const lastElement = focusableElements[focusableElements.length - 1];
-    
+
     dialog.addEventListener('keydown', (e) => {
       if (e.key === 'Tab') {
         if (e.shiftKey && document.activeElement === firstElement) {
@@ -5679,18 +5683,18 @@ showAboutDialog() {
         }
       }
     });
-    
+
     // Focus first element
     setTimeout(() => {
       dialog.querySelector('button').focus();
     }, 100);
-    
+
     // Logo click celebration
     const logoContainer = dialog.querySelector('.logo-container');
     logoContainer.addEventListener('click', () => {
       const logoMain = logoContainer.querySelector('.logo-main');
       logoMain.style.animation = 'pulse 0.6s ease';
-      
+
       // Create confetti effect
       for (let i = 0; i < 8; i++) {
         const confetti = document.createElement('div');
@@ -5705,7 +5709,7 @@ showAboutDialog() {
           top: 50%;
           transform: translate(-50%, -50%) rotate(${Math.random() * 360}deg);
         `;
-        
+
         // Add confetti animation
         const style = document.createElement('style');
         style.textContent = `
@@ -5715,25 +5719,25 @@ showAboutDialog() {
               opacity: 1;
             }
             100% {
-              transform: 
+              transform:
                 translate(
-                  calc(-50% + ${(Math.random() - 0.5) * 200}px), 
+                  calc(-50% + ${(Math.random() - 0.5) * 200}px),
                   calc(-50% - ${100 + Math.random() * 100}px)
-                ) 
+                )
                 scale(0) rotate(${360 + Math.random() * 360}deg);
               opacity: 0;
             }
           }
         `;
         document.head.appendChild(style);
-        
+
         dialog.appendChild(confetti);
         setTimeout(() => {
           confetti.remove();
           style.remove();
         }, 1000);
       }
-      
+
       setTimeout(() => {
         logoMain.style.animation = '';
       }, 600);
@@ -5745,7 +5749,7 @@ showAboutDialog() {
    */
   handleCustomDropdownAction(action, data) {
     appLogger.debug("Custom dropdown action", { action, data });
-    
+
     switch (action) {
       case 'refresh':
         this.refreshApp();
@@ -5816,7 +5820,7 @@ showAboutDialog() {
    */
   destroy() {
     appLogger.time("GraduationApp cleanup");
-    
+
     // Destroy modules
     Object.entries(this.modules).forEach(([name, module]) => {
       if (module && typeof module.destroy === "function") {
@@ -5824,45 +5828,45 @@ showAboutDialog() {
         module.destroy();
       }
     });
-    
+
     // Destroy dropdown manager
     if (this.dropdownManager) {
       this.dropdownManager.destroy();
     }
-    
+
     // Destroy theme manager
     if (this.themeManager) {
       this.themeManager.destroy();
     }
-    
+
     // Remove event listeners
     if (this.eventHandlers.resize) {
       window.removeEventListener("resize", this.eventHandlers.resize);
     }
-    
+
     // Clear state
     this.isInitialized = false;
     this.modules = {};
     this.state = {};
-    
+
     appLogger.info("GraduationApp destroyed successfully");
     appLogger.timeEnd("GraduationApp cleanup");
   }
 setupKeyboardShortcuts() {
   document.addEventListener('keydown', (e) => {
     // Don't trigger if user is typing in an input
-    if (e.target.tagName === 'INPUT' || 
-        e.target.tagName === 'TEXTAREA' || 
+    if (e.target.tagName === 'INPUT' ||
+        e.target.tagName === 'TEXTAREA' ||
         e.target.isContentEditable) {
       return;
     }
-    
+
     // F5 to refresh
     if (e.key === 'F5') {
       e.preventDefault();
       this.refreshApp();
     }
-    
+
     // Ctrl/Cmd + Shift + D to open dropdown
     if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'D') {
       e.preventDefault();
@@ -5870,7 +5874,7 @@ setupKeyboardShortcuts() {
         this.dropdownManager.openDropdown();
       }
     }
-    
+
     // Escape to close dropdown
     if (e.key === 'Escape' && this.dropdownManager) {
       const state = this.dropdownManager.getState();
@@ -5886,23 +5890,23 @@ setupKeyboardShortcuts() {
  */
 updateMenuItems() {
   if (!this.dropdownManager) return;
-  
+
   // Update theme button label
   const themeItem = this.dropdownManager.elements?.dropdown?.querySelector('[data-action="theme"]');
   if (themeItem) {
     const label = themeItem.querySelector('.dropdown-item-label');
     const currentTheme = this.themeManager?.getCurrentTheme() || 'light';
-    
+
     this.themeManager.manaullyUpdateBtnLabel();
     if (label) {
       label.textContent = currentTheme === 'dark' ? 'Light Mode' : 'Dark Mode';
     }
   }
-  
+
   // Show/hide export/import based on authentication
   const exportItem = this.dropdownManager.elements?.dropdown?.querySelector('[data-action="export"]');
   const importItem = this.dropdownManager.elements?.dropdown?.querySelector('[data-action="import"]');
-  
+
   if (exportItem) {
     exportItem.style.display = this.state.userAuthenticated ? 'flex' : 'none';
   }
@@ -6246,27 +6250,27 @@ updateMenuItems() {
       appLogger.warn("No message items found for animation");
       return;
     }
-    
+
     appLogger.debug("Starting one-by-one message animations", {
       messageCount: this.elements.messageItems.length,
     });
     let index = 0;
-    
+
     const animateNext = () => {
       if (index >= this.elements.messageItems.length) {
         appLogger.debug("All messages animated");
         return;
       }
-      
+
       const item = this.elements.messageItems[index];
       item.style.opacity = "1";
       item.style.visibility = "visible";
       appLogger.debug(`Message ${index + 1} animated`);
       index++;
-      
+
       setTimeout(animateNext, 300);
     };
-    
+
     animateNext();
   }
 
@@ -6283,7 +6287,7 @@ updateMenuItems() {
   }
 
   /**
-  * Change the name of the title 
+  * Change the name of the title
   */
   changeTitleName() {
     appLogger.time("Change title name");

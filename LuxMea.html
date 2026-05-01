@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+
+    <!--Primary site Tags-->
+    <title id="title">Amore Amica 💝</title>
+    <meta
+      name="title"
+      content="Hey There Beautiful 💝 - Special Graduation Wishes"
+    />
+    <meta
+      name="description"
+      content="A special interactive greeting page dedicated to celebrating someone special with heartfelt messages and beautiful interactive elements."
+    />
+    <meta
+      name="keywords"
+      content="Graduation, love, celebration, wishes, special message, beautiful"
+    />
+    <meta name="author" content="Kenne Boniface" />
+    <meta name="google-site-verification" content="MkSGyIgRD1zc5QZ8pLzY-yBCME_CqFFVRyFUW-9iPmk" />
+    <meta name="robots" content="index, follow" />
+    <meta name="language" content="English" />
+    <link rel="canonical" href="https://Kjunior.vercel.app/LuxMea.html" />
+
+    <!-- Favicon & App Icons -->
+    <link
+      rel="icon"
+      href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🎂</text></svg>"
+    />
+    <meta name="color-scheme" content="light dark" />
+    <meta name="msapplication-TileColor" content="#4A00E0" />
+    <link rel="manifest" href="manifest.webmanifest" />
+
+    <!-- Apple Touch Icons (Multiple sizes for different devices) -->
+    <link
+      rel="apple-touch-icon"
+      sizes="180x180"
+      href="/icon/apple/img/apple-touch-icon.png"
+    />
+    <link
+      rel="apple-touch-icon"
+      sizes="167x167"
+      href="/icon/apple/img/apple-touch-icon-167x167.png"
+    />
+    <link
+      rel="apple-touch-icon"
+      sizes="152x152"
+      href="/icon/apple/img/apple-touch-icon-152x152.png"
+    />
+    <link
+      rel="apple-touch-icon"
+      sizes="120x120"
+      href="/icon/apple/img/apple-touch-icon-120x120.png"
+    />
+        <meta name="theme-color" content="pink" />
+
+
+    <!-- Stylesheets -->
+    <link rel="stylesheet" href="/src/css/Lux Mea.css" />
+    <link rel="stylesheet" href="/src/css/loading.css" />
+  </head>
+
+  <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "CreativeWork",
+      "name": "Interactive Greeting Experience",
+      "description": "A beautiful interactive greeting with animated gradient background",
+      "author": {
+        "@type": "Person",
+        "name": "Junior"
+      },
+      "creator": {
+        "@type": "Person",
+        "name": "Junior"
+      }
+    }
+  </script>
+
+  <body>
+    <div class="loading-container is-visible" id="loadingSpinner" aria-hidden="false" aria-live="off">
+        <div class="loading-spinner"></div>
+        <div class="loading-text">
+            Loading<span class="loading-dots">
+                <span class="loading-dots__dot"></span>
+                <span class="loading-dots__dot"></span>
+                <span class="loading-dots__dot"></span>
+            </span>
+        </div>
+        <div class="loading-progress">
+            <div class="loading-progress__bar"></div>
+        </div>
+    </div>
+
+    <div class="cursor-follower" aria-hidden="true">
+      <div class="cursor-inner"></div>
+      <div class="cursor-outer"></div>
+    </div>
+
+    <main
+      id="main-content"
+      class="main-content"
+      id="protectedContent"
+      role="main"
+    >
+      <div class="card" role="article" aria-labelledby="greeting-heading">
+        <div class="card-inner">
+          <div class="card-effects">
+            <svg
+              viewBox="0 0 100% 100%"
+              xmlns="http://www.w3.org/2000/svg"
+              class="noise"
+            >
+              <filter id="noiseFilter">
+                <feTurbulence
+                  type="fractalNoise"
+                  baseFrequency="0.85"
+                  numOctaves="6"
+                  stitchTiles="stitch"
+                />
+              </filter>
+
+              <rect
+                width="100%"
+                height="100%"
+                preserveAspectRatio="xMidYMid meet"
+                filter="url(#noiseFilter)"
+              />
+            </svg>
+            <div class="card-shine" ariHeya-hidden="true"></div>
+            <div class="card-glare" aria-hidden="true"></div>
+          </div>
+          <div class="content">
+            <header class="content-header">
+              <h1 id="greeting-heading" class="greeting-title">
+                <span class="title-word">Lux Mea</span>
+                <span class="title-punctuation">!</span>
+              </h1>
+              <div class="decoration-line" aria-hidden="true"></div>
+            </header>
+            <div class="message-content" id="proposalCard">
+              <p class="message-text">
+               Dear Lulu, i want to express and let you know what you really mean to me
+
+            </div>
+
+            <footer class="content-footer">
+              <div class="interaction-buttons">
+                <button
+                  class="cta-button primary"
+                  id="yes-btn"
+                  aria-label="Continue to next experience"
+                >
+                  <span class="button-text">Im happy to </span>
+                  <span class="button-icon" aria-hidden="true">
+                    <svg
+                      width="20"
+                      height="20"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      xmlns="http://www.w3.org/2000/svg"
+                    >
+                      <path
+                        d="M5 12H19M19 12L12 5M19 12L12 19"
+                        stroke="currentColor"
+                        stroke-width="2"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                      />
+                    </svg>
+                  </span>
+                </button>
+                <button
+                  class="cta-button primary"
+                  id="maybe-btn"
+                  aria-label="Continue to next experience"
+                >
+                  <span class="button-text">i will think about it</span>
+                  <span class="button-icon" aria-hidden="true">
+                    <svg
+                      width="20"
+                      height="20"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      xmlns="http://www.w3.org/2000/svg"
+                    >
+                      <path
+                        d="M5 12H19M19 12L12 5M19 12L12 19"
+                        stroke="currentColor"
+                        stroke-width="2"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                      />
+                    </svg>
+                  </span>
+                </button>
+                <button
+                  class="cta-button primary"
+                  id="nope-btn"
+                  aria-label="Continue to next experience"
+                >
+                  <span class="button-text">No But thanks </span>
+                  <span class="button-icon" aria-hidden="true">
+                    <svg
+                      width="20"
+                      height="20"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      xmlns="http://www.w3.org/2000/svg"
+                    >
+                      <path
+                        d="M5 12H19M19 12L12 5M19 12L12 19"
+                        stroke="currentColor"
+                        stroke-width="2"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                      />
+                    </svg>
+                  </span>
+                </button>
+              </div>
+            </footer>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <div class="gradient-bg">
+      <svg
+        viewBox="0 0 100vw 100vw"
+        xmlns="http://www.w3.org/2000/svg"
+        class="noiseBg"
+      >
+        <filter id="noiseFilterBg">
+          <feTurbulence
+            type="fractalNoise"
+            baseFrequency="0.6"
+            stitchTiles="stitch"
+          />
+        </filter>
+
+        <rect
+          width="100%"
+          height="100%"
+          preserveAspectRatio="xMidYMid meet"
+          filter="url(#noiseFilterBg)"
+        />
+      </svg>
+      <svg xmlns="http://www.w3.org/2000/svg" class="svgBlur">
+        <defs>
+          <filter id="goo">
+            <feGaussianBlur
+              in="SourceGraphic"
+              stdDeviation="10"
+              result="blur"
+            />
+            <feColorMatrix
+              in="blur"
+              mode="matrix"
+              values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 18 -8"
+              result="goo"
+            />
+            <feBlend in="SourceGraphic" in2="goo" />
+          </filter>
+        </defs>
+      </svg>
+      <div class="gradients-container">
+        <div class="g1"></div>
+        <div class="g2"></div>
+        <div class="g3"></div>
+        <div class="g4"></div>
+        <div class="g5"></div>
+        <div class="interactive"></div>
+      </div>
+    </div>
+    <div class="particles-container" hidden aria-hidden="true">
+      <canvas id="particles-canvas" role="presentation"></canvas>
+    </div>
+
+    <audio id="hover-sound">
+      <source
+        src="/public/Ruth-B_-Dandelions-(TopGhanaMusic.Com).mp3"
+        type="audio/mpeg"
+      />
+    </audio>
+    <script src="/src/js/LuxMea.js" type="module"></script>
+    <script src="/src/main.js"></script>
+
+<script type="module">
+  import logger from '/src/js/utility/logger.js';
+  import { getAuthManager } from "/src/auth-check.js";
+
+  async function initializeProtectedPage() {
+    try {
+      const authManager = await getAuthManager();
+      authManager.updateLoadingText("Lux Mea, Preparing your special experience...");
+      authManager.showLoading();
+
+      const authResult = await authManager.setupAuthProtection();
+
+      if (authResult.authenticated) {
+        // Hide loading with smooth transition
+        authManager.hideLoading(3000); // 1 second fade out
+
+      }else {
+        logger.warn("User is not authenticated. Redirecting to login page.");
+       window.location.href = "/login.html";
+      }
+    } catch (error) {
+      const authManager = await getAuthManager();
+      authManager.hideLoading();
+      logger.error("Authentication failed:", error);
+      window.location.href = "/login.html";
+    }
+  }
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", initializeProtectedPage);
+  } else {
+    initializeProtectedPage();
+  }
+</script>
+  </body>
+</html>

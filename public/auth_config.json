@@ -6,7 +6,7 @@
   },
 
   "PasswordManager": {
-    "STORAGE_KEY": "GraduationAppPassword",  
+    "STORAGE_KEY": "GraduationAppPassword",
 
     "CURRENT_USER_KEY": "GraduationAppCurrentUser",
 
@@ -35,7 +35,7 @@
         "isGraduand": "true"
       },
       "L": {
-        "name": "LuLu\uD83E\uDEF6\uD83D\uDC96",
+        "name": "Lux mea\uD83E\uDEF6\uD83D\uDC96",
         "password": "WelcomeLulu",
         "isGraduand": "false"
       }

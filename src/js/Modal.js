@@ -1,6 +1,6 @@
 import ColorThief from "colorthief";
 import logger from "./utility/logger.js";
-import {
+import filterMediaByUser, {
     generateIntelligentMessage,
     generatePhotoMessage,
     generateSimpleMessage,
@@ -1867,7 +1867,16 @@ class UltimateModal {
         }
 
         modalLogger.debug("Starting gallery generation");
-        this.mediaData = await loadMediaData();
+        const data = await loadMediaData();
+        const user = getCurrentUserInfo();
+
+        let filteredMedia = [];
+        if (data && user.code==='L') {
+            // If filterMediaByUser is available and should be used, apply it
+            filteredMedia = filterMediaByUser(data.media, user, { includeVideos: false });
+            this.mediaData.media = filteredMedia;
+        }else
+            this.mediaData = data;
 
         this.mediaData.media.forEach((mediaData, index) => {
             const figure = this.createGalleryFigure(mediaData, index);
@@ -2368,7 +2377,7 @@ class UltimateModal {
             modalLogger.debug("Tooltip shown after exiting fullscreen mode");
         }
     }
-     
+
     /**
      * Generates dynamic caption based on current media
      * Can be used for modal title or other UI elements

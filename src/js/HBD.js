@@ -4,6 +4,7 @@ import Notification from "./notification.js";
 import logger from "./utility/logger.js";
 import {ThemeManager} from "./utility/Mode.js";
 import {getDeviceType} from "./utility/logger_info.js";
+import { getCurrentUserInfo } from "./utility/utils.js";
 
 /**
  * Main Graduation Application Class
@@ -153,6 +154,8 @@ class GraduationAppMemories {
             // Detect platform and adjust settings
             this.detectPlatform();
 
+
+
             // Setup event listeners
             this.setupEventListeners();
 
@@ -161,6 +164,7 @@ class GraduationAppMemories {
 
             // Start initial celebrations
             this.triggerCelebration(1000); // Initial celebration after 1 second
+
             this.animateName();
             this.triggerConfetti();
             this.createFloatingElements();
@@ -173,6 +177,9 @@ class GraduationAppMemories {
 
             // Initialize PWA
             this.initializePWA();
+
+            // Personalize message content for specific users
+            this.changePageContent();
 
             this.logger.info("GraduationAppMemories initialized successfully");
         } catch (error) {
@@ -273,6 +280,40 @@ class GraduationAppMemories {
         }
 
         this.logger.timeEnd("Platform detection");
+    }
+
+    changePageContent(){
+        const User = getCurrentUserInfo();
+        if (User.code !== "L") {
+            return
+        }
+        this.changeCelebrationButton();
+        this.changeProfilepic();
+        this.changeSignatureanimated();
+        this.ChangeTitile();
+        this.ChangeMessage();
+    }
+    ChangeMessage() {
+        const messagePreview = document.getElementById('messagePreview');
+        const messageFull = document.getElementById('messageFull');
+        messagePreview.textContent = "Hey Lulu, on this special day, I want to express how much you mean to me. Your kindness, intelligence, and beauty have always inspired me.....";
+        messageFull.innerHTML = "Dear Lulu, on this special day, I want to express how much you mean to me. Your kindness, intelligence, and beauty have always inspired me. click  to <a href='/LuxMea.html' target='_blank' rel='noopener noreferrer' style='text-decoration: underline; color: #d63384; font-weight: 700;'>discover the suprise </a> I specially made for you just to you to tell you how I feel";
+    }
+    changeProfilepic(){
+          const profile_pic = document.getElementById('profile_pic');
+        profile_pic.src = "/public/pics/[L]__1777618272874 (1).png";
+    }
+    changeCelebrationButton(){
+        const celebrationButton = document.querySelector(".btn-celebrate");
+        celebrationButton.textContent = "Celebrate with me, Lulu!";
+    }
+    changeSignatureanimated(){
+        const signatureElement = document.querySelector(".signature");
+        signatureElement.innerHTML = "With all my love,<br> Boni Boni  ❤️🥰";
+    }
+    ChangeTitile(){
+        const titleWord = document.querySelector("#Graduation-name");
+        titleWord.textContent = "Lux Mea";
     }
 
     /**
