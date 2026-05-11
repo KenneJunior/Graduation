@@ -36,6 +36,9 @@ function copyServiceWorker() {
 
     // Copy the file
     fs.copyFileSync(sourcePath, targetPath);
+    // Delete the original hashed file to avoid confusion (optional)
+     fs.unlinkSync(sourcePath);
+
 
     console.log("✅ Successfully copied:");
     console.log("   From:", hashedSw);
