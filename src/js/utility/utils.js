@@ -84,6 +84,7 @@ export function filterMediaByUser(media, authResult, options = {}) {
     excludeSolo: false,
     onlyWithPerson: null,    // Filter to only include media with specific person code
     excludeCodes: [],        // NEW: array of person codes to exclude entirely
+    includeOnlyCodes: [],        // NEW: array of person codes to only inlcude (media should have just one of these codes to be inlcuded )
     minPersons: 1,
     maxPersons: null,
     enhanceMetadata: true,
@@ -163,6 +164,20 @@ export function filterMediaByUser(media, authResult, options = {}) {
       });
     });
   }
+
+  //  PHASE 3.6: only include items that contain just one of the specified codes (ie if the media has code A and B but we only want to include media with code A, then this media will be excluded because it has code B as well - this is useful for creating a "solo" collection for each person)
+    if (config.includeOnlyCodes && config.includeOnlyCodes.length > 0) {
+        filteredMedia = filteredMedia.filter(item => {
+            if (!Array.isArray(item.persons)) return false;
+            // Include item only if it contains at least one of the specified codes and does not contain any other codes
+            const itemCodes = item.persons.map(person => typeof person === 'string' ? person : (person && person.code));
+            const hasIncludedCode = itemCodes.some(code => config.includeOnlyCodes.includes(code));
+            const hasExcludedCode = itemCodes.some(code => !config.includeOnlyCodes.includes(code));
+            return hasIncludedCode && !hasExcludedCode;
+        });
+
+    }
+
 
   // PHASE 4: Group size filtering
   filteredMedia = filteredMedia.filter(item => {

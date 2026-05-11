@@ -196,9 +196,9 @@ button{
   left: 0;
   width: 100%;
   height: 100%;
-  background: linear-gradient(90deg, 
-    transparent 0%, 
-    rgba(255, 255, 255, 0.2) 50%, 
+  background: linear-gradient(90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.2) 50%,
     transparent 100%);
   animation: shimmer 2s infinite;
   z-index: -1;
@@ -212,7 +212,7 @@ button{
   height: 100%;
   background: linear-gradient(
     90deg,
-    transparent, 
+    transparent,
     rgba(255, 255, 255, 0.2),
     transparent 100%
   );
@@ -999,7 +999,7 @@ animation: sparkle 1s infinite;
     font-size: 0.7rem;
     bottom: 0.8rem;
   }
-  
+
   .keyboard-key {
     padding: 3px 6px;
     min-width: 20px;
@@ -1112,7 +1112,7 @@ animation: sparkle 1s infinite;
   .keyboard-hints {
     transition: none;
   }
-  
+
   .nav-btn:hover,
   .playback-btn:hover {
     transform: none;
@@ -1543,7 +1543,7 @@ animation: orbitReverse 15s linear infinite;
   transform: scale(1.2);
   animation: shimmer 1.5s linear infinite;
 }
-  
+
   @keyframes fadeOut {
     from {
       opacity: 1;
@@ -1554,27 +1554,27 @@ animation: orbitReverse 15s linear infinite;
       transform: translateY(-10px);
     }
   }
-  
+
   .share-active {
     position: relative;
     z-index: 1;
   }
-  
+
   .share-success {
     background-color: #4CAF50 !important;
     color: white !important;
   }
-  
+
   .share-error {
     background-color: #F44336 !important;
     color: white !important;
     animation: shake 0.5s ease;
   }
-  
+
   .share-touch-active {
     opacity: 0.8;
   }
-  
+
   @keyframes shake {
     0%, 100% { transform: translateX(0); }
     25% { transform: translateX(-5px); }
@@ -1605,7 +1605,7 @@ from {
 opacity: 1;
 }
 to {
-opacity: 0;   
+opacity: 0;
 }
 }
 
@@ -1676,7 +1676,7 @@ transform: translateX(0);
       transform: translateY(0) scale(1);
     }
   }
-  
+
   @keyframes dropdownFadeOut {
     from {
       opacity: 1;
@@ -1687,12 +1687,12 @@ transform: translateX(0);
       transform: translateY(-10px) scale(0.95);
     }
   }
-  
+
   @keyframes backdropFadeIn {
     from { opacity: 0; }
     to { opacity: 1; }
   }
-  
+
   @keyframes backdropFadeOut {
     from { opacity: 1; }
     to { opacity: 0; }
@@ -2030,7 +2030,7 @@ to { transform: rotate(-360deg) translateX(-40px) rotate(360deg); }
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
   }
-  
+
   .animate-on-scroll,
   [data-animate] {
     opacity: 1 !important;
@@ -2151,13 +2151,13 @@ transition: var(--transition-fast);
   animation: glow 2s ease-in-out infinite alternate;
 }
 
-  
+
   /* Ripple effect */
   .ripple-effect {
     position: relative;
     overflow: hidden;
   }
-  
+
   .ripple {
     position: absolute;
     border-radius: 50%;
@@ -2378,7 +2378,7 @@ border: 1px solid rgba(255, 255, 255, 0.2);
 .mode-toggle {
 position: fixed;
 top: 20px;
-right: 20px;
+left: 20px;
 z-index: 1000;
 background: linear-gradient(135deg, var(--primary), var(--primary-dark));
 color: white;
@@ -2419,7 +2419,7 @@ box-shadow: 0 0 0 3px rgba(142, 45, 226, 0.2);
 }
 
 [data-theme="dark"] .mode-toggle .mode-icon {
-    content: "☀️"; 
+    content: "☀️";
     color: yellow;
 }
 
@@ -2444,19 +2444,19 @@ box-shadow: 0 0 0 3px rgba(142, 45, 226, 0.2);
 /* ===== Dark Mode Support ===== */
 [data-theme="dark"] {
 
-  --primary: #a855f7; 
+  --primary: #a855f7;
   --primary-dark: #2f037b;
   --primary-light: #4c1d95;
-  --secondary: #06b6d4; 
+  --secondary: #06b6d4;
   --secondary-dark: #0891b2;
-  --accent: #f87171; 
+  --accent: #f87171;
   --accent-dark: #dc2626;
-  --light: #0f172a; 
-  --dark: #f8fafc; 
-  --text: #f1f5f9; 
-  --text-muted: #cbd5e1; 
-  --border: #334155; 
-  --success: #10b981; 
+  --light: #0f172a;
+  --dark: #f8fafc;
+  --text: #f1f5f9;
+  --text-muted: #cbd5e1;
+  --border: #334155;
+  --success: #10b981;
 
   /* Shadows - lighter for dark mode to avoid over-darkening */
   --shadow-sm: 0 1px 4px rgba(0, 0, 0, 0.15);
@@ -2503,7 +2503,7 @@ html.theme-transitioning::before {
 @keyframes expandFromButton {
   0% {
     opacity: 0;
-    transform: scale(0) translate(20px, 20px); 
+    transform: scale(0) translate(20px, 20px);
   }
   100% {
     opacity: 1;
@@ -2514,7 +2514,7 @@ html.theme-transitioning::before {
 [data-theme="dark"] .Graduation-card {
   background: var(--card-gradient) !important;
   border: 1px solid var(--border);
-  box-shadow: var(--shadow-xl), 0 0 0 1px rgba(255, 255, 255, 0.05);  
+  box-shadow: var(--shadow-xl), 0 0 0 1px rgba(255, 255, 255, 0.05);
   color: var(--text) !important;
   transition: background 0.4s ease, box-shadow 0.4s ease, transform 0.3s ease;
 }
@@ -2525,7 +2525,7 @@ html.theme-transitioning::before {
 
 [data-theme="dark"] .content-section {
 
-  background: rgba(30, 41, 59, 0.8) !important; 
+  background: rgba(30, 41, 59, 0.8) !important;
   backdrop-filter: blur(20px);
   border: 1px solid rgba(255, 255, 255, 0.05);
   color: var(--text) !important;
@@ -2534,12 +2534,12 @@ html.theme-transitioning::before {
 
 /* Text and icons - high contrast, subtle hovers */
 [data-theme="dark"] .Graduation-title {
-  color: var(--text) !important; 
+  color: var(--text) !important;
   background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
-  text-shadow: none; 
+  text-shadow: none;
   transition: color 0.3s ease;
 }
 [data-theme="dark"] .name-highlight {
@@ -2569,7 +2569,7 @@ html.theme-transitioning::before {
 /* Image placeholder - inverted gradient */
 [data-theme="dark"] .image-placeholder {
   background: var(--image-placeholder-gradient) !important;
-  color: var(--dark) !important; 
+  color: var(--dark) !important;
 }
 
 /* Share buttons - adjust shadows for dark */
@@ -2642,7 +2642,7 @@ html.theme-transitioning::before {
     transition: none !important;
   }
   [data-theme="dark"] body {
-    background: var(--bg-gradient) !important; 
+    background: var(--bg-gradient) !important;
   }
 }
 
@@ -2665,7 +2665,7 @@ html.theme-transitioning::before {
 }
 .mode-toggle .mode-icon::before,
 .mode-toggle .mode-text::before {
-  content: attr(data-dark-content); 
+  content: attr(data-dark-content);
   opacity: 0;
   position: absolute;
   top: 0;
@@ -2677,41 +2677,41 @@ html.theme-transitioning::before {
         from { transform: rotate(0deg); }
         to { transform: rotate(360deg); }
       }
-      
+
       @keyframes pulse {
         0%, 100% { transform: scale(1); }
         50% { transform: scale(1.05); }
       }
-      
+
       .logo-container:hover .logo-main {
         animation: pulse 0.6s ease;
       }
-      
+
       .logo-container:hover .logo-shine {
         transform: rotate(45deg) translateX(100%);
       }
-      
+
       .feature-item:hover {
         transform: translateY(-2px);
         box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
         border-color: rgba(102, 126, 234, 0.3) !important;
       }
-      
+
       .btn-primary:hover {
         transform: translateY(-2px);
         box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
       }
-      
+
       .btn-primary:hover .btn-glow {
         transform: translateX(100%);
       }
-      
+
       .btn-secondary:hover {
         background: var(#f5f5f5);
         border-color: var(--primary, #667eea);
         color: var(--primary, #667eea);
       }
-      
+
       .dialog-close-btn:hover {
         background: rgba(0, 0, 0, 0.1);
         transform: rotate(90deg);
@@ -2733,13 +2733,13 @@ html.theme-transitioning::before {
       justify-content: center;
       padding: 20px;
       }
-      
+
       .about-dialog {
 position: relative;
       background: var(--dropdown-bg, #ffffff);
       padding: 0;
       border-radius: 24px;
-      box-shadow: 
+      box-shadow:
         0 32px 64px rgba(0, 0, 0, 0.2),
         0 16px 32px rgba(0, 0, 0, 0.1),
         inset 0 1px 0 rgba(255, 255, 255, 0.1);
@@ -2759,11 +2759,11 @@ position: relative;
         left: 0;
         right: 0;
         height: 4px;
-        background: linear-gradient(90deg, 
-          #667eea, 
-          #764ba2, 
-          #f093fb, 
-          #f5576c, 
+        background: linear-gradient(90deg,
+          #667eea,
+          #764ba2,
+          #f093fb,
+          #f5576c,
           #ffd166
         );
         opacity: 0.8;
@@ -2788,10 +2788,10 @@ position: relative;
         z-index: 3;
         transition: all 0.2s ease;
         backdrop-filter: blur(10px);
-      }      
+      }
 
       .dialog-content {
-        padding: 40px 35px 35px 35px; 
+        padding: 40px 35px 35px 35px;
         overflow-y: auto;
          max-height: 88vh;
       }
@@ -2831,8 +2831,8 @@ position: relative;
       .logo-main{
  width: 100%;
               height: 100%;
-              background: linear-gradient(135deg, 
-                var(--primary, #667eea) 0%, 
+              background: linear-gradient(135deg,
+                var(--primary, #667eea) 0%,
                 var(--secondary, #764ba2) 100%
               );
               border-radius: 24px;
@@ -2842,7 +2842,7 @@ position: relative;
               color: white;
               font-size: 48px;
               position: relative;
-              box-shadow: 
+              box-shadow:
                 0 10px 30px rgba(102, 126, 234, 0.3),
                 inset 0 1px 0 rgba(255, 255, 255, 0.3);
               transition: all 0.3s ease;
@@ -2870,8 +2870,8 @@ position: relative;
             font-size: 32px;
             font-weight: 800;
             letter-spacing: -0.5px;
-            background: linear-gradient(135deg, 
-              var(--primary, #667eea), 
+            background: linear-gradient(135deg,
+              var(--primary, #667eea),
               var(--secondary, #764ba2)
             );
             -webkit-background-clip: text;
@@ -2885,8 +2885,8 @@ position: relative;
             align-items: center;
             gap: 6px;
             padding: 6px 16px;
-            background: linear-gradient(135deg, 
-              rgba(102, 126, 234, 0.1), 
+            background: linear-gradient(135deg,
+              rgba(102, 126, 234, 0.1),
               rgba(118, 75, 162, 0.1)
             );
             color: var(--primary, #667eea);
@@ -2925,7 +2925,7 @@ position: relative;
             color: var(#444);
             font-size: 16px;
             line-height: 1.5;
-        
+
 
       }
       .action-buttons{
@@ -2954,8 +2954,8 @@ position: relative;
       .dialog-btn-primary{
         padding: 14px 20px;
             border: none;
-            background: linear-gradient(135deg, 
-              var(--primary, #667eea), 
+            background: linear-gradient(135deg,
+              var(--primary, #667eea),
               var(--secondary, #764ba2)
             );
             color: white;
@@ -2980,9 +2980,9 @@ position: relative;
         left: -100%;
         width: 100%;
         height: 100%;
-        background: linear-gradient(90deg, 
-          rgba(255, 255, 255, 0.2), 
-          rgba(255, 255, 255, 0.6), 
+        background: linear-gradient(90deg,
+          rgba(255, 255, 255, 0.2),
+          rgba(255, 255, 255, 0.6),
           rgba(255, 255, 255, 0.2)
         );
         transform: translateX(0);
@@ -3005,32 +3005,32 @@ position: relative;
         .about-dialog-backdrop {
           background: rgba(0, 0, 0, 0.85);
         }
-        
+
         .about-dialog {
           background: #1a1a1a;
           border-color: rgba(255, 255, 255, 0.05);
         }
-        
+
         .dialog-close-btn {
           background: rgba(255, 255, 255, 0.05);
           color: rgba(255, 255, 255, 0.6);
         }
-        
+
         .dialog-close-btn:hover {
           background: rgba(255, 255, 255, 0.1);
         }
       }
-      
+
       /* Responsive */
       @media (max-width: 480px) {
         .features-grid {
           grid-template-columns: 1fr;
         }
-        
+
         .action-buttons {
           flex-direction: column;
         }
-        
+
         .dialog-content {
           padding: 30px 25px 25px 25px;
         }

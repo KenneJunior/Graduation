@@ -34,15 +34,12 @@ export default defineConfig({
         logout: resolve(__dirname, "logout.html"),
         login: resolve(__dirname, "login.html"),
         sw: resolve(__dirname, "public/sw.js"),
-        offline: resolve(__dirname, "public/offline.html"),
-          profile_pic: resolve(__dirname, "profile_pic.jpg"),
       },
       output: {
         chunkFileNames: "assets/[name]-[hash].js",
         assetFileNames: "assets/[name]-[hash].[ext]",
       },
     },
-    //uncomment this if you want to minify the option for terser
     minify: "terser",
     //minify: "true",
   },

@@ -15,7 +15,7 @@
       name="description"
       content="This graduation tribute site is dedicated to celebrating my classmates and our shared journey, featuring memorable photos and heartfelt messages that honor the bonds, challenges, and victories we experienced together."
     />
-    <meta 
+    <meta
       name="keywords"
       content="Graduation, love, celebration, wishes, happy Graduation, special day"
     />
@@ -260,10 +260,10 @@
       </div>
     </noscript>
 
-    <button id="mode-toggle"  aria-label="Toggle dark mode">
-      <!--  add the class = "mode-toggle" to the button above
-      <span class="mode-icon">🌙</span>
-        <span class="mode-text">Dark Mode</span> -->
+    <button  class="mode-toggle"  aria-label="Toggle dark mode">
+
+      <span class="mode-icon">📸</span>
+        <a href="/memories.html" class="View Memories">View Memories</a>
     </button>
     <!-- Loading Animation -->
     <div class="loading-container is-visible" id="loadingSpinner" aria-hidden="false" aria-live="off">
@@ -999,11 +999,11 @@
     try {
       // Get the auth manager instance
       const authManager = await getAuthManager();
-      
+
       // Update loading text and show loading animation
       authManager.updateLoadingText("Ok just give me a second to load this ⚒👷‍♀️👩‍🏭");
       authManager.showLoading();
-      
+
       // Set up authentication protection
       const authResult = await authManager.setupAuthProtection();
 
@@ -1014,11 +1014,11 @@
       document.addEventListener('load',() => initializePageContent(authManager))
     } catch (error) {
       logger.error("Authentication failed:", error);
-      
+
       // Hide loading and redirect to login
       const authManager = await getAuthManager();
       authManager.hideLoading();
-      
+
       setTimeout(() => {
         window.location.href = "/login";
       }, 1000);
@@ -1039,7 +1039,7 @@
 
     const music = document.getElementById("music");
     const pwa = document.querySelector("#pwa-prompt");
-    
+
     const interval = setInterval(async () => {
       const result = await checkOnlineStatus();
       if (result) {

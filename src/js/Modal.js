@@ -1869,16 +1869,13 @@ class UltimateModal {
         modalLogger.debug("Starting gallery generation");
         const data = await loadMediaData();
         const user = getCurrentUserInfo();
-
-        let filteredMedia = [];
         if (data ){
             if(user.code==='L') {
             // If filterMediaByUser is available and should be used, apply it
-            filteredMedia = filterMediaByUser(data.media, user, { includeVideos: false });
-            this.mediaData.media = filteredMedia;
-        }else{
-            this.mediaData.media = filterMediaByUser(data.media, user, {excludeCodes:'L' });
+            this.mediaData.media = filterMediaByUser(data.media, user, { includeVideos: false, includeOnlyCodes:['L','J'] });
         }
+        else{
+            this.mediaData = data;
     }
 
         this.mediaData.media.forEach((mediaData, index) => {
@@ -1897,6 +1894,7 @@ class UltimateModal {
 
         // Check if we need to show the See More button
         this.checkSeeMoreButton();
+    }
 
         modalLogger.info("Gallery generation completed", {
             mediaCount: this.mediaData.media.length,

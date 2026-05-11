@@ -1,64 +1,98 @@
-//Uncomment this out in a dev environment
-i//mportScripts("../src/js/utility/logger-global.js");
-import "../src/js/utility/logger-global.js";
+// ---------------------------------------------------------------------------
+// 0. Module imports — importScripts is the only valid mechanism inside a SW
+// ---------------------------------------------------------------------------
 
-importScripts("./offline-template.js");
+// The external offline template may define/override the OFFLINE_HTML variable.
+// We wrap it so a missing file doesn't kill the entire worker.
+try {
+  importScripts("./offline-template.js");
+} catch (e) {
+  // offline-template.js is optional; we have a built-in fallback below.
+  console.warn("[SW] offline-template.js not found — using built-in fallback.");
+}
 
+// Custom structured logger — expected to set self.logger
+try {
+  importScripts("./logger/logger-global.js");
+} catch (e) {
+  // Provide a minimal console-backed logger so the rest of the file still works
+  // in environments where the logger script isn't available (e.g. unit tests).
+  self.logger = {
+    withContext: () => self.logger,
+    debug: (...a) => console.debug(...a),
+    info: (...a) => console.info(...a),
+    warn: (...a) => console.warn(...a),
+    error: (...a) => console.error(...a),
+    time: (l) => console.time(l),
+    timeEnd: (l) => console.timeEnd(l),
+  };
+}
+
+// ---------------------------------------------------------------------------
+// 1. Constants
+// ---------------------------------------------------------------------------
+
+const CACHE_VERSION = "v1.02";
+const STATIC_CACHE   = `graduation-static-${CACHE_VERSION}`;
+const DYNAMIC_CACHE  = `graduation-dynamic-${CACHE_VERSION}`;   // fixed typo: "gradutation"
+const CSS_JS_CACHE   = `graduation-css_js-${CACHE_VERSION}`;
+
+// Per-cache item limits.  Oldest entries (by insertion order) are evicted first.
+const CACHE_LIMITS = {
+  [STATIC_CACHE]:  150,   // pre-cached essentials rarely exceed this
+  [DYNAMIC_CACHE]: 100,   // HTML pages + redirects
+  [CSS_JS_CACHE]:  200,   // JS / CSS / external CDN resources
+};
+
+// Create a module-level logger with service-worker context
 const logger = self.logger;
-const CACHE_VERSION = "v1.01";
-const STATIC_CACHE = `graduation-static-${CACHE_VERSION}`;
-const DYNAMIC_CACHE = `gradutation-dynamic-${CACHE_VERSION}`;
-const CSS_JS_CACHE = `graduation-css_js-${CACHE_VERSION}`;
-
-// Create a specialized logger for Service Worker with custom context
 const swLogger = logger.withContext({
   module: "ServiceWorker",
   cacheVersion: CACHE_VERSION,
-  scope: self.registration?.scope || "unknown",
+  scope: self.registration?.scope ?? "unknown",
 });
 
-// External CDN domains to cache
-const EXTERNAL_CDNS = [
+// ---------------------------------------------------------------------------
+// 2. External CDN allow-lists
+// ---------------------------------------------------------------------------
+
+const EXTERNAL_CDN_HOSTS = new Set([
   "cdnjs.cloudflare.com",
   "cdn.jsdelivr.net",
   "unpkg.com",
   "fonts.googleapis.com",
   "fonts.gstatic.com",
   "use.fontawesome.com",
-  "cdn.jsdelivr.net",
   "code.jquery.com",
   "maxcdn.bootstrapcdn.com",
-];
+]);
 
-// Common external library patterns
-const EXTERNAL_LIBRARIES = [
-  // Bootstrap 5
+// Regex patterns that identify well-known library bundles (belt-and-suspenders
+// check for CDN resources that might come from unexpected hostnames).
+const EXTERNAL_LIBRARY_PATTERNS = [
   /bootstrap.*\.min\.(css|js)/i,
-
-  // Font Awesome 6.4.0
-  // awesome-free
   /fontawesome|font-awesome|all\.min\.(css|js)/i,
-
-  // Animate.css
   /animate(\.min)?\.css/i,
-
-  // Hammer.js
   /hammer(\.min)?\.js/i,
-  // Google Fonts
   /fonts\.googleapis\.com/i,
   /fonts\.gstatic\.com/i,
 ];
 
-// Base URLs to cache - adjusted for Vercel (no /public/)
+// ---------------------------------------------------------------------------
+// 3. Essential URLs pre-cached on install
+// ---------------------------------------------------------------------------
+
 const ESSENTIAL_URLS = [
-  "/offline.html",
   "/",
   "/index.html",
+  "/offline.html",
   "/memories.html",
   "/logout",
   "/manifest.webmanifest",
   "/gallery-data.json",
-  // Audio
+  "/auth_config.json",
+  "/screenshot.svg",
+  // Images
   "/pics/img1.jpg",
   "/pics/img2.jpg",
   "/pics/img3.jpg",
@@ -66,1166 +100,617 @@ const ESSENTIAL_URLS = [
   "/pics/img5.jpg",
   "/pics/profile_pic.jpg",
   "/pics/tat.jpg",
-  "/auth_config.json",
-  "/gallery-data.json",
-  "/screenshot.svg",
 ];
 
-// File extensions to cache dynamically
-const CACHEABLE_EXTENSIONS = [
-  ".html",
-  ".css",
-  ".js",
-  ".json",
-  ".jpg",
-  ".jpeg",
-  ".png",
-  ".gif",
-  ".svg",
-  ".webp",
-  ".ico",
-  ".mp3",
-  ".webm",
-  ".ogg",
-  ".wav",
-  ".woff",
-  ".woff2",
-  ".ttf",
-  ".eot",
-  ".txt",
-  ".xml",
-  ".webmanifest",
+// ---------------------------------------------------------------------------
+// 4. Cache routing rules
+// ---------------------------------------------------------------------------
+
+/** Extensions we will dynamically cache when seen in the wild */
+const CACHEABLE_EXTENSIONS = new Set([
+  ".html", ".css", ".js", ".json",
+  ".jpg", ".jpeg", ".png", ".gif", ".svg", ".webp", ".ico",
+  ".mp3", ".webm", ".ogg", ".wav",
+  ".woff", ".woff2", ".ttf", ".eot",
+  ".txt", ".xml", ".webmanifest",
+]);
+
+/** Directory prefixes that must never be cached (source/dev artefacts) */
+const EXCLUDED_PATH_PREFIXES = [
+  "/node_modules/", "/.vscode/", "/.github/", "/.idea/", "/.git/",
+  "/test/", "/tests/", "/spec/", "/coverage/", "/build/",
+  "/src/scripts/", "/src/utils/",
 ];
 
-// Directories to exclude from caching when in dev mode
-const EXCLUDED_DIRS = [
-  "/node_modules",
-  "/.vscode",
-  "/.github",
-  "/.idea",
-  "/.git",
-  "/test",
-  "/tests",
-  "/spec",
-  "/coverage",
-  "/build",
-  "/src/scripts",
-  "/src/utils",
-];
+// ---------------------------------------------------------------------------
+// 5. Built-in offline page (overridden if offline-template.js defines OFFLINE_HTML)
+// ---------------------------------------------------------------------------
 
-const STATIC_CACHE_LIMIT = 250; // Max number of items in dynamic cache
+/* global OFFLINE_HTML */  // declared by offline-template.js when present
+if (typeof OFFLINE_HTML === "undefined") {
+  // eslint-disable-next-line no-global-assign
+  self.OFFLINE_HTML = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>You're offline</title>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:system-ui,sans-serif;display:flex;align-items:center;
+         justify-content:center;min-height:100vh;background:#f0f4f8;color:#2d3748;text-align:center;padding:2rem}
+    .card{background:#fff;border-radius:1rem;padding:3rem 2rem;max-width:400px;
+          box-shadow:0 4px 24px rgba(0,0,0,.08)}
+    svg{width:80px;height:80px;margin-bottom:1.5rem;opacity:.6}
+    h1{font-size:1.5rem;margin-bottom:.75rem}
+    p{color:#718096;line-height:1.6;margin-bottom:1.5rem}
+    button{background:#4a90e2;color:#fff;border:none;border-radius:.5rem;
+           padding:.75rem 2rem;font-size:1rem;cursor:pointer}
+    button:hover{background:#357abd}
+  </style>
+</head>
+<body>
+  <div class="card">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+      <path stroke-linecap="round" stroke-linejoin="round"
+        d="M3 8.25l8.25-4.5 8.25 4.5M3 12l8.25 4.5 8.25-4.5M3 15.75l8.25 4.5 8.25-4.5"/>
+    </svg>
+    <h1>You're offline</h1>
+    <p>It looks like you've lost your internet connection. Check your network and try again.</p>
+    <button onclick="location.reload()">Try again</button>
+  </div>
+</body>
+</html>`;
+}
+
+// ---------------------------------------------------------------------------
+// 7. Utility helpers
+// ---------------------------------------------------------------------------
+
+/**
+ * Safely parse a URL string.  Returns null on failure rather than throwing.
+ * Only accepts http/https schemes to guard against chrome-extension://, blob:, etc.
+ */
 function safeURL(urlStr) {
+  if (!urlStr || urlStr.startsWith("data:") || urlStr.startsWith("blob:")) {
+    return null;
+  }
   try {
-    return new URL(urlStr, self.location.origin); // Use self.location.origin for relative URLs
-  } catch (e) {
-    swLogger.warn("Invalid URL encountered", { url: urlStr, error: e.message });
+    const url = new URL(urlStr, self.location.origin);
+    if (url.protocol !== "https:" && url.protocol !== "http:") return null;
+    return url;
+  } catch {
+    swLogger.warn("Invalid URL encountered", { url: urlStr });
     return null;
   }
 }
 
-function isExternalHost(hostname) {
-  const isExternal = EXTERNAL_CDNS.includes(hostname);
-  if (isExternal) {
-    swLogger.debug("Detected external CDN host", { hostname });
-  }
-  return isExternal;
+function isKnownCDNHost(hostname) {
+  return EXTERNAL_CDN_HOSTS.has(hostname);
 }
 
-function matchesExternalLibrary(urlStr) {
-  for (const rx of EXTERNAL_LIBRARIES) {
-    if (rx.test(urlStr)) {
-      swLogger.debug("Matched external library pattern", {
-        url: urlStr,
-        pattern: rx.toString(),
-      });
-      return true;
-    }
-  }
-  return false;
+function matchesLibraryPattern(urlStr) {
+  return EXTERNAL_LIBRARY_PATTERNS.some((rx) => rx.test(urlStr));
 }
 
-// Check if URL should be cached (including external libraries)
+/**
+ * Decides whether a given URL's response should ever enter a cache.
+ * Returns false for data:, blob:, non-http(s), excluded dirs, API/auth, etc.
+ */
 function shouldCache(urlStr) {
   const urlObj = safeURL(urlStr);
-  if (!urlObj) {
-    swLogger.debug("URL validation failed - skipping cache", { url: urlStr });
+  if (!urlObj) return false;
+
+  const { pathname, hostname } = urlObj;
+
+  // Always cache well-known CDN hosts and matched library patterns
+  if (isKnownCDNHost(hostname) || matchesLibraryPattern(urlStr)) return true;
+
+  // Block cross-origin URLs that aren't on the CDN allow-list
+  if (urlObj.origin !== self.location.origin) return false;
+
+  // Block excluded source/dev directories
+  if (EXCLUDED_PATH_PREFIXES.some((prefix) => pathname.startsWith(prefix))) {
     return false;
   }
 
-  const pathname = urlObj.pathname;
-  const hostname = urlObj.hostname;
-
-  // Skip data/blob URLs
-  if (urlStr.startsWith("data:") || urlStr.startsWith("blob:")) {
-    swLogger.debug("Skipping data/blob URL", { url: urlStr });
+  // Block API and auth endpoints — never cache these
+  if (pathname.startsWith("/api/") || pathname.startsWith("/auth/")) {
     return false;
   }
 
-  // Allow caching of well-known CDNs and libraries
-  if (isExternalHost(hostname) || matchesExternalLibrary(urlStr)) {
-    swLogger.debug("Approved for caching: external resource", {
-      url: urlStr,
-      hostname,
-      type: "external",
-    });
-    return true;
+  // Root and HTML files are always cacheable
+  if (pathname === "/" || pathname.endsWith(".html")) return true;
+
+  // Cache by allowed extension
+  const dotIdx = pathname.lastIndexOf(".");
+  if (dotIdx !== -1) {
+    const ext = pathname.slice(dotIdx).toLowerCase();
+    if (CACHEABLE_EXTENSIONS.has(ext)) return true;
   }
 
-  // Skip non-origin URLs not in CDN list
-  if (urlObj.origin !== self.location.origin && !isExternalHost(hostname)) {
-    swLogger.debug("Skipping cross-origin URL not in CDN list", {
-      url: urlStr,
-      origin: urlObj.origin,
-    });
-    return false;
-  }
-
-  // Check excluded directories
-  for (const dir of EXCLUDED_DIRS) {
-    if (pathname.includes(dir)) {
-      swLogger.debug("Skipping excluded directory", {
-        url: urlStr,
-        directory: dir,
-      });
-      return false;
-    }
-  }
-
-  // Skip API/auth
-  if (pathname.includes("/api/") || pathname.includes("/auth/")) {
-    swLogger.debug("Skipping API/auth endpoint", { url: urlStr });
-    return false;
-  }
-
-  // Cache root/HTML
-  if (pathname === "/" || pathname.endsWith(".html")) {
-    swLogger.debug("Approved for caching: HTML document", {
-      url: urlStr,
-      type: "html",
-    });
-    return true;
-  }
-
-  // Cache by extension
-  for (const ext of CACHEABLE_EXTENSIONS) {
-    if (pathname.toLowerCase().endsWith(ext)) {
-      swLogger.debug("Approved for caching: file extension", {
-        url: urlStr,
-        extension: ext,
-        type: "static",
-      });
-      return true;
-    }
-  }
-
-  swLogger.debug("Resource not approved for caching", {
-    url: urlStr,
-    reason: "no_matching_criteria",
-  });
   return false;
 }
 
-// Install event: Cache essential files
+/**
+ * Generates a short unique ID for request tracing.
+ * Prefers crypto.randomUUID() when available (modern browsers / Node 19+).
+ */
+function generateRequestId() {
+  if (typeof crypto !== "undefined" && crypto.randomUUID) {
+    return `req_${crypto.randomUUID().slice(0, 13)}`;
+  }
+  return `req_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 9)}`;
+}
+
+// ---------------------------------------------------------------------------
+// 8. Cache trimming
+// ---------------------------------------------------------------------------
+
+/**
+ * Trims a named cache to its configured item limit by evicting the oldest
+ * entries (caches.keys() preserves insertion order).
+ */
+async function trimCache(cacheName) {
+  const limit = CACHE_LIMITS[cacheName];
+  if (!limit) return;
+
+  try {
+    const cache = await caches.open(cacheName);
+    const keys  = await cache.keys();
+
+    if (keys.length <= limit) return;
+
+    const toDelete = keys.slice(0, keys.length - limit);
+    await Promise.all(toDelete.map((key) => cache.delete(key)));
+
+    swLogger.debug("Cache trimmed", {
+      cache: cacheName,
+      removed: toDelete.length,
+      remaining: limit,
+    });
+  } catch (err) {
+    swLogger.error("Cache trim failed", { cache: cacheName, error: err.message });
+  }
+}
+
+// ---------------------------------------------------------------------------
+// 9. Install event
+// ---------------------------------------------------------------------------
+
 self.addEventListener("install", (event) => {
-  swLogger.info("🛠 Service Worker installation started", {
+  swLogger.info("🛠 Service Worker installing", {
     cacheVersion: CACHE_VERSION,
-    essentialUrlsCount: ESSENTIAL_URLS.length,
+    essentialCount: ESSENTIAL_URLS.length,
   });
 
   event.waitUntil(
     cacheEssentialResources()
       .then(() => {
-        swLogger.info("✅ Service Worker installed successfully", {
-          staticCache: STATIC_CACHE,
-          dynamicCache: DYNAMIC_CACHE,
-        });
+        swLogger.info("✅ Installation complete — skipping waiting");
         return self.skipWaiting();
       })
       .catch((err) => {
-        swLogger.error("❌ Service Worker installation failed", {
-          error: err.message,
-          stack: err.stack,
-        });
+        // Don't abort installation on a cache failure — SW still activates.
+        swLogger.error("⚠️ Installation cache step failed", { error: err.message });
         return self.skipWaiting();
       })
   );
 });
 
-// Smart caching of essential resources
 async function cacheEssentialResources() {
-  swLogger.time("EssentialResourcesCaching");
+  swLogger.time("EssentialCaching");
+  const cache = await caches.open(STATIC_CACHE);
 
-  try {
-    const cache = await caches.open(STATIC_CACHE);
-    swLogger.debug("Opened static cache for essential resources", {
-      cache: STATIC_CACHE,
-    });
+  const results = await Promise.allSettled(
+    ESSENTIAL_URLS.map((url) =>
+      cache.add(new Request(url, { credentials: "same-origin" })).catch((err) => {
+        // Individual URL failures are logged but don't abort the batch.
+        swLogger.warn("Essential URL cache failure", { url, error: err.message });
+      })
+    )
+  );
 
-    const essentialUrls = ESSENTIAL_URLS.map(
-      (u) => new Request(u, { credentials: "same-origin" })
-    );
+  const ok   = results.filter((r) => r.status === "fulfilled").length;
+  const fail = results.length - ok;
+  swLogger.info("Essential caching done", { ok, fail, total: results.length });
+  swLogger.timeEnd("EssentialCaching");
+}
 
-    swLogger.debug("Starting cache population", {
-      totalUrls: essentialUrls.length,
-      urls: ESSENTIAL_URLS,
-    });
+// ---------------------------------------------------------------------------
+// 10. Activate event
+// ---------------------------------------------------------------------------
 
-    const results = await Promise.allSettled(
-      essentialUrls.map((req) =>
-        cache.add(req).catch((err) => {
-          swLogger.warn("Failed to cache essential resource", {
-            url: req.url,
-            error: err.message,
-          });
-          return null;
-        })
-      )
-    );
+self.addEventListener("activate", (event) => {
+  swLogger.info("🚀 Service Worker activating");
 
-    const successful = results.filter((r) => r.status === "fulfilled").length;
-    const failed = results.filter((r) => r.status === "rejected").length;
+  event.waitUntil(
+    cleanupOldCaches()
+      .then(() => self.clients.claim())
+      .then(() => swLogger.info("✅ Service Worker active and controlling all clients"))
+      .catch((err) => swLogger.error("❌ Activation error", { error: err.message }))
+  );
+});
 
-    swLogger.info("Essential resources caching completed", {
-      successful,
-      failed,
-      total: essentialUrls.length,
-      successRate: `${((successful / essentialUrls.length) * 100).toFixed(1)}%`,
-    });
+async function cleanupOldCaches() {
+  const currentCaches = new Set([STATIC_CACHE, DYNAMIC_CACHE, CSS_JS_CACHE]);
+  const allKeys = await caches.keys();
+  const stale  = allKeys.filter((k) => !currentCaches.has(k));
 
-    // Log individual failures for debugging
-    results.forEach((result, index) => {
-      if (result.status === "rejected") {
-        swLogger.debug("Individual cache failure details", {
-          url: essentialUrls[index].url,
-          error: result.reason.message,
-        });
-      }
-    });
-  } catch (error) {
-    swLogger.error("Critical failure in essential resources caching", {
-      error: error.message,
-      stack: error.stack,
-    });
-    throw error;
-  } finally {
-    swLogger.timeEnd("EssentialResourcesCaching");
+  await Promise.all(stale.map((k) => caches.delete(k)));
+
+  if (stale.length) {
+    swLogger.info("Old caches removed", { removed: stale });
   }
 }
 
-// Fetch event: Handle both development and production paths
-self.addEventListener("fetch", (event) => {
-  // Skip non-GET requests
-  if (event.request.method !== "GET") {
-    swLogger.debug("Skipping non-GET request", {
-      method: event.request.method,
-      url: event.request.url,
-    });
-    return;
-  }
+// ---------------------------------------------------------------------------
+// 11. Fetch event
+// ---------------------------------------------------------------------------
 
-  const fetchLogger = swLogger.withContext({
+self.addEventListener("fetch", (event) => {
+  // Only intercept GET requests
+  if (event.request.method !== "GET") return;
+
+  const reqLogger = swLogger.withContext({
     requestId: generateRequestId(),
     url: event.request.url,
     mode: event.request.mode,
   });
 
-  try {
-      event.respondWith(handleFetchStrategies(event.request, fetchLogger));
-  } catch (err) {
-    fetchLogger.error("an error occured while fetching " + url.request.url, {
-      errorStack: err.stack,
-      errorMesage: err.message,
-    });
-  }
+  event.respondWith(
+    handleFetch(event.request, reqLogger).catch((err) => {
+      // Last-resort catch: log and return a generic error response so the
+      // browser doesn't display an opaque "Failed to fetch" error.
+      reqLogger.error("Unhandled fetch error", {
+        url: event.request.url,   // ← was "url.request.url" in original (bug fixed)
+        error: err.message,
+        stack: err.stack,
+      });
+      return new Response("Service Worker error", { status: 500 });
+    })
+  );
 });
 
-// Generate unique request ID for tracking
-function generateRequestId() {
-  return `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-}
-
-//handles the different fetch strategies depending on the file
-function handleFetchStrategies(request, logger = swLogger) {
-  const strategyLogger = logger.withContext({ phase: "strategy_selection" });
-  strategyLogger.debug("Determining fetch strategy for request", {
-    url: request.url,
-    mode: request.mode,
-  });
-  // We check both request.mode === "navigate" and the Accept header for "text/html"
-  // because some browsers (especially Safari) may not set mode to "navigate" for navigation requests,
-  // but will include "text/html" in the Accept header for HTML page loads.
+/**
+ * Central routing function: picks the right caching strategy for each request.
+ *
+ * Routing table (in priority order):
+ *  1. Navigation / HTML accept header  → htmlDocumentsStrategy (network-first)
+ *  2. Not cacheable                    → network pass-through
+ *  3. Invalid URL                      → network pass-through
+ *  4. Images / fonts / media           → staticAssetsStrategy  (cache-first)
+ *  5. CSS or external CDN resource     → cssAndExternalStrategy (cache-first)
+ *  6. HTML (caught inside non-navigate)→ htmlDocumentsStrategy
+ *  7. Everything else (JS, JSON, …)    → staleWhileRevalidateStrategy
+ */
+async function handleFetch(request, log = swLogger) {
+  // Detect navigation requests — Safari may not set mode="navigate" so we
+  // additionally inspect the Accept header.
   const isNavigation =
     request.mode === "navigate" ||
     request.headers.get("accept")?.includes("text/html");
 
-  try {
-    if (isNavigation) {
-      strategyLogger.debug("Selected HTML documents strategy", {
-        strategy: "htmlDocuments",
-        reason: "navigation_request",
-      });
-      return htmlDocumentsStrategy(request, strategyLogger);
-    }
-
-    const urlStr = request.url;
-
-    // If not cacheable, fall back to network fetch
-    if (!shouldCache(urlStr)) {
-      strategyLogger.debug("Selected network-only strategy", {
-        strategy: "networkOnly",
-        reason: "not_cacheable",
-      });
-      return fetch(request);
-    }
-
-    const urlObj = safeURL(urlStr);
-    if (!urlObj) {
-      strategyLogger.debug("Selected network-only strategy", {
-        strategy: "networkOnly",
-        reason: "invalid_url",
-      });
-      return fetch(request);
-    }
-
-    const isExternal = urlObj.origin !== self.location.origin;
-    const pathname = urlObj.pathname;
-
-    // Route to appropriate strategy based on file type
-    if (/\.(jpg|jpeg|png|gif|svg|mp3|webm|woff|woff2|ttf)$/i.test(pathname)) {
-      strategyLogger.debug("Selected static assets strategy", {
-        strategy: "staticAssets",
-        type: "media/font",
-        isExternal,
-      });
-      return staticAssetsStrategy(request, isExternal, strategyLogger);
-    }
-
-    if (/\.css$/.test(pathname) || isExternal) {
-      strategyLogger.debug("Selected CSS/external strategy", {
-        strategy: "cssAndExternal",
-        type: isExternal ? "external" : "css",
-        isExternal,
-      });
-      return cssAndExternalStrategy(request, isExternal, strategyLogger);
-    }
-
-    if (pathname === "/" || /\.html$/.test(pathname)) {
-      strategyLogger.debug("Selected HTML documents strategy", {
-        strategy: "htmlDocuments",
-        type: "html",
-        isExternal: false,
-      });
-      return htmlDocumentsStrategy(request, strategyLogger);
-    }
-
-    strategyLogger.debug("Selected stale-while-revalidate strategy", {
-      strategy: "staleWhileRevalidate",
-      type: "other",
-      isExternal,
-    });
-    return staleWhileRevalidateStrategy(request, isExternal, strategyLogger);
-  } catch (err) {
-    strategyLogger.error({ message: err.message, stack: err.stack });
+  if (isNavigation) {
+    return htmlDocumentsStrategy(request, log);
   }
+
+  if (!shouldCache(request.url)) {
+    return fetch(request);
+  }
+
+  const urlObj = safeURL(request.url);
+  if (!urlObj) return fetch(request);
+
+  const isExternal = urlObj.origin !== self.location.origin;
+  const { pathname } = urlObj;
+
+  if (/\.(jpe?g|png|gif|svg|webp|ico|mp3|webm|ogg|wav|woff2?|ttf|eot)$/i.test(pathname)) {
+    return staticAssetsStrategy(request, isExternal, log);
+  }
+
+  if (/\.css$/i.test(pathname) || isExternal) {
+    return cssAndExternalStrategy(request, isExternal, log);
+  }
+
+  if (pathname === "/" || /\.html$/i.test(pathname)) {
+    return htmlDocumentsStrategy(request, log);
+  }
+
+  return staleWhileRevalidateStrategy(request, isExternal, log);
 }
 
-// Strategy for static assets (images, fonts, media) it first check if the image is in the cache then uses the network as a fallback
-async function staticAssetsStrategy(
-  request,
-  isExternal = false,
-  logger = swLogger
-) {
-  const strategyLogger = logger.withContext({
-    strategy: "staticAssets",
-    isExternal,
-    destination: request.destination,
-  });
+// ---------------------------------------------------------------------------
+// 12. Caching strategies
+// ---------------------------------------------------------------------------
+
+/**
+ * CACHE-FIRST for static assets (images, fonts, media).
+ * Falls back to an SVG placeholder when a binary asset is unavailable offline.
+ */
+async function staticAssetsStrategy(request, isExternal = false, log = swLogger) {
 
   const cacheName = isExternal ? DYNAMIC_CACHE : STATIC_CACHE;
+  const sLog = log.withContext({ strategy: "staticAssets", cache: cacheName });
 
-  strategyLogger.time("StaticAssetFetch");
-  strategyLogger.debug("Starting static asset strategy", {
-    cache: cacheName,
-    url: request.url,
-  });
-
+  sLog.time("StaticAsset");
   try {
-    const cache = await caches.open(cacheName);
-    const cachedResponse = await cache.match(request);
-
-    if (cachedResponse) {
-      strategyLogger.debug("🖼 Serving static asset from cache", {
-        url: request.url,
-        cache: cacheName,
-        status: "cache_hit",
-      });
-      return cachedResponse;
+    const cache  = await caches.open(cacheName);
+    const cached = await cache.match(request);
+    if (cached) {
+      sLog.debug("Cache hit", { url: request.url });
+      return cached;
     }
 
-    strategyLogger.debug("Cache miss - fetching from network", {
-      url: request.url,
-    });
-    const networkResponse = await fetch(request);
+    const response = await fetch(request);
 
-    if (
-      networkResponse &&
-      (networkResponse.ok || networkResponse.type === "opaque")
-    ) {
-      try {
-        const cache = await caches.open(cacheName);
-        await cache.put(request, networkResponse.clone());
-
-        strategyLogger.debug("💾 Cached static asset", {
-          url: request.url,
-          cache: cacheName,
-          status: networkResponse.status,
-          size: networkResponse.headers.get("content-length") || "unknown",
-        });
-
-        // Trim cache if needed (only for static cache)
-        if (cacheName === STATIC_CACHE) {
-          eventWaitFor(trimStaticCache());
-        }
-      } catch (err) {
-        strategyLogger.warn("Failed to cache static asset", {
-          url: request.url,
-          error: err.message,
-        });
-      }
-    } else {
-      strategyLogger.debug("Network response not suitable for caching", {
-        url: request.url,
-        status: networkResponse?.status,
-        ok: networkResponse?.ok,
-      });
+    // Only cache clean same-origin responses, or opaque responses from known CDNs.
+    // Opaque CDN responses are safe here because we already verified the host.
+    if (response && (response.ok || (response.type === "opaque" && isExternal))) {
+      await cache.put(request, response.clone());
+      trimCache(cacheName);   // fire-and-forget
     }
 
-    strategyLogger.debug("Returning network response", {
-      url: request.url,
-      status: networkResponse.status,
-    });
-    return networkResponse;
-  } catch (error) {
-    strategyLogger.info("🌐 Offline - static asset not available", {
-      url: request.url,
-      error: error.message,
-      status: "offline_fallback",
-    });
 
-    // Placeholder for images
-    if (
+    return response;
+  } catch (err) {
+    sLog.info("Offline — returning placeholder", { url: request.url });
+
+    const isImage =
       request.destination === "image" ||
-      request.url.match(/\.(jpg|jpeg|png|gif|svg|webp|mp4)$/i)
-    ) {
-      strategyLogger.debug("Returning SVG placeholder for image", {
-        url: request.url,
-      });
-      return createImagePlaceholder(request.url, strategyLogger);
-    }
+      /\.(jpe?g|png|gif|svg|webp)$/i.test(request.url);
 
-    strategyLogger.debug("Returning generic offline response");
-    return new Response("Resource not available offline", {
-      status: 408,
+    if (isImage) return createImagePlaceholder();
+
+    return new Response("Asset unavailable offline", {
+      status: 503,
       headers: { "Content-Type": "text/plain" },
     });
   } finally {
-    strategyLogger.timeEnd("StaticAssetFetch");
+    sLog.timeEnd("StaticAsset");
   }
 }
-function createImagePlaceholder(requestedUrl, logger = swLogger) {
-  logger.debug("Generating SVG placeholder", { requestedUrl });
-  return new Response(
-    '<?xml version="1.0" encoding="utf-8"?><svg xmlns="http://www.w3.org/2000/svg" viewBox="7.839 6.257 484.323 487.486" width="484.323px" height="487.486px" xmlns:bx="https://boxy-svg.com">  <defs>    <radialGradient gradientUnits="userSpaceOnUse" cx="249.57" cy="249.141" r="242.161" id="gradient-0" gradientTransform="matrix(1, 0, 0, 0.997685, 0.424977, 1.43839)">      <stop offset="0" style="stop-color: rgb(94.118% 95.686% 97.255%)"/>      <stop offset="1" style="stop-color: rgb(53.026% 54.447% 55.859%)"/>    </radialGradient>    <linearGradient id="iconGradient" x1="0%" y1="0%" x2="100%" y2="100%">      <stop offset="0" stop-color="#a0aec0"/>      <stop offset="1" stop-color="#718096"/>    </linearGradient>    <filter id="shadow" x="-50%" y="-50%" width="200%" height="200%" bx:pinned="true">      <feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="#2d3748" flood-opacity="0.1"/>    </filter>    <radialGradient gradientUnits="userSpaceOnUse" cx="413.078" cy="112.881" r="36.857" id="gradient-5">      <stop offset="0" style="stop-color: rgb(15.686% 18.824% 13.725%)"/>      <stop offset="1" style="stop-color: rgb(9.6406% 12.62% 7.7855%)"/>    </radialGradient>    <linearGradient gradientUnits="userSpaceOnUse" x1="413.078" y1="76.168" x2="413.078" y2="149.594" id="gradient-1">      <stop offset="0" style="stop-color: rgb(100% 100% 100%)"/>      <stop offset="1" style="stop-color: rgb(56.687% 56.687% 56.687%)"/>    </linearGradient>    <radialGradient gradientUnits="userSpaceOnUse" cx="449.146" cy="190.199" r="32.641" id="gradient-6">      <stop offset="0" style="stop-color: rgb(15.686% 18.824% 13.725%)"/>      <stop offset="1" style="stop-color: rgb(9.6406% 12.62% 7.7855%)"/>    </radialGradient>    <linearGradient gradientUnits="userSpaceOnUse" x1="449.146" y1="157.557" x2="449.146" y2="222.841" id="gradient-2">      <stop offset="0" style="stop-color: rgb(100% 100% 100%)"/>      <stop offset="1" style="stop-color: rgb(56.687% 56.687% 56.687%)"/>    </linearGradient>    <radialGradient gradientUnits="userSpaceOnUse" cx="451.764" cy="191.322" r="6.363" id="gradient-8">      <stop offset="0" style="stop-color: rgb(15.686% 18.824% 13.725%)"/>      <stop offset="1" style="stop-color: rgb(9.6406% 12.62% 7.7855%)"/>    </radialGradient>    <radialGradient gradientUnits="userSpaceOnUse" cx="451.772" cy="191.521" r="6.352" id="gradient-7">      <stop offset="0" style="stop-color: rgb(15.686% 18.824% 13.725%)"/>      <stop offset="1" style="stop-color: rgb(9.6406% 12.62% 7.7855%)"/>    </radialGradient>  </defs>  <rect width="484.323" height="487.486" rx="12" x="7.839" y="6.257" style="stroke-width: 1; fill: url(&quot;#gradient-0&quot;); stroke: rgb(255, 255, 255);" transform="matrix(1, 0, 0, 1, 0, -2.842170943040401e-14)"/>  <g style="" transform="matrix(1.3644310235977173, 0, 0, 1.3247020244598389, -117.39156341552734, -64.29676818847656)">    <rect x="156.343" y="148.866" width="225.456" height="186.008" rx="8" stroke="url(#iconGradient)" stroke-width="2" filter="url(#shadow)" style="stroke-width: 4.58;" fill="white"/>    <circle cx="261.147" cy="292.749" r="20" filter="url(#shadow)" style="stroke-width: 1;" fill="url(#iconGradient)" transform="matrix(2.254561, 0, 0, 2.325094, -319.700867, -438.798676)"/>    <circle cx="261.147" cy="292.749" r="12" style="stroke-width: 1;" fill="white" transform="matrix(2.254561, 0, 0, 2.325094, -319.700867, -438.798676)"/>    <circle cx="261.147" cy="292.749" r="6" style="stroke-width: 1;" fill="url(#iconGradient)" transform="matrix(2.254561, 0, 0, 2.325094, -319.700867, -438.798676)"/>    <circle cx="263.147" cy="290.749" r="2" style="stroke-width: 1;" fill="white" transform="matrix(2.254561, 0, 0, 2.325094, -319.700867, -438.798676)"/>    <rect x="336.708" y="160.492" width="27.055" height="18.601" rx="2" stroke="url(#iconGradient)" stroke-width="1" style="stroke-width: 2.29;" fill="white"/>    <rect x="161.567" y="122.921" width="42.445" height="21.762" rx="3.8" style="stroke-width: 2.29;" fill="url(#iconGradient)" ry="3.8"/>    <circle cx="201.147" cy="242.749" r="3" opacity="0.6" style="stroke-width: 1;" fill="#cbd5e0" transform="matrix(2.254561, 0, 0, 2.325094, -319.700867, -438.798676)"/>    <circle cx="331.147" cy="362.749" r="4" opacity="0.4" style="stroke-width: 1;" fill="#cbd5e0" transform="matrix(2.254561, 0, 0, 2.325094, -319.700867, -438.798676)"/>    <circle cx="191.147" cy="362.749" r="2" opacity="0.8" style="stroke-width: 1;" fill="#cbd5e0" transform="matrix(2.254561, 0, 0, 2.325094, -319.700867, -438.798676)"/>    <g class="search-lens" transform="matrix(1, 0, 0, 1, -40.349533, 117.454277)">      <g>        <ellipse style="stroke-width: 2px; paint-order: fill; fill-opacity: 0.54; fill: url(&quot;#gradient-5&quot;); stroke: url(&quot;#gradient-1&quot;);" cx="413.078" cy="112.881" rx="36.857" ry="36.713"/>        <g transform="matrix(1, 0, 0, 1, -36.112709, -77.01033)">          <ellipse style="stroke-width: 3px; paint-order: fill; fill-opacity: 0.54; fill: url(&quot;#gradient-6&quot;); stroke: url(&quot;#gradient-2&quot;);" cx="449.146" cy="190.199" rx="32.641" ry="32.642"/>          <line x1="445.401" y1="197.045" x2="458.128" y2="185.598" stroke-linecap="round" style="stroke-width: 3.304; paint-order: fill; fill-opacity: 0.54; fill: url(&quot;#gradient-8&quot;); stroke: rgb(255, 0, 0);" stroke-width="3"/>          <line x1="445.421" y1="185.465" x2="458.124" y2="197.577" style="stroke-width: 3.304; paint-order: fill; fill-opacity: 0.54; fill: url(&quot;#gradient-7&quot;); stroke: rgb(255, 0, 0);" stroke-linecap="round" stroke-width="3"/>        </g>      </g>      <g>        <g transform="matrix(1, 0, 0, 1, -14.519196, -9.011914)">          <path style="fill: rgb(216, 216, 216); stroke: rgb(255, 255, 255);" d="M 446.312 166.037 L 465.154 209.037 C 473.652 220.722 480.997 208.899 475.944 201.951 C 476.08 202.155 454.419 165.557 452.271 162.334 C 452.995 161.755 449.542 163.453 446.312 166.037 Z"/>          <path style="fill: rgb(255, 255, 255); stroke: rgb(255, 255, 255);" d="M 464.403 185.427 C 464.403 185.427 458.7182842939155 174.29064888872125 457.383 174.088 C 456.9741300273071 174.02594801153938 456.5273047611273 174.3778413755773 456.439 174.908 C 455.98774470872866 177.6172184093988 470.09997854961273 202.0670453871027 472.819 203.156 C 473.3794567094103 203.3804601339775 473.99681946687895 203.1388112399605 474.151 202.768 C 474.49849042670036 201.93226961698215 472.09269942364574 198.93752014651804 470.777 196.581 C 469.0005793171643 193.39929219306495 464.403 185.427 464.403 185.427 C 464.4030000000001 185.427 464.403 185.427 464.403 185.427" bx:d="M 464.403 185.427 R 457.383 174.088 R 456.439 174.908 R 472.819 203.156 R 474.151 202.768 R 470.777 196.581 R 464.403 185.427 Z 1@248e2666"/>        </g>        <path style="fill: rgb(216, 216, 216); stroke: rgb(255, 255, 255);" d="M 436.052 162.982 L 428.11 147.654 L 432.499 145.633 L 439.327 160.474 L 436.052 162.982 Z"/>      </g>      <animateMotion path="M 0 0 C -41.586 77.942 -124.327 7.975 -109.571 -28.637 C -107.042 -34.912 -104.47 -47.993 -93.718 -60.37 C -86.123 -69.114 -72.716 -76.492 -63.327 -78.425 C -56.013 -79.931 -37.855 -80.994 -24.956 -76.079 C -12.033 -71.156 1.545 -57.704 3.575 -45.421 C 7.037 -24.479 -1.311 0.819 0.636 -0.415" calcMode="linear" dur="10s" fill="freeze" repeatCount="indefinite"/>    </g>    <text style="fill: rgb(51, 51, 51); font-family: Z003; font-size: 28px; white-space: pre;" transform="matrix(0.70499, 0, 0, 0.799358, 80.195114, -136.254395)"><tspan x="120.51" y="380.546">OOPS... </tspan><tspan x="120.51" dy="1em">​</tspan><tspan>image not found</tspan></text>  </g>  <text x="100" y="160" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" fill="#718096" font-weight="bold" style="white-space: pre; stroke-width: 1; font-size: 12px;" transform="matrix(1, 0, 0, 0.8396480083465576, 211.92367553710938, 139.29336547851562)"/>  <path d="M 441.628 29.489 C 445.977 29.488 456.184 30.965 459.763 34.754 C 463.174 38.365 464.306 46.786 463.273 51.134 C 462.381 54.888 458.874 58.249 455.668 59.909 C 452.446 61.577 447.775 62.131 443.968 61.079 C 439.76 59.915 433.881 56.074 431.683 52.304 C 429.618 48.76 429.723 42.998 430.513 39.434 C 431.195 36.359 433.198 33.486 435.193 31.829 C 436.987 30.339 438.73 29.489 441.628 29.489 Z" style="stroke: rgb(183, 183, 183); fill: rgb(184, 184, 184); stroke-width: 1;" transform="matrix(1, 0, 0, 1, 0, -2.842170943040401e-14)"/></svg>',
-    {
-      headers: {
-        "Content-Type": "image/svg+xml",
-        "Cache-Control": "no-cache",
-      },
-    }
-  );
-}
 
-// Special strategy for CSS and external resources it first of all check if the css or external file is in the cache then uses the network as a fallback
-async function cssAndExternalStrategy(
-  request,
-  isExternal = false,
-  logger = swLogger
-) {
-  const strategyLogger = logger.withContext({
-    strategy: "cssAndExternal",
-    isExternal,
-    type: request.url.endsWith(".css") ? "css" : "external",
-  });
-
+/**
+ * CACHE-FIRST for CSS and external (CDN) resources.
+ * Returns an empty stylesheet on failure so the page doesn't hard-error.
+ */
+async function cssAndExternalStrategy(request, isExternal = false, log = swLogger) {
   const cacheName = isExternal ? DYNAMIC_CACHE : CSS_JS_CACHE;
+  const sLog = log.withContext({ strategy: "cssAndExternal", cache: cacheName });
 
-  strategyLogger.time("CSSExternalFetch");
-  strategyLogger.debug("Starting CSS/external strategy", {
-    cache: cacheName,
-    url: request.url,
-  });
-
+  sLog.time("CSSExternal");
   try {
-    const cache = await caches.open(cacheName);
-    const cachedResponse = await cache.match(request);
-
-    if (cachedResponse) {
-      strategyLogger.debug("🎨 Serving CSS/External from cache", {
-        url: request.url,
-        cache: cacheName,
-        status: "cache_hit",
-      });
-      return cachedResponse;
+    const cache  = await caches.open(cacheName);
+    const cached = await cache.match(request);
+    if (cached) {
+      sLog.debug("Cache hit", { url: request.url });
+      return cached;
     }
 
-    strategyLogger.debug("Cache miss - fetching from network", {
-      url: request.url,
-    });
-    const networkResponse = await fetch(request);
+    const response = await fetch(request);
 
-    if (networkResponse.ok || networkResponse.type === "opaque") {
-      const cache = await caches.open(cacheName);
-      await cache.put(request, networkResponse.clone());
-      strategyLogger.debug("💾 Cached CSS/External resource", {
-        url: request.url,
-        cache: cacheName,
-        status: networkResponse.status,
-      });
-    } else {
-      strategyLogger.debug("Network response not suitable for caching", {
-        url: request.url,
-        status: networkResponse.status,
-      });
+    if (response && (response.ok || (response.type === "opaque" && isExternal))) {
+      await cache.put(request, response.clone());
+      trimCache(cacheName);
     }
 
-    strategyLogger.debug("Returning network response", {
-      url: request.url,
-      status: networkResponse.status,
-    });
-    return networkResponse;
-  } catch (error) {
-    strategyLogger.debug("🌐 Offline - CSS/External not available", {
-      url: request.url,
-      error: error.message,
-      status: "offline_fallback",
-    });
+    return response;
+  } catch (err) {
+    sLog.warn("Offline — returning empty CSS/JS stub", { url: request.url });
 
-    if (
-      request.url.includes("bootstrap") ||
-      request.url.includes("fontawesome") ||
-      ESSENTIAL_URLS.includes(request.url)
-    ) {
-      strategyLogger.warn("⚠️ Critical CSS library offline", {
-        url: request.url,
-      });
-    }
+    const isCss = request.url.endsWith(".css") ||
+                  request.headers.get("accept")?.includes("text/css");
 
-    strategyLogger.debug("Returning empty CSS fallback");
-    return new Response("/* Library offline */", {
-      headers: { "Content-Type": "text/css" },
-      status: 505,
+    // Return a valid empty document so the browser doesn't treat it as an error
+    return new Response(isCss ? "/* offline */" : "/* offline */", {
+      status: 503,
+      headers: {
+        "Content-Type": isCss ? "text/css" : "application/javascript",
+      },
     });
   } finally {
-    strategyLogger.timeEnd("CSSExternalFetch");
+    sLog.timeEnd("CSSExternal");
   }
 }
 
-// Strategy for HTML documents : Network First with robust redirect handling
-async function htmlDocumentsStrategy(request, logger = swLogger) {
-  const strategyLogger = logger.withContext({
-    strategy: "htmlDocuments",
-    type: "navigation",
-  });
-
-  strategyLogger.time("HTMLDocumentFetch");
-  strategyLogger.debug("Starting HTML documents strategy", {
-    url: request.url,
-    mode: request.mode,
-  });
+/**
+ * NETWORK-FIRST for HTML documents.
+ * Tries the network; on failure checks multiple cache patterns; final fallback
+ * is the generated offline page.
+ */
+async function htmlDocumentsStrategy(request, log = swLogger) {
+  const sLog = log.withContext({ strategy: "htmlDocuments" });
+  sLog.time("HTMLDoc");
 
   const cache = await caches.open(DYNAMIC_CACHE);
 
   try {
-    strategyLogger.debug("Attempting network fetch for HTML", {
-      url: request.url,
-    });
     const networkResponse = await fetch(request);
 
-    // Handle redirects
-    if (
-      networkResponse.redirected ||
-      (networkResponse.status >= 300 && networkResponse.status < 400)
-    ) {
-      strategyLogger.warn("Network response was a redirect", {
-        url: request.url,
-        redirected: networkResponse.redirected,
-        status: networkResponse.status,
-        location: networkResponse.headers.get("location"),
-        responseUrl: networkResponse.url, // Log the actual response URL
+    // Handle server-side redirects gracefully
+    if (networkResponse.redirected) {
+      sLog.debug("Following redirect", {
+        from: request.url,
+        to: networkResponse.url,
       });
-
-      // If same-origin redirect, try to fetch the final URL
-      const locationHeader = networkResponse.headers.get("location");
-      if (locationHeader) {
-        try {
-          const locationUrl = new URL(locationHeader, request.url);
-          if (locationUrl.origin === self.location.origin) {
-            strategyLogger.debug("Processing same-origin redirect", {
-              original: request.url,
-              redirect: locationUrl.href,
-            });
-
-            const finalResponse = await fetch(locationUrl.href);
-            if (finalResponse && finalResponse.ok) {
-              try {
-                // Create a new response with the original request URL to ensure cache key matches
-                const cacheableResponse = new Response(finalResponse.body, {
-                  status: finalResponse.status,
-                  statusText: finalResponse.statusText,
-                  headers: finalResponse.headers,
-                });
-
-                await cache.put(request, cacheableResponse);
-                strategyLogger.debug("Cached redirected HTML", {
-                  originalUrl: request.url,
-                  finalUrl: locationUrl.href,
-                  cachedWithUrl: request.url,
-                });
-              } catch (err) {
-                strategyLogger.warn("Failed to cache redirected HTML", {
-                  url: request.url,
-                  error: err.message,
-                });
-              }
-              return finalResponse;
-            }
-          } else {
-            strategyLogger.debug("Skipping cross-origin redirect caching", {
-              redirect: locationUrl.href,
-            });
-          }
-        } catch (error) {
-          strategyLogger.warn("Redirect handling failed", {
-            error: error.message,
-            location: locationHeader,
-          });
-        }
-      }
-    }
-
-    // Normal successful response: cache & return
-    if (networkResponse && networkResponse.ok) {
-      try {
-        // If response URL differs from request URL, create a normalized response
-        let responseToCache = networkResponse;
-        if (networkResponse.url !== request.url) {
-          strategyLogger.debug("Response URL differs from request URL", {
-            requestUrl: request.url,
-            responseUrl: networkResponse.url,
-          });
-
-          // Create a new response with the original request URL
-          responseToCache = new Response(networkResponse.body, {
-            status: networkResponse.status,
-            statusText: networkResponse.statusText,
-            headers: networkResponse.headers,
-          });
-        }
-
-        await cache.put(request, responseToCache.clone());
-        strategyLogger.debug("Cached HTML document", {
-          url: request.url,
+      // Cache under the original request key so offline lookups still work
+      if (networkResponse.ok) {
+        const cacheableResponse = new Response(networkResponse.body, {
           status: networkResponse.status,
-          responseUrl: networkResponse.url,
+          statusText: networkResponse.statusText,
+          headers: networkResponse.headers,
         });
-      } catch (err) {
-        strategyLogger.warn("Failed to cache HTML", {
-          url: request.url,
-          error: err.message,
-        });
+        await cache.put(request, cacheableResponse);
+        trimCache(DYNAMIC_CACHE);
       }
-    } else {
-      strategyLogger.debug("Network response not suitable for caching", {
-        url: request.url,
-        status: networkResponse.status,
-        ok: networkResponse.ok,
-      });
+      return networkResponse;
     }
 
-    strategyLogger.debug("Returning network HTML response", {
-      url: request.url,
-      status: networkResponse.status,
-    });
-    return networkResponse;
-  } catch (error) {
-    strategyLogger.debug("Network failed - attempting cache fallback", {
-      url: request.url,
-      error: error.message,
-    });
-
-    // Enhanced cache matching with URL normalization
-    let cachedResponse = null;
-    let cacheSource = "unknown";
-
-    // Strategy 1: Direct match
-    cachedResponse = await caches.match(request);
-    if (cachedResponse) {
-      cacheSource = "direct_match";
-      strategyLogger.debug("Found direct cache match", {
-        requestUrl: request.url,
-        cachedUrl: cachedResponse.url,
-      });
-    }
-
-    // Strategy 2: Try with .html extension if request doesn't have it
-    if (!cachedResponse && !request.url.endsWith(".html")) {
-      const htmlUrl = request.url + ".html";
-      cachedResponse = await caches.match(htmlUrl);
-      if (cachedResponse) {
-        cacheSource = "added_html_extension";
-        strategyLogger.debug("Found cache match with .html extension", {
-          requestUrl: request.url,
-          attemptedUrl: htmlUrl,
-          cachedUrl: cachedResponse.url,
-        });
-      }
-    }
-
-    // Strategy 3: Try without .html extension if request has it
-    if (!cachedResponse && request.url.endsWith(".html")) {
-      const baseUrl = request.url.replace(/\.html$/, "");
-      cachedResponse = await caches.match(baseUrl);
-      if (cachedResponse) {
-        cacheSource = "removed_html_extension";
-        strategyLogger.debug("Found cache match without .html extension", {
-          requestUrl: request.url,
-          attemptedUrl: baseUrl,
-          cachedUrl: cachedResponse.url,
-        });
-      }
-    }
-
-    // Strategy 4: Try root path for SPA routing
-    /*    if (!cachedResponse && request.url !== self.location.origin + "/") {
-      cachedResponse = await caches.match("/");
-      if (cachedResponse) {
-        cacheSource = "root_fallback";
-        strategyLogger.debug("Found cache match with root path", {
-          requestUrl: request.url,
-          attemptedUrl: "/",
-          cachedUrl: cachedResponse.url,
-        });
-      }
-    }
-
-    // Strategy 5: Try index.html
-    if (!cachedResponse) {
-      cachedResponse = await caches.match("/index.html");
-      if (cachedResponse) {
-        cacheSource = "index_html_fallback";
-        strategyLogger.debug("Found cache match with index.html", {
-          requestUrl: request.url,
-          attemptedUrl: "/index.html",
-          cachedUrl: cachedResponse.url,
-        });
-      }
-    }
-*/
-    if (cachedResponse) {
-      // If cached response URL doesn't match request URL, create a normalized response
-      let finalResponse = cachedResponse;
-      if (cachedResponse.url === request.url) {
-        strategyLogger.debug("Normalizing cached response URL", {
-          requestUrl: request.url,
-          cachedUrl: cachedResponse.url,
-        });
-
-        finalResponse = new Response(cachedResponse.body, {
-          status: cachedResponse.status,
-          ok: cachedResponse.ok,
-          type: cachedResponse.type,
-          statusText: cachedResponse.statusText,
-          headers: cachedResponse.headers,
-        });
-      }
-
-      strategyLogger.info("Serving cached HTML fallback", {
-        url: request.url,
-        cacheSource,
-        cachedUrl: cachedResponse.url,
-        status: "cache_hit",
-      });
-
-      return finalResponse;
-    }
-
-    strategyLogger.warn("No cached HTML found - generating offline page", {
-      url: request.url,
-      status: "offline_page_generated",
-    });
-    return createOfflinePage(request.url, strategyLogger);
-  } finally {
-    strategyLogger.timeEnd("HTMLDocumentFetch");
-  }
-}
-
-// Strategy for JS and other files: Stale-While-Revalidate -
-async function staleWhileRevalidateStrategy(
-  request,
-  isExternal = false,
-  logger = swLogger
-) {
-  const strategyLogger = logger.withContext({
-    strategy: "staleWhileRevalidate",
-    isExternal,
-  });
-
-  strategyLogger.time("SWRFetch");
-  strategyLogger.debug("Starting stale-while-revalidate strategy", {
-    url: request.url,
-    cache: isExternal ? DYNAMIC_CACHE : CSS_JS_CACHE,
-  });
-
-  const cacheName = isExternal ? DYNAMIC_CACHE : CSS_JS_CACHE;
-  const cache = await caches.open(cacheName);
-  const cachedResponse = await cache.match(request);
-
-  if (cachedResponse) {
-    strategyLogger.debug("⚡ Serving from cache (SWR)", {
-      url: request.url,
-      cache: cacheName,
-      status: "cache_hit",
-    });
-
-    // Update cache in background
-    const doUpdate = async () => {
-      const updateLogger = strategyLogger.withContext({
-        backgroundUpdate: true,
-      });
-      try {
-        updateLogger.debug("Background cache update started", {
-          url: request.url,
-        });
-        const networkResponse = await fetch(request);
-
-        if (
-          networkResponse &&
-          (networkResponse.ok || networkResponse.type === "opaque")
-        ) {
-          try {
-            await cache.put(request, networkResponse.clone());
-            updateLogger.debug("Background cache update successful", {
-              url: request.url,
-              status: networkResponse.status,
-            });
-          } catch (err) {
-            updateLogger.warn("Background cache update failed", {
-              url: request.url,
-              error: err.message,
-            });
-          }
-        } else {
-          updateLogger.debug(
-            "Background update skipped - response not cacheable",
-            {
-              url: request.url,
-              status: networkResponse?.status,
-            }
-          );
-        }
-      } catch (err) {
-        updateLogger.debug("Background update network failed", {
-          url: request.url,
-          error: err.message,
-        });
-      }
-    };
-
-    // Kick off update without blocking
-    doUpdate();
-
-    return cachedResponse;
-  }
-
-  strategyLogger.debug("Cache miss - fetching from network", {
-    url: request.url,
-  });
-
-  try {
-    const networkResponse = await fetch(request);
-
-    if (
-      networkResponse &&
-      (networkResponse.ok || networkResponse.type === "opaque")
-    ) {
-      const cache = await caches.open(cacheName);
+    if (networkResponse.ok) {
       await cache.put(request, networkResponse.clone());
-
-      strategyLogger.debug("💾 Cached (SWR)", {
-        url: request.url,
-        cache: cacheName,
-        status: networkResponse.status,
-      });
-
-      // Trim dynamic cache if needed
-      if (cacheName === STATIC_CACHE) {
-        eventWaitFor(trimStaticCache());
-      }
-    } else {
-      strategyLogger.debug("Network response not suitable for caching", {
-        url: request.url,
-        status: networkResponse?.status,
-      });
+      trimCache(DYNAMIC_CACHE);
     }
 
-    strategyLogger.debug("Returning network response", {
-      url: request.url,
-      status: networkResponse.status,
-    });
     return networkResponse;
-  } catch (error) {
-    strategyLogger.debug("🌐 Offline - resource not available", {
-      url: request.url,
-      error: error.message,
-      status: "offline_fallback",
-    });
-    return createOfflinePage(request.url, strategyLogger);
-  } finally {
-    strategyLogger.timeEnd("SWRFetch");
-  }
-}
+  } catch {
+    sLog.debug("Network failed — searching caches", { url: request.url });
 
-// Trim dynamic cache to prevent unlimited growth
-async function trimStaticCache() {
-  const trimLogger = swLogger.withContext({ operation: "cache_trimming" });
+    // Try progressively looser cache keys
+    const candidates = [
+      request,
+      !request.url.endsWith(".html") ? request.url + ".html"  : null,
+       request.url.endsWith(".html") ? request.url.replace(/\.html$/, "") : null,
+    ].filter(Boolean);
 
-  trimLogger.time("CacheTrim");
-  trimLogger.debug("Starting cache trimming operation");
-
-  try {
-    const cache = await caches.open(CSS_JS_CACHE);
-    const keys = await cache.keys();
-
-    trimLogger.debug("Current cache state", {
-      cache: CSS_JS_CACHE,
-      currentSize: keys.length,
-      limit: STATIC_CACHE_LIMIT,
-    });
-
-    if (keys.length > STATIC_CACHE_LIMIT) {
-      // Remove oldest items (based on insertion order)
-      const itemsToDelete = keys.slice(0, keys.length - STATIC_CACHE_LIMIT);
-
-      trimLogger.info("Trimming cache items", {
-        itemsToRemove: itemsToDelete.length,
-        remaining: STATIC_CACHE_LIMIT,
-        urls: itemsToDelete.map((req) => req.url),
-      });
-
-      await Promise.all(itemsToDelete.map((key) => cache.delete(key)));
-
-      trimLogger.debug("Cache trimming completed", {
-        removed: itemsToDelete.length,
-        newSize: STATIC_CACHE_LIMIT,
-      });
-    } else {
-      trimLogger.debug("Cache trimming not needed", {
-        currentSize: keys.length,
-        limit: STATIC_CACHE_LIMIT,
-      });
-    }
-  } catch (error) {
-    trimLogger.error("Cache trimming operation failed", {
-      error: error.message,
-      stack: error.stack,
-    });
-  } finally {
-    trimLogger.timeEnd("CacheTrim");
-  }
-}
-
-// Helper to safely call waitUntil (not needed now, but kept for future)
-function eventWaitFor(promise, event = null) {
-  if (event && event.waitUntil) {
-    event.waitUntil(promise);
-  } else {
-    promise.catch((err) =>
-      swLogger.error("Background update failed", { error: err.message })
-    );
-  }
-}
-// Activate event: Clean up and take control
-self.addEventListener("activate", (event) => {
-  swLogger.info("🚀 Service Worker activation started", {
-    scope: self.registration?.scope,
-    controller: self.controller?.state,
-  });
-
-  event.waitUntil(
-    Promise.all([cleanupOldCaches(), self.clients.claim()])
-      .then((results) => {
-        const [cleanupResult] = results;
-        swLogger.info("✅ Service Worker activated and ready", {
-          clientsClaimed: true,
-          oldCachesCleaned: cleanupResult || false,
-        });
-      })
-      .catch((error) => {
-        swLogger.error("❌ Service Worker activation failed", {
-          error: error.message,
-          stack: error.stack,
-        });
-      })
-  );
-});
-
-// Cache cleanup function
-async function cleanupOldCaches() {
-  const cleanupLogger = swLogger.withContext({ operation: "cache_cleanup" });
-
-  cleanupLogger.time("CacheCleanup");
-  cleanupLogger.debug("Starting old cache cleanup");
-
-  try {
-    const cacheNames = await caches.keys();
-    const currentCaches = [STATIC_CACHE, DYNAMIC_CACHE, CSS_JS_CACHE];
-
-    cleanupLogger.debug("Found caches", {
-      allCaches: cacheNames,
-      currentCaches,
-      total: cacheNames.length,
-    });
-
-    const cleanupPromises = cacheNames.map(async (cacheName) => {
-      if (!currentCaches.includes(cacheName)) {
-        cleanupLogger.debug("Deleting old cache", { cache: cacheName });
-        await caches.delete(cacheName);
-        return cacheName;
+    for (const candidate of candidates) {
+      const cached = await caches.match(candidate);
+      if (cached) {
+        sLog.info("Serving from cache", { key: typeof candidate === "string" ? candidate : candidate.url });
+        return cached;
       }
-      return null;
-    });
+    }
 
-    const results = await Promise.all(cleanupPromises);
-    const deletedCaches = results.filter((name) => name !== null);
-
-    cleanupLogger.info("Cache cleanup completed", {
-      deleted: deletedCaches.length,
-      deletedCaches,
-      remaining: cacheNames.length - deletedCaches.length,
-    });
-
-    return deletedCaches.length > 0;
-  } catch (error) {
-    cleanupLogger.error("Cache cleanup operation failed", {
-      error: error.message,
-      stack: error.stack,
-    });
-    return false;
+    sLog.warn("Nothing in cache — serving offline page", { url: request.url });
+    return createOfflinePage();
   } finally {
-    cleanupLogger.timeEnd("CacheCleanup");
+    sLog.timeEnd("HTMLDoc");
   }
 }
-// Handle skip waiting message
+
+/**
+ * STALE-WHILE-REVALIDATE for JS, JSON, and other cacheable files.
+ * Returns cached version immediately (if available) and refreshes in background.
+ */
+async function staleWhileRevalidateStrategy(request, isExternal = false, log = swLogger) {
+  const cacheName = isExternal ? DYNAMIC_CACHE : CSS_JS_CACHE;
+  const sLog = log.withContext({ strategy: "SWR", cache: cacheName });
+
+  sLog.time("SWR");
+  try {
+    const cache  = await caches.open(cacheName);
+    const cached = await cache.match(request);
+
+    // Kick off background refresh regardless of cache state
+    const networkUpdate = fetch(request)
+      .then(async (response) => {
+        if (response && (response.ok || (response.type === "opaque" && isExternal))) {
+          await cache.put(request, response.clone());
+          await trimCache(cacheName);
+        }
+      })
+      .catch((err) => {
+        sLog.debug("Background SWR update failed", { url: request.url, error: err.message });
+      });
+
+    if (cached) {
+      sLog.debug("Serving stale, revalidating in background", { url: request.url });
+      // Let the background update complete even if client navigates away
+      // (waitUntil is not available here outside event scope; the detached
+      // promise is the correct pattern for SWR background updates)
+      networkUpdate.catch(() => {});
+      return cached;
+    }
+
+    // No cache entry — wait for network
+    sLog.debug("Cache miss — awaiting network", { url: request.url });
+    return await fetch(request).then(async (response) => {
+      if (response && (response.ok || (response.type === "opaque" && isExternal))) {
+        await cache.put(request, response.clone());
+        trimCache(cacheName);
+      }
+      return response;
+    });
+  } catch {
+    sLog.warn("Offline — no SWR fallback", { url: request.url });
+    return createOfflinePage();
+  } finally {
+    sLog.timeEnd("SWR");
+  }
+}
+
+// ---------------------------------------------------------------------------
+// 13. Response factories
+// ---------------------------------------------------------------------------
+
+function createImagePlaceholder() {
+  return new Response(IMAGE_PLACEHOLDER_SVG, {
+    status: 200,
+    headers: {
+      "Content-Type": "image/svg+xml",
+      "Cache-Control": "no-store",
+    },
+  });
+}
+
+function createOfflinePage() {
+  // OFFLINE_HTML is either from offline-template.js or our built-in fallback
+  const html = typeof OFFLINE_HTML !== "undefined" ? OFFLINE_HTML : self.OFFLINE_HTML;
+  return new Response(html, {
+    status: 200,
+    headers: {
+      "Content-Type": "text/html; charset=utf-8",
+      "Cache-Control": "no-store",
+      "X-Offline-Page": "true",
+    },
+  });
+}
+
+// ---------------------------------------------------------------------------
+// 14. Message handler
+// ---------------------------------------------------------------------------
+
 self.addEventListener("message", (event) => {
-  const messageLogger = swLogger.withContext({
-    event: "message",
-    source: event.source?.type || "unknown",
-  });
+  const { data } = event;
+  if (!data) return;
 
-  messageLogger.debug("Message received", {
-    data: event.data,
-    origin: event.origin,
-  });
+  if (data.type === "SKIP_WAITING") {
+    swLogger.info("Skipping waiting phase by client request");
+    self.skipWaiting();
+  }
 
-  const data = event.data;
-  if (data?.type === "SET_GRADUATION_LOG_LEVEL") {
-    // Send to all clients
-    self.clients.matchAll().then((clients) => {
-      clients.forEach((client) => {
+  if (data.type === "SET_GRADUATION_LOG_LEVEL") {
+    self.clients.matchAll().then((clients) =>
+      clients.forEach((client) =>
         client.postMessage({
           type: "GRADUATION_LOG_LEVEL",
           level: data.level,
           persist: !!data.persist,
-        });
-      });
-    });
-  }
-
-  if (event.data && event.data.type === "SKIP_WAITING") {
-    messageLogger.info("🔄 Skipping waiting phase by request");
-    self.skipWaiting();
+        })
+      )
+    );
   }
 });
 
-// Background sync for offline actions
+// ---------------------------------------------------------------------------
+// 15. Background sync
+// ---------------------------------------------------------------------------
+
 self.addEventListener("sync", (event) => {
-  const syncLogger = swLogger.withContext({
-    event: "sync",
-    tag: event.tag,
-  });
-
-  syncLogger.debug("Background sync event received", {
-    tag: event.tag,
-    lastChance: event.lastChance,
-  });
-
   if (event.tag === "background-sync") {
-    syncLogger.info("🔄 Background sync triggered");
-    event.waitUntil(doBackgroundSync(syncLogger));
+    swLogger.info("Background sync triggered");
+    event.waitUntil(doBackgroundSync());
   }
 });
 
-async function doBackgroundSync(logger = swLogger) {
-  const syncLogger = logger.withContext({ operation: "background_sync" });
-
-  syncLogger.time("BackgroundSync");
-  syncLogger.debug("Starting background sync operation");
-
+async function doBackgroundSync() {
   try {
-    // Implement your background sync logic here
-    // Example: Sync pending API calls, update cached data, etc.
-
-    syncLogger.debug("Background sync logic executed");
-
-    // Simulate some work
-    await new Promise((resolve) => setTimeout(resolve, 100));
-
-    syncLogger.info("✅ Background sync completed successfully");
+    // Placeholder: implement real sync logic (e.g. replay queued POST requests)
+    swLogger.info("Background sync completed");
     return true;
-  } catch (error) {
-    syncLogger.error("❌ Background sync failed", {
-      error: error.message,
-      stack: error.stack,
-    });
+  } catch (err) {
+    swLogger.error("Background sync failed", { error: err.message });
     return false;
-  } finally {
-    syncLogger.timeEnd("BackgroundSync");
   }
 }
 
-async function createOfflinePage(requestedUrl = "", logger = swLogger) {
-  const offlineLogger = logger.withContext({
-    operation: "offline_page_generation",
-  });
+// ---------------------------------------------------------------------------
+// 16. Global error handlers
+// ---------------------------------------------------------------------------
 
-  offlineLogger.debug("Generating offline page", { requestedUrl });
-  offlineLogger.debug("Generating dynamic offline page", {
-    source: "generated",
-  });
-
-  return new Response(OFFLINE_HTML, {
-    status: 200,
-    statusText: "OK",
-    headers: new Headers({
-      "Content-Type": "text/html",
-      "Cache-Control": "no-store, no-cache, must-revalidate",
-      "X-Offline-Page": "true",
-    }),
-  });
-}
 self.addEventListener("error", (event) => {
-  swLogger.error("Service Worker runtime error", {
-    error: event.error?.message,
+  swLogger.error("SW runtime error", {
+    message: event.error?.message,
     filename: event.filename,
     lineno: event.lineno,
     colno: event.colno,
@@ -1234,51 +719,47 @@ self.addEventListener("error", (event) => {
 });
 
 self.addEventListener("unhandledrejection", (event) => {
-  swLogger.error("Service Worker unhandled promise rejection", {
-    reason: event.reason?.message || event.reason,
+  swLogger.error("SW unhandled promise rejection", {
+    reason: event.reason?.message ?? String(event.reason),
     stack: event.reason?.stack,
   });
 });
 
-// Periodic health check (optional)
+// ---------------------------------------------------------------------------
+// 17. Periodic health check
+// ---------------------------------------------------------------------------
+
 async function performHealthCheck() {
-  const healthLogger = swLogger.withContext({ operation: "health_check" });
-   const cachesToCheck = [CSS_JS_CACHE,DYNAMIC_CACHE]
+  const cacheNames = [STATIC_CACHE, DYNAMIC_CACHE, CSS_JS_CACHE];
+  const stats = {};
+
   try {
-    cachesToCheck.forEach(async(cache_name)=>{
-    const cache = await caches.open(cache_name);
-    const keys = await cache.keys();
-
-    healthLogger.info("Service Worker health check", {
-      cacheSize: keys.length,
-      cacheStatus: "healthy",
-      timestamp: new Date().toISOString(),
-    });
-
-    })
-    return true;
-  } catch (error) {
-    healthLogger.error("Service Worker health check failed", {
-      error: error.message,
-      cacheStatus: "unhealthy",
-    });
-    return false;
+    await Promise.all(
+      cacheNames.map(async (name) => {
+        const cache = await caches.open(name);
+        const keys  = await cache.keys();
+        stats[name] = { size: keys.length, limit: CACHE_LIMITS[name] };
+      })
+    );
+    swLogger.info("Health check", { caches: stats, timestamp: new Date().toISOString() });
+  } catch (err) {
+    swLogger.error("Health check failed", { error: err.message });
   }
 }
 
-// Perform health check every 5 minutes
+// Run every 5 minutes; only when logging is enabled to avoid idle overhead
 setInterval(() => {
-  if (self.shouldLog) {
-    performHealthCheck();
-  }
-}, 0.5 * 60 * 1000);
+  if (self.shouldLog) performHealthCheck();
+}, 5 * 60 * 1000);
 
-swLogger.info("🎯 Service Worker fully initialized", {
+// ---------------------------------------------------------------------------
+// 18. Startup log
+// ---------------------------------------------------------------------------
+
+swLogger.info("🎯 Service Worker script evaluated", {
   version: CACHE_VERSION,
-  staticCache: STATIC_CACHE,
-  dynamicCache: DYNAMIC_CACHE,
-  cssAndJsCache: CSS_JS_CACHE,
-  cacheLimit: STATIC_CACHE_LIMIT,
+  caches: { STATIC_CACHE, DYNAMIC_CACHE, CSS_JS_CACHE },
+  limits: CACHE_LIMITS,
   essentialUrls: ESSENTIAL_URLS.length,
   timestamp: new Date().toISOString(),
 });
