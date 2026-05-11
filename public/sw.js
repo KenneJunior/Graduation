@@ -1,5 +1,5 @@
 //Uncomment this out in a dev environment
-//importScripts("../src/js/utility/logger-global.js");
+i//mportScripts("../src/js/utility/logger-global.js");
 import "../src/js/utility/logger-global.js";
 
 importScripts("./offline-template.js");
