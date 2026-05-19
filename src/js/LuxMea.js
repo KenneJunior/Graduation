@@ -1,28 +1,5 @@
-/**
- * LuxMea.js — Interactive greeting page
- * ─────────────────────────────────────────────────────────────────
- * Responsibilities
- *   1. WhatsApp response routing (yes / maybe / no)
- *   2. Custom cursor & interactive background orb
- *   3. Entrance animations with IntersectionObserver
- *   4. Particle burst on "yes" response
- *   5. Ambient hover sound (opt-in after first interaction)
- *   6. Reduced-motion & touch-device adaptations
- *
- * Author  : Kenne Boniface
- * Version : 3.0.0
- * ─────────────────────────────────────────────────────────────────
- */
-
-// ─── Module-level constants ────────────────────────────────────────────────
-
-/** Recipient's WhatsApp number (international format, no +). */
 const WHATSAPP_NUMBER = '237670852835';
 
-/**
- * Pre-written WhatsApp replies for each button choice.
- * Keep them heartfelt; they send as the *recipient's* message draft.
- */
 const RESPONSES = Object.freeze({
   yes:   "Yes!! I'd love to 💕 You've been on my mind too, and honestly this just made my day.",
   maybe: "Hmm… I don't know just yet 🙈 I really value what we have, and I need a little time to think. But the fact you asked me this way already means a lot. 💖",
@@ -257,11 +234,7 @@ function initCursor(orb, cursor) {
 
 // ─── Entrance animations ──────────────────────────────────────────────────
 
-/**
- * Adds staggered reveal animations to content sections using
- * IntersectionObserver. Falls back to immediate visibility
- * when reduced-motion is preferred.
- */
+
 function initEntranceAnimations() {
   if (prefersReducedMotion()) return;
 
@@ -292,13 +265,6 @@ function initEntranceAnimations() {
 
 // ─── Confetti / particle burst ────────────────────────────────────────────
 
-/**
- * Spawns a quick CSS-only confetti burst from the "yes" button.
- * Each particle is a tiny `<span>` appended to `document.body`
- * and removed after its animation ends.
- *
- * Respects prefers-reduced-motion — falls back to nothing.
- */
 function spawnConfetti() {
   if (prefersReducedMotion()) return;
 
@@ -391,11 +357,7 @@ function initAmbientSound(audio) {
 
 // ─── Keyboard accessibility ───────────────────────────────────────────────
 
-/**
- * Ensures buttons are keyboard-operable even if their native role
- * is overridden. Adds Space / Enter activation to any
- * element with [role="button"] that isn't a native <button>.
- */
+
 function initKeyboardNav() {
   qsAll('[role="button"]:not(button)').forEach(el => {
     el.addEventListener('keydown', e => {

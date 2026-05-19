@@ -1450,11 +1450,12 @@ async initializeSwiper() {
 
             slideChangeTransitionStart: () => {
                 imageLogger.debug("Slide transition started");
+                this.showMediaLoading();
             },
 
             slideChangeTransitionEnd: () => {
                 imageLogger.debug("Slide transition ended");
-                // Preload next images after transition
+                this.hideMediaLoading();
                 this.preloadAdjacentImages();
             },
 
@@ -1524,7 +1525,7 @@ async initializeSwiper() {
             } : false,
 
             // Lazy loading - DISABLED for now to fix opacity issue
-            lazy: false,
+            lazy: true,
 
             // Preload images
             preloadImages: true,

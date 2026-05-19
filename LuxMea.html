@@ -79,7 +79,7 @@
   </script>
 </head>
 
-<body>
+<body id ="lux-mea-page">
   <!-- ══════════════════════════════════════════
        Accessibility: Skip to main content
   ══════════════════════════════════════════ -->
@@ -163,16 +163,10 @@
           <section class="message-content" id="letterBody" aria-label="Personal message">
 
             <p class="message-text message-text--opening">
-              First of all, I still remember you always sitting in front of me.
+              I still remember you always sitting in front of me.
               I kept telling myself I'd have to be completely blind not to notice
               the most gorgeous girl in the room — right in my line of sight.
               Honestly, it's a miracle I ever paid attention to anything else.&nbsp;🤣
-            </p>
-
-            <p class="message-text">
-              Luckily, I managed to work up the nerve to get your number, and we
-              started chatting — hardly knowing then that those daily messages would
-              lead us exactly to where we are today.
             </p>
 
             <p class="message-text">
@@ -185,11 +179,10 @@
               If I could give you one thing in life, it would be the ability to see
               yourself through my eyes. Only then would you realise how ridiculously
               beautiful and irresistible you truly are to me.
-              You're exactly the kind of trouble I've been waiting for.
             </p>
 
             <p class="message-text message-text--closing">
-              I can't promise a flawless movie romance — but I can promise to keep
+              I can't promise a flawless Relationship — but I can promise to keep
               those butterflies alive and make you smile the exact same way you make
               me smile every single day.<br /><br />
               So, here I am, putting all my cards on the table:
@@ -343,7 +336,6 @@
   ══════════════════════════════════════════ -->
   <audio id="hover-sound" preload="none" aria-hidden="true">
     <source src="/public/Ruth-B_-Dandelions-(TopGhanaMusic.Com).mp3" type="audio/mpeg" />
-    <!-- Intentionally no track element: purely ambient, not dialogue -->
   </audio>
 
   <!-- ══════════════════════════════════════════
@@ -358,8 +350,15 @@
   <script type="module">
     import logger from '/src/js/utility/logger.js';
     import { getAuthManager } from '/src/auth-check.js';
+    import { getCurrentUserInfo } from ".js//utility/utils.js";
 
     async function initProtectedPage() {
+      const user = getCurrentUserInfo();
+      if (user.code !== L) {
+        logger.warn('Unauthorized access attempt.');
+        window.location.href = '/login.html';
+        return;
+      }
       try {
         const auth = await getAuthManager();
         auth.updateLoadingText('Lux Mea — preparing your special experience…');
