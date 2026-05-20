@@ -1243,13 +1243,18 @@ class ImageLoader {
 
         // Configuration
         this.config = {
-            rotationDelay: 5000,
-            automaticRotate: true,
-            transitionDuration: 600,
-            preloadCount: 3, // Increased for better performance
-            pauseOnHover: true,
-            pauseWhenNotVisible: true,
-            lazyLoadEnabled: true,
+          rotationDelay: 5000,
+           automaticRotate: true,
+          transitionDuration: 600,
+          preloadCount: 3,
+          pauseOnHover: true,
+          pauseWhenNotVisible: true,
+          lazyLoadEnabled: true,
+          transitionEffect: 'fade',        // 'fade', 'slide', 'cube', 'flip'
+          showThumbnails: true,
+          keyboardNavigation: true,
+          loopSlides: true,
+          stopOnLastSlide: false,
             ...options
         };
 
@@ -1487,7 +1492,7 @@ async initializeSwiper() {
             direction: 'horizontal',
             slidesPerView: 1,
             spaceBetween: 0,
-            loop: true,
+            loop: this.config.loopSlides || false,
             centeredSlides: false,
             grabCursor: true,
 
@@ -1496,13 +1501,13 @@ async initializeSwiper() {
                 delay: this.config.rotationDelay,
                 disableOnInteraction: false,
                 pauseOnMouseEnter: this.config.pauseOnHover,
-                stopOnLastSlide: false,
+                stopOnLastSlide: this.config.stopOnLastSlide || false,
                 waitForTransition: true
             } : false,
 
             // Speed and effects
             speed: this.config.transitionDuration,
-            effect: 'fade',
+            effect: this.config.transitionEffect || 'fade',
             fadeEffect: {
                 crossFade: true
             },
@@ -1524,7 +1529,6 @@ async initializeSwiper() {
                 }
             } : false,
 
-            // Lazy loading - DISABLED for now to fix opacity issue
             lazy: true,
 
             // Preload images
@@ -1547,7 +1551,7 @@ async initializeSwiper() {
 
             // Keyboard
             keyboard: {
-                enabled: true,
+                enabled: this.config.keyboardNavigation || true,
                 onlyInViewport: true
             },
 
@@ -1604,6 +1608,27 @@ async initializeSwiper() {
         imageLogger.timeEnd("Initialize Swiper");
     }
 }
+
+/**
+ * Apply transition effect to Swiper
+ */
+applyTransitionEffect() {
+  if (!this.swiper) return;
+  const effect = this.config.transitionEffect;
+  const effectMap = {
+    fade: { effect: 'fade', fadeEffect: { crossFade: true } },
+    slide: { effect: 'slide' },
+    cube: { effect: 'cube', cubeEffect: { shadow: true, slideShadows: true } },
+    flip: { effect: 'flip', flipEffect: { slideShadows: true } }
+  };
+  const selected = effectMap[effect] || effectMap.fade;
+  this.swiper.params.effect = selected.effect;
+  if (selected.fadeEffect) this.swiper.params.fadeEffect = selected.fadeEffect;
+  if (selected.cubeEffect) this.swiper.params.cubeEffect = selected.cubeEffect;
+  if (selected.flipEffect) this.swiper.params.flipEffect = selected.flipEffect;
+  this.swiper.update();
+}
+
 /**
      * Prepare slides with proper image loading
      */
@@ -1832,6 +1857,8 @@ async initializeSwiper() {
         }
     }
 
+
+
     /**
      * Update playback buttons
      */
@@ -2007,6 +2034,9 @@ async initializeSwiper() {
 
     updateConfig(newConfig) {
         this.config = { ...this.config, ...newConfig };
+    if (newConfig.transitionEffect) {
+        this.applyTransitionEffect();
+    }
 
         if (newConfig.automaticRotate !== undefined && this.swiper) {
             if (newConfig.automaticRotate) {
@@ -4344,6 +4374,8 @@ try {
       // Check authentication
       await this.checkAuthentication();
 
+      this.getPreferences();
+
       // Initialize modules
       await this.initializeModules();
 
@@ -4354,6 +4386,7 @@ try {
       this.setupEventListeners();
 
       this.setupKeyboardShortcuts();
+
 
       // Start the app
       this.startApp();
@@ -4420,7 +4453,7 @@ try {
    */
   loadPreferences() {
     try {
-      const preferences = localStorage.getItem("graduation_app_preferences");
+      const preferences = localStorage.getItem("graduationAppSettings");
       return preferences ? JSON.parse(preferences) : {
         theme: 'auto',
         animations: true,
@@ -4443,10 +4476,10 @@ try {
   /**
    * Save user preferences
    */
-  savePreferences() {
+  savePreferences(newPreferences = this.state.preferences) {
     try {
       localStorage.setItem(
-        "graduation_app_preferences",
+        "GraduationAppSettings",
         JSON.stringify(this.state.preferences)
       );
       appLogger.debug("Preferences saved", this.state.preferences);
@@ -4455,6 +4488,22 @@ try {
     }
   }
 
+  /**
+  * this function is used to get preferences from local storage and update the state with it. It is called when the app is initialized to load the user's preferences and apply them to the app's state.
+  */
+  getPreferences() {
+    try {
+      const preferences = localStorage.getItem("GraduationAppSettings");
+      if (preferences) {
+        this.state.preferences = JSON.parse(preferences);
+        appLogger.debug("Preferences loaded", this.state.preferences);
+      } else {
+        appLogger.debug("No preferences found, using defaults");
+      }
+    } catch (error) {
+      appLogger.error("Failed to get preferences", error);
+    }
+  }
   /**
    * Initialize DropdownManager with ThemeManager
    */
@@ -4465,7 +4514,9 @@ try {
       // Create ThemeManager instance
       this.themeManager = new ThemeManager();
       this.themeManager.init();
-      this.state.preferences.theme === 'auto' ? this.state.preferences.theme = this.themeManager.getCurrentTheme() : null;
+      if (this.state.preferences.theme === 'auto') {
+  this.state.preferences.theme = this.themeManager.getCurrentTheme();
+}
 
       this.themeManager.applyTheme(this.state.preferences.theme);
 
@@ -4477,6 +4528,16 @@ try {
           action: 'theme',
           className: 'theme-toggle',
           dynamicLabel: true
+        },
+        {
+          label: 'Settings',
+          icon: 'fas fa-cog',
+          action: 'settings'
+        },
+        {
+          label: 'Help',
+          icon: 'fas fa-question-circle',
+          action: 'help'
         },
         {
           label: 'Image Settings',
@@ -4524,17 +4585,14 @@ try {
     }
 
       // Create DropdownManager
-      this.dropdownManager = new DropdownManager({
-        position: 'top-right',
-        showBackdrop: true,
-          appLogger,
-        autoClose: true,
-        animationDuration: 300,
-        themeManager: this.themeManager,
-        menuItems: menuItems,
-        enableKeyboardNav: true,
-        enableRippleEffect: this.state.preferences.animations
-      });
+      const dropdownOptions = {
+  ...(this.state.preferences?.DropdownManager?.Settings || {}),
+  logger: appLogger,
+  themeManager: this.themeManager,
+  menuItems
+};
+      this.dropdownManager = new DropdownManager(dropdownOptions);
+      this.dropdownManager.init();
 
       // Listen to dropdown events
       this.setupDropdownListeners();
@@ -5277,170 +5335,840 @@ showLogoutAnimation() {
     observer.observe(document.body, { childList: true });
 }
 
-  /**
-   * Open image settings dialog
-   */
-  openImageSettings() {
-    if (!this.modules.imageLoader) {
-      this.showToast('Image loader not available', 'error');
-      return;
-    }
+/**
+ * Open image settings dialog – full configuration, persistent, Liquid Glass UI
+ */
+openImageSettings() {
+  if (!this.modules.imageLoader) {
+    this.showToast('Image loader not available', 'error');
+    return;
+  }
 
-    // Create settings dialog
-    const dialog = document.createElement('div');
-    dialog.className = 'settings-dialog';
-    dialog.style.cssText = `
-      position: fixed;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      background: var(--dropdown-bg, white);
-      padding: 30px;
-      border-radius: 20px;
-      box-shadow: 0 20px 60px rgba(0,0,0,0.3);
-      z-index: 10002;
-      min-width: 300px;
-      max-width: 90vw;
-    `;
+  const loader = this.modules.imageLoader;
+  const config = loader.config;
 
-    const state = this.modules.imageLoader.getRotationState?.() || {};
-    dialog.innerHTML = `
-      <h3 style="margin: 0 0 20px 0; color: var(--dropdown-text, #333);">Image Settings</h3>
+  // Create backdrop (reuse dm-overlay)
+  const backdrop = document.createElement('div');
+  backdrop.className = 'dm-overlay';
+  backdrop.setAttribute('role', 'presentation');
 
-      <div class="setting-item" style="margin-bottom: 20px;">
-        <label style="display: block; margin-bottom: 8px; color: var(--dropdown-text, #666);">
-          Rotation Speed
-        </label>
-        <input type="range" id="rotation-speed" min="1000" max="10000" step="500"
-               value="${state.rotationDelay || 5000}"
-               style="width: 100%;">
-        <div style="display: flex; justify-content: space-between; margin-top: 5px;">
-          <span style="font-size: 12px; color: var(--dropdown-text, #999);">Slow</span>
-          <span id="speed-value" style="font-size: 14px; color: var(--primary, #667eea);">
-            ${(state.rotationDelay || 5000) / 1000}s
-          </span>
-          <span style="font-size: 12px; color: var(--dropdown-text, #999);">Fast</span>
+  const dialog = document.createElement('div');
+  dialog.className = 'dm-modal image-settings-modal';
+  dialog.setAttribute('role', 'dialog');
+  dialog.setAttribute('aria-modal', 'true');
+  dialog.setAttribute('aria-labelledby', 'image-settings-title');
+
+  // Build HTML with all settings
+  dialog.innerHTML = `
+    <div class="dm-modal__header">
+      <h2 class="dm-modal__title" id="image-settings-title">
+        <span class="dm-modal__title-icon">🖼️</span>
+        Image Slideshow Settings
+      </h2>
+      <button class="dm-modal__close" aria-label="Close settings">×</button>
+    </div>
+
+    <div class="dm-modal__body">
+      <div class="dm-settings-list">
+        <!-- Rotation Speed -->
+        <div class="dm-setting-row dm-setting-row--range">
+          <div class="dm-setting-row__top">
+            <div class="dm-setting-row__label">
+              <span class="dm-setting-row__name">Rotation Speed</span>
+              <span class="dm-setting-row__hint">Time between automatic slides</span>
+            </div>
+            <span class="dm-range-value" id="img-speed-value">${(config.rotationDelay / 1000).toFixed(1)}s</span>
+          </div>
+          <input type="range" id="img-rotation-speed" class="dm-range"
+                 min="1000" max="15000" step="500" value="${config.rotationDelay}">
         </div>
-      </div>
 
-      <div class="setting-item" style="margin-bottom: 20px;">
-        <label style="display: flex; align-items: center; gap: 10px; color: var(--dropdown-text, #666);">
-          <input type="checkbox" id="auto-rotate" ${state.automaticRotate ? 'checked' : ''}>
-          Auto Rotate Images
+        <!-- Transition Duration -->
+        <div class="dm-setting-row dm-setting-row--range">
+          <div class="dm-setting-row__top">
+            <div class="dm-setting-row__label">
+              <span class="dm-setting-row__name">Transition Speed</span>
+              <span class="dm-setting-row__hint">Duration of slide animation (ms)</span>
+            </div>
+            <span class="dm-range-value" id="img-transition-value">${config.transitionDuration}ms</span>
+          </div>
+          <input type="range" id="img-transition-speed" class="dm-range"
+                 min="200" max="1500" step="50" value="${config.transitionDuration}">
+        </div>
+
+        <!-- Preload Count -->
+        <div class="dm-setting-row dm-setting-row--range">
+          <div class="dm-setting-row__top">
+            <div class="dm-setting-row__label">
+              <span class="dm-setting-row__name">Preload Images</span>
+              <span class="dm-setting-row__hint">Number of adjacent slides to preload</span>
+            </div>
+            <span class="dm-range-value" id="img-preload-value">${config.preloadCount}</span>
+          </div>
+          <input type="range" id="img-preload-count" class="dm-range"
+                 min="1" max="10" step="1" value="${config.preloadCount}">
+        </div>
+
+        <!-- Transition Effect (select) -->
+        <label class="dm-setting-row">
+          <span class="dm-setting-row__label">
+            <span class="dm-setting-row__name">Transition Effect</span>
+            <span class="dm-setting-row__hint">Animation style between slides</span>
+          </span>
+          <span class="dm-setting-row__control">
+            <select id="img-transition-effect" class="dm-select">
+              <option value="fade"  ${config.transitionEffect === 'fade' ? 'selected' : ''}>Fade</option>
+              <option value="slide" ${config.transitionEffect === 'slide' ? 'selected' : ''}>Slide</option>
+              <option value="cube"  ${config.transitionEffect === 'cube' ? 'selected' : ''}>Cube</option>
+              <option value="flip"  ${config.transitionEffect === 'flip' ? 'selected' : ''}>Flip</option>
+            </select>
+          </span>
+        </label>
+
+        <!-- Toggle controls -->
+        <label class="dm-setting-row">
+          <span class="dm-setting-row__label">
+            <span class="dm-setting-row__name">Auto Rotate</span>
+            <span class="dm-setting-row__hint">Automatically transition images</span>
+          </span>
+          <span class="dm-setting-row__control">
+            <span class="dm-toggle">
+              <input class="dm-toggle__input" type="checkbox" id="img-auto-rotate" ${config.automaticRotate ? 'checked' : ''}>
+              <span class="dm-toggle__track"></span>
+            </span>
+          </span>
+        </label>
+
+        <label class="dm-setting-row">
+          <span class="dm-setting-row__label">
+            <span class="dm-setting-row__name">Pause on Hover</span>
+            <span class="dm-setting-row__hint">Stop rotation when mouse enters image</span>
+          </span>
+          <span class="dm-setting-row__control">
+            <span class="dm-toggle">
+              <input class="dm-toggle__input" type="checkbox" id="img-pause-hover" ${config.pauseOnHover ? 'checked' : ''}>
+              <span class="dm-toggle__track"></span>
+            </span>
+          </span>
+        </label>
+
+        <label class="dm-setting-row">
+          <span class="dm-setting-row__label">
+            <span class="dm-setting-row__name">Keyboard Navigation</span>
+            <span class="dm-setting-row__hint">Use arrow keys to navigate</span>
+          </span>
+          <span class="dm-setting-row__control">
+            <span class="dm-toggle">
+              <input class="dm-toggle__input" type="checkbox" id="img-keyboard-nav" ${config.keyboardNavigation !== false ? 'checked' : ''}>
+              <span class="dm-toggle__track"></span>
+            </span>
+          </span>
+        </label>
+
+        <label class="dm-setting-row">
+          <span class="dm-setting-row__label">
+            <span class="dm-setting-row__name">Loop Slides</span>
+            <span class="dm-setting-row__hint">Infinite circular navigation</span>
+          </span>
+          <span class="dm-setting-row__control">
+            <span class="dm-toggle">
+              <input class="dm-toggle__input" type="checkbox" id="img-loop-slides" ${config.loopSlides !== false ? 'checked' : ''}>
+              <span class="dm-toggle__track"></span>
+            </span>
+          </span>
+        </label>
+
+            <label class="dm-setting-row">
+          <span class="dm-setting-row__label">
+            <span class="dm-setting-row__name">Stop on Last Slide</span>
+            <span class="dm-setting-row__hint">Pause at the last slide</span>
+          </span>
+          <span class="dm-setting-row__control">
+            <span class="dm-toggle">
+              <input class="dm-toggle__input" type="checkbox" id="img-stop-last-slide" ${config.stopOnLastSlide !== false ? 'checked' : ''}>
+              <span class="dm-toggle__track"></span>
+            </span>
+          </span>
+        </label>
+
+        <label class="dm-setting-row">
+          <span class="dm-setting-row__label">
+            <span class="dm-setting-row__name">Show Thumbnails</span>
+            <span class="dm-setting-row__hint">Display thumbnail navigation dots</span>
+          </span>
+          <span class="dm-setting-row__control">
+            <span class="dm-toggle">
+              <input class="dm-toggle__input" type="checkbox" id="img-show-thumbnails" ${config.showThumbnails !== false ? 'checked' : ''}>
+              <span class="dm-toggle__track"></span>
+            </span>
+          </span>
         </label>
       </div>
+    </div>
 
-            <div class="setting-item" style="margin-bottom: 20px;">
-        <label style="display: flex; align-items: center; gap: 10px; color: var(--dropdown-text, #666);">
-          <input type="checkbox" id="EnableRotation" ${state.rotationEnabled ? 'checked' : ''}>
-          Enable Image Rotation
-        </label>
-      </div>
+    <div class="dm-modal__footer">
+      <button class="dm-btn dm-btn--ghost" id="img-settings-cancel">Cancel</button>
+      <button class="dm-btn dm-btn--primary" id="img-settings-save">Save Changes</button>
+    </div>
+  `;
 
-      <div class="setting-item" style="margin-bottom: 30px;">
-        <label style="display: flex; align-items: center; gap: 10px; color: var(--dropdown-text, #666);">
-          <input type="checkbox" id="pause-on-hover" ${state.pauseOnHover ? 'checked' : ''}>
-          Pause on Hover
-        </label>
-      </div>
+  backdrop.appendChild(dialog);
+  document.body.appendChild(backdrop);
 
-      <div style="display: flex; gap: 10px; justify-content: flex-end;">
-        <button class="btn-secondary" style="
-          padding: 10px 20px;
-          border: none;
-          background: var(--dropdown-hover, #f5f5f5);
-          color: var(--dropdown-text, #666);
-          border-radius: 8px;
-          cursor: pointer;
-        ">Cancel</button>
-        <button class="btn-primary" style="
-          padding: 10px 20px;
-          border: none;
-          background: var(--primary, #667eea);
-          color: white;
-          border-radius: 8px;
-          cursor: pointer;
-        ">Save</button>
-      </div>
-    `;
+  // --- DOM references ---
+  const speedSlider = dialog.querySelector('#img-rotation-speed');
+  const speedValue = dialog.querySelector('#img-speed-value');
+  const transitionSlider = dialog.querySelector('#img-transition-speed');
+  const transitionValue = dialog.querySelector('#img-transition-value');
+  const preloadSlider = dialog.querySelector('#img-preload-count');
+  const preloadValue = dialog.querySelector('#img-preload-value');
+  const effectSelect = dialog.querySelector('#img-transition-effect');
+  const autoRotateCheck = dialog.querySelector('#img-auto-rotate');
+  const pauseHoverCheck = dialog.querySelector('#img-pause-hover');
+  const keyboardNavCheck = dialog.querySelector('#img-keyboard-nav');
+  const loopSlidesCheck = dialog.querySelector('#img-loop-slides');
+  const stopLastSlideCheck = dialog.querySelector('#img-stop-last-slide');
+  const showThumbnailsCheck = dialog.querySelector('#img-show-thumbnails');
 
-    document.body.appendChild(dialog);
+  // Update live displays
+  speedSlider.addEventListener('input', () => {
+    speedValue.textContent = `${(parseInt(speedSlider.value,10)/1000).toFixed(1)}s`;
+  });
+  transitionSlider.addEventListener('input', () => {
+    transitionValue.textContent = `${transitionSlider.value}ms`;
+  });
+  preloadSlider.addEventListener('input', () => {
+    preloadValue.textContent = preloadSlider.value;
+  });
 
-    // Add backdrop
-    const backdrop = document.createElement('div');
-    backdrop.className = 'dialog-backdrop';
-    backdrop.style.cssText = `
-      position: fixed;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      background: rgba(0,0,0,0.5);
-      z-index: 10001;
-      backdrop-filter: blur(5px);
-    `;
-    document.body.appendChild(backdrop);
+  // Close handlers
+  const closeDialog = () => {
+    backdrop.classList.add('is-closing');
+    dialog.classList.add('is-closing');
+    setTimeout(() => backdrop.remove(), 300);
+  };
+  dialog.querySelector('.dm-modal__close').addEventListener('click', closeDialog);
+  dialog.querySelector('#img-settings-cancel').addEventListener('click', closeDialog);
+  backdrop.addEventListener('click', (e) => { if (e.target === backdrop) closeDialog(); });
 
-    // Add event listeners
-    const speedInput = dialog.querySelector('#rotation-speed');
-    const speedValue = dialog.querySelector('#speed-value');
+  // Save handler
+  const saveBtn = dialog.querySelector('#img-settings-save');
+  saveBtn.addEventListener('click', () => {
+    const newConfig = {
+      rotationDelay: parseInt(speedSlider.value, 10),
+      transitionDuration: parseInt(transitionSlider.value, 10),
+      preloadCount: parseInt(preloadSlider.value, 10),
+      transitionEffect: effectSelect.value,
+      automaticRotate: autoRotateCheck.checked,
+      pauseOnHover: pauseHoverCheck.checked,
+      keyboardNavigation: keyboardNavCheck.checked,
+      loopSlides: loopSlidesCheck.checked,
+      stopOnLastSlide: stopLastSlideCheck.checked,
+      showThumbnails: showThumbnailsCheck.checked
+    };
 
-    speedInput.addEventListener('input', (e) => {
-      speedValue.textContent = `${e.target.value / 1000}s`;
-    });
-      const autoRotate = dialog.querySelector('#auto-rotate').checked;
-      const pauseOnHover = dialog.querySelector('#pause-on-hover').checked;
-      const rotationEnabled = dialog.querySelector('#EnableRotation').checked;
-    dialog.querySelector('.btn-primary').addEventListener('click', () => {
-      const newSpeed = parseInt(speedInput.value);
+    // Apply to loader
+    loader.updateConfig(newConfig);
 
-      if (this.modules.imageLoader.updateConfig) {
-        this.modules.imageLoader.updateConfig({
-          automaticRotate: autoRotate,
-          pauseOnHover: pauseOnHover,
-          rotationEnabled: rotationEnabled,
-            rotationDelay: newSpeed
-
-        });
-      }
-
-      // Save to preferences
-      this.state.preferences.automaticRotate = autoRotate;
-      this.state.preferences.isHoverPaused = pauseOnHover;
-      this.state.preferences.rotationEnabled = rotationEnabled;
-      this.state.preferences.rotationDelay = newSpeed;
-      this.savePreferences();
-
-      // Close dialog
-      dialog.remove();
-      backdrop.remove();
-
-      this.showToast('Image settings saved', 'success');
-    });
-
-    dialog.querySelector('.btn-secondary').addEventListener('click', () => {
-      dialog.remove();
-      backdrop.remove();
-    });
-
-    backdrop.addEventListener('click', () => {
-      dialog.remove();
-      backdrop.remove();
-    });
-  }
-
-  /**
-   * Open confetti settings dialog
-   */
-  openConfettiSettings() {
-    if (!this.modules.confetti) {
-      this.showToast('Confetti system not available', 'error');
-      return;
+    // Apply thumbnails visibility
+    const thumbContainer = loader.htmlElements.thumbnailNav;
+    if (thumbContainer) {
+      thumbContainer.style.display = newConfig.showThumbnails ? '' : 'none';
     }
 
-    // Similar implementation to image settings
-    this.showToast('Confetti settings dialog would open here', 'info');
-  }
+    // Update preferences in app state
+    this.state.preferences.DropdownManager.imageSettings = newConfig;
+    this.savePreferences();
+
+    this.showToast('Image settings saved', 'success');
+    closeDialog();
+  });
+
+  // Keyboard: Escape to close
+  const handleKeyDown = (e) => {
+    if (e.key === 'Escape') {
+      closeDialog();
+      document.removeEventListener('keydown', handleKeyDown);
+    }
+  };
+  document.addEventListener('keydown', handleKeyDown);
+}
+
+  /**
+/**
+ * Open confetti settings dialog with comprehensive configuration
+ */
+openConfettiSettings() {
+    if (!this.modules.confetti) {
+        this.showToast('Confetti system not available', 'error');
+        return;
+    }
+
+    // Get current confetti state
+    const currentState = this.modules.confetti.getState();
+    const currentConfig = this.state.preferences?.DropdownManager?.confettiSettings || this.modules.confetti.config;
+
+    // Create backdrop
+    const backdrop = document.createElement('div');
+    backdrop.className = 'confetti-settings-backdrop';
+    backdrop.setAttribute('role', 'presentation');
+
+    // Create dialog
+    const dialog = document.createElement('div');
+    dialog.className = 'confetti-settings-dialog';
+    dialog.setAttribute('role', 'dialog');
+    dialog.setAttribute('aria-modal', 'true');
+    dialog.setAttribute('aria-labelledby', 'confetti-settings-title');
+
+    dialog.innerHTML = `
+        <div class="confetti-settings-header">
+            <h2 id="confetti-settings-title">
+                <span style="font-size: 24px;">🎉</span>
+                Confetti Settings
+            </h2>
+            <button class="confetti-settings-close" aria-label="Close settings">×</button>
+        </div>
+
+        <div class="confetti-settings-body">
+            <!-- Particle Settings Section -->
+            <div class="settings-section">
+                <h3 class="settings-section-title">
+                    <span class="section-icon">✨</span>
+                    Particle Settings
+                </h3>
+
+                <div class="setting-group">
+                    <label class="setting-label">
+                        <span class="label-text">Max Particles</span>
+                        <span class="label-value" id="maxParticlesValue">${currentConfig.maxParticles}</span>
+                    </label>
+                    <input type="range" id="maxParticles" class="setting-range"
+                           min="100" max="2000" step="50"
+                           value="${currentConfig.maxParticles}">
+                    <span class="setting-hint">Higher values may impact performance</span>
+                </div>
+
+                <div class="setting-group">
+                    <label class="setting-label">
+                        <span class="label-text">Particle Lifetime</span>
+                        <span class="label-value" id="particleLifetimeValue">${currentConfig.particleLifetime / 1000}s</span>
+                    </label>
+                    <input type="range" id="particleLifetime" class="setting-range"
+                           min="1000" max="8000" step="500"
+                           value="${currentConfig.particleLifetime}">
+                </div>
+
+                <div class="setting-group">
+                    <label class="setting-label">
+                        <span class="label-text">Gravity</span>
+                        <span class="label-value" id="gravityValue">${currentConfig.gravity.toFixed(2)}</span>
+                    </label>
+                    <input type="range" id="gravity" class="setting-range"
+                           min="0" max="0.5" step="0.01"
+                           value="${currentConfig.gravity}">
+                </div>
+
+                <div class="setting-group">
+                    <label class="setting-label">
+                        <span class="label-text">Wind Strength</span>
+                        <span class="label-value" id="windValue">${currentConfig.wind.toFixed(2)}</span>
+                    </label>
+                    <input type="range" id="wind" class="setting-range"
+                           min="-0.3" max="0.3" step="0.01"
+                           value="${currentConfig.wind}">
+                </div>
+
+                <div class="setting-group">
+                    <label class="setting-label">
+                        <span class="label-text">Explosion Speed</span>
+                        <span class="label-value" id="explosionSpeedValue">${currentConfig.explosionSpeed.min} - ${currentConfig.explosionSpeed.max}</span>
+                    </label>
+                    <div class="dual-range">
+                        <input type="range" id="explosionSpeedMin" class="setting-range"
+                               min="1" max="10" step="0.5"
+                               value="${currentConfig.explosionSpeed.min}">
+                        <input type="range" id="explosionSpeedMax" class="setting-range"
+                               min="1" max="10" step="0.5"
+                               value="${currentConfig.explosionSpeed.max}">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Shape Settings Section -->
+            <div class="settings-section">
+                <h3 class="settings-section-title">
+                    <span class="section-icon">🎨</span>
+                    Shape Distribution
+                </h3>
+
+                <div class="shape-distribution">
+                    <div class="shape-item">
+                        <span class="shape-name">🔵 Circles</span>
+                        <input type="range" id="shapeCircle" class="shape-range"
+                               min="0" max="1" step="0.05"
+                               value="${currentConfig.shapeDistribution.circle}">
+                        <span class="shape-percent" id="circlePercent">${Math.round(currentConfig.shapeDistribution.circle * 100)}%</span>
+                    </div>
+                    <div class="shape-item">
+                        <span class="shape-name">⬛ Rectangles</span>
+                        <input type="range" id="shapeRect" class="shape-range"
+                               min="0" max="1" step="0.05"
+                               value="${currentConfig.shapeDistribution.rect}">
+                        <span class="shape-percent" id="rectPercent">${Math.round(currentConfig.shapeDistribution.rect * 100)}%</span>
+                    </div>
+                    <div class="shape-item">
+                        <span class="shape-name">▲ Triangles</span>
+                        <input type="range" id="shapeTriangle" class="shape-range"
+                               min="0" max="1" step="0.05"
+                               value="${currentConfig.shapeDistribution.triangle}">
+                        <span class="shape-percent" id="trianglePercent">${Math.round(currentConfig.shapeDistribution.triangle * 100)}%</span>
+                    </div>
+                    <div class="shape-item">
+                        <span class="shape-name">⭐ Stars</span>
+                        <input type="range" id="shapeStar" class="shape-range"
+                               min="0" max="1" step="0.05"
+                               value="${currentConfig.shapeDistribution.star}">
+                        <span class="shape-percent" id="starPercent">${Math.round(currentConfig.shapeDistribution.star * 100)}%</span>
+                    </div>
+                    <div class="shape-item">
+                        <span class="shape-name">💖 Hearts</span>
+                        <input type="range" id="shapeHeart" class="shape-range"
+                               min="0" max="1" step="0.05"
+                               value="${currentConfig.shapeDistribution.heart}">
+                        <span class="shape-percent" id="heartPercent">${Math.round(currentConfig.shapeDistribution.heart * 100)}%</span>
+                    </div>
+                </div>
+                <div class="distribution-total">
+                    Total: <span id="distributionTotal">100</span>%
+                </div>
+            </div>
+
+            <!-- Color Settings Section -->
+            <div class="settings-section">
+                <h3 class="settings-section-title">
+                    <span class="section-icon">🎨</span>
+                    Color Palette
+                </h3>
+
+                <div class="color-palette" id="colorPalette">
+                    ${currentConfig.colors.map((color, index) => `
+                        <div class="color-item">
+                            <input type="color" class="color-picker" data-index="${index}" value="${color}">
+                            <button class="remove-color" data-index="${index}" ${currentConfig.colors.length <= 1 ? 'disabled' : ''}>×</button>
+                        </div>
+                    `).join('')}
+                </div>
+                <button id="addColorBtn" class="settings-btn-secondary" style="margin-top: 10px;">
+                    + Add Color
+                </button>
+            </div>
+
+            <!-- Interaction Settings -->
+            <div class="settings-section">
+                <h3 class="settings-section-title">
+                    <span class="section-icon">🖱️</span>
+                    Interaction
+                </h3>
+
+                <label class="setting-checkbox">
+                    <input type="checkbox" id="interactive" ${currentConfig.interactive ? 'checked' : ''}>
+                    <span class="checkbox-label">Enable Interactive Mode</span>
+                </label>
+
+                <label class="setting-checkbox">
+                    <input type="checkbox" id="followMouse" ${currentConfig.followMouse ? 'checked' : ''}>
+                    <span class="checkbox-label">Follow Mouse/Touch</span>
+                </label>
+
+                <label class="setting-checkbox">
+                    <input type="checkbox" id="autoTrigger" ${currentConfig.autoTrigger ? 'checked' : ''}>
+                    <span class="checkbox-label">Auto-Trigger Confetti</span>
+                </label>
+
+                <div class="setting-group" id="autoTriggerDelayGroup" style="${!currentConfig.autoTrigger ? 'display: none;' : ''}">
+                    <label class="setting-label">
+                        <span class="label-text">Auto-Trigger Interval</span>
+                        <span class="label-value" id="autoTriggerIntervalValue">${currentConfig.autoTriggerInterval / 1000}s</span>
+                    </label>
+                    <input type="range" id="autoTriggerInterval" class="setting-range"
+                           min="1000" max="15000" step="500"
+                           value="${currentConfig.autoTriggerInterval}">
+                </div>
+            </div>
+
+            <!-- Performance Section -->
+            <div class="settings-section">
+                <h3 class="settings-section-title">
+                    <span class="section-icon">⚡</span>
+                    Performance
+                </h3>
+
+                <label class="setting-checkbox">
+                    <input type="checkbox" id="showStats" ${currentConfig.showStats ? 'checked' : ''}>
+                    <span class="checkbox-label">Show Performance Stats</span>
+                </label>
+
+                <div class="setting-group">
+                    <label class="setting-label">
+                        <span class="label-text">FPS Limit</span>
+                        <span class="label-value" id="fpsLimitValue">${currentConfig.fpsLimit}</span>
+                    </label>
+                    <input type="range" id="fpsLimit" class="setting-range"
+                           min="30" max="120" step="10"
+                           value="${currentConfig.fpsLimit}">
+                </div>
+            </div>
+
+            <!-- Preview Section -->
+            <div class="settings-section">
+                <h3 class="settings-section-title">
+                    <span class="section-icon">👁️</span>
+                    Preview
+                </h3>
+                <button id="previewConfetti" class="settings-btn-primary">
+                    🎉 Test Confetti
+                </button>
+                <button id="resetConfetti" class="settings-btn-secondary">
+                    Reset to Defaults
+                </button>
+            </div>
+        </div>
+
+        <div class="confetti-settings-footer">
+            <button class="settings-btn-secondary" id="cancelSettings">Cancel</button>
+            <button class="settings-btn-primary" id="applySettings">Apply Changes</button>
+        </div>
+    `;
+
+    document.body.appendChild(backdrop);
+    backdrop.appendChild(dialog);
+
+    // Animate in
+    setTimeout(() => {
+        backdrop.style.opacity = '1';
+        dialog.style.opacity = '1';
+        dialog.style.transform = 'translateY(0) scale(1)';
+    }, 10);
+
+    // Helper functions
+    const updateShapeDistribution = () => {
+        const circle = parseFloat(document.getElementById('shapeCircle').value);
+        const rect = parseFloat(document.getElementById('shapeRect').value);
+        const triangle = parseFloat(document.getElementById('shapeTriangle').value);
+        const star = parseFloat(document.getElementById('shapeStar').value);
+        const heart = parseFloat(document.getElementById('shapeHeart').value);
+
+        const total = circle + rect + triangle + star + heart;
+        const totalPercent = Math.round(total * 100);
+
+        document.getElementById('distributionTotal').textContent = totalPercent;
+
+        // Update percentages
+        document.getElementById('circlePercent').textContent = Math.round(circle * 100) + '%';
+        document.getElementById('rectPercent').textContent = Math.round(rect * 100) + '%';
+        document.getElementById('trianglePercent').textContent = Math.round(triangle * 100) + '%';
+        document.getElementById('starPercent').textContent = Math.round(star * 100) + '%';
+        document.getElementById('heartPercent').textContent = Math.round(heart * 100) + '%';
+
+        // Add warning if total doesn't equal 1
+        const distributionTotal = document.getElementById('distributionTotal');
+        if (Math.abs(total - 1) > 0.05) {
+            distributionTotal.style.color = '#f5576c';
+            distributionTotal.title = 'Distribution should sum to 100%';
+        } else {
+            distributionTotal.style.color = '';
+            distributionTotal.title = '';
+        }
+    };
+
+    // Add event listeners for shape distribution
+    const shapeInputs = ['shapeCircle', 'shapeRect', 'shapeTriangle', 'shapeStar', 'shapeHeart'];
+    shapeInputs.forEach(id => {
+        const input = document.getElementById(id);
+        input.addEventListener('input', updateShapeDistribution);
+    });
+
+    // Auto-trigger interval visibility
+    const autoTriggerCheckbox = document.getElementById('autoTrigger');
+    const autoTriggerGroup = document.getElementById('autoTriggerDelayGroup');
+    autoTriggerCheckbox.addEventListener('change', (e) => {
+        autoTriggerGroup.style.display = e.target.checked ? 'block' : 'none';
+    });
+
+    // Range value displays
+    const ranges = [
+        { id: 'maxParticles', display: 'maxParticlesValue', formatter: (v) => v },
+        { id: 'particleLifetime', display: 'particleLifetimeValue', formatter: (v) => (v / 1000).toFixed(1) + 's' },
+        { id: 'gravity', display: 'gravityValue', formatter: (v) => parseFloat(v).toFixed(2) },
+        { id: 'wind', display: 'windValue', formatter: (v) => parseFloat(v).toFixed(2) },
+        { id: 'autoTriggerInterval', display: 'autoTriggerIntervalValue', formatter: (v) => (v / 1000).toFixed(1) + 's' },
+        { id: 'fpsLimit', display: 'fpsLimitValue', formatter: (v) => v }
+    ];
+
+    ranges.forEach(({ id, display, formatter }) => {
+        const input = document.getElementById(id);
+        const displaySpan = document.getElementById(display);
+        input.addEventListener('input', (e) => {
+            displaySpan.textContent = formatter(e.target.value);
+        });
+    });
+
+    // Explosion speed displays
+    const speedMin = document.getElementById('explosionSpeedMin');
+    const speedMax = document.getElementById('explosionSpeedMax');
+    const speedDisplay = document.getElementById('explosionSpeedValue');
+
+    const updateSpeedDisplay = () => {
+        speedDisplay.textContent = `${parseFloat(speedMin.value).toFixed(1)} - ${parseFloat(speedMax.value).toFixed(1)}`;
+    };
+
+    speedMin.addEventListener('input', updateSpeedDisplay);
+    speedMax.addEventListener('input', updateSpeedDisplay);
+
+    // Color management
+    const colorPalette = document.getElementById('colorPalette');
+    const addColorBtn = document.getElementById('addColorBtn');
+
+    addColorBtn.addEventListener('click', () => {
+        const colorItems = colorPalette.querySelectorAll('.color-item');
+        if (colorItems.length >= 10) {
+            this.showToast('Maximum 10 colors allowed', 'warning');
+            return;
+        }
+
+        const newIndex = colorItems.length;
+        const colorItem = document.createElement('div');
+        colorItem.className = 'color-item';
+        colorItem.innerHTML = `
+            <input type="color" class="color-picker" data-index="${newIndex}" value="#8E2DE2">
+            <button class="remove-color" data-index="${newIndex}">×</button>
+        `;
+        colorPalette.appendChild(colorItem);
+
+        // Add remove listener
+        const removeBtn = colorItem.querySelector('.remove-color');
+        removeBtn.addEventListener('click', () => {
+            if (colorPalette.children.length > 1) {
+                colorItem.remove();
+                // Re-index remaining colors
+                Array.from(colorPalette.children).forEach((child, idx) => {
+                    const picker = child.querySelector('.color-picker');
+                    const btn = child.querySelector('.remove-color');
+                    if (picker) picker.dataset.index = idx;
+                    if (btn) btn.dataset.index = idx;
+                });
+            } else {
+                this.showToast('At least one color is required', 'warning');
+            }
+        });
+    });
+
+    // Add remove listeners to existing color items
+    document.querySelectorAll('.remove-color').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            const colorItems = colorPalette.querySelectorAll('.color-item');
+            if (colorItems.length > 1) {
+                btn.closest('.color-item').remove();
+                // Re-index
+                Array.from(colorPalette.children).forEach((child, idx) => {
+                    const picker = child.querySelector('.color-picker');
+                    const button = child.querySelector('.remove-color');
+                    if (picker) picker.dataset.index = idx;
+                    if (button) button.dataset.index = idx;
+                });
+            } else {
+                this.showToast('At least one color is required', 'warning');
+            }
+        });
+    });
+
+    // Preview button
+    const previewBtn = document.getElementById('previewConfetti');
+    previewBtn.addEventListener('click', () => {
+        // Get current dialog values for preview
+        const colors = Array.from(document.querySelectorAll('.color-picker')).map(p => p.value);
+        const shapeDistribution = {
+            circle: parseFloat(document.getElementById('shapeCircle').value),
+            rect: parseFloat(document.getElementById('shapeRect').value),
+            triangle: parseFloat(document.getElementById('shapeTriangle').value),
+            star: parseFloat(document.getElementById('shapeStar').value),
+            heart: parseFloat(document.getElementById('shapeHeart').value)
+        };
+
+        // Create temporary config for preview
+        const previewConfig = {
+            colors: colors,
+            shapeDistribution: shapeDistribution,
+            gravity: parseFloat(document.getElementById('gravity').value),
+            wind: parseFloat(document.getElementById('wind').value),
+            maxParticles: parseInt(document.getElementById('maxParticles').value),
+            particleLifetime: parseInt(document.getElementById('particleLifetime').value)
+        };
+
+        // Apply preview config temporarily
+        const originalConfig = { ...this.modules.confetti.config };
+        this.modules.confetti.updateConfig(previewConfig);
+
+        // Trigger preview confetti
+        this.modules.confetti.triggerConfetti(50);
+
+        // Restore original config after preview (but keep dialog values)
+        setTimeout(() => {
+            this.modules.confetti.updateConfig(originalConfig);
+        }, 2000);
+    });
+
+    // Reset button
+    const resetBtn = document.getElementById('resetConfetti');
+    resetBtn.addEventListener('click', () => {
+        // Reset to default values
+        const defaultConfig = {
+            maxParticles: 1000,
+            particleLifetime: 3000,
+            gravity: 0.1,
+            wind: 0,
+            explosionSpeed: { min: 2, max: 6 },
+            shapeDistribution: { circle: 0.3, rect: 0.3, triangle: 0.2, star: 0.1, heart: 0.1 },
+            colors: ["#8E2DE2", "#4A00E0", "#FF6B6B", "#FECA57", "#1DD1A1", "#00B4D8", "#FF9E00"],
+            interactive: true,
+            followMouse: false,
+            autoTrigger: false,
+            autoTriggerInterval: 5000,
+            fpsLimit: 60,
+            showStats: false
+        };
+
+        // Update dialog inputs
+        document.getElementById('maxParticles').value = defaultConfig.maxParticles;
+        document.getElementById('particleLifetime').value = defaultConfig.particleLifetime;
+        document.getElementById('gravity').value = defaultConfig.gravity;
+        document.getElementById('wind').value = defaultConfig.wind;
+        document.getElementById('explosionSpeedMin').value = defaultConfig.explosionSpeed.min;
+        document.getElementById('explosionSpeedMax').value = defaultConfig.explosionSpeed.max;
+        document.getElementById('shapeCircle').value = defaultConfig.shapeDistribution.circle;
+        document.getElementById('shapeRect').value = defaultConfig.shapeDistribution.rect;
+        document.getElementById('shapeTriangle').value = defaultConfig.shapeDistribution.triangle;
+        document.getElementById('shapeStar').value = defaultConfig.shapeDistribution.star;
+        document.getElementById('shapeHeart').value = defaultConfig.shapeDistribution.heart;
+        document.getElementById('interactive').checked = defaultConfig.interactive;
+        document.getElementById('followMouse').checked = defaultConfig.followMouse;
+        document.getElementById('autoTrigger').checked = defaultConfig.autoTrigger;
+        document.getElementById('autoTriggerInterval').value = defaultConfig.autoTriggerInterval;
+        document.getElementById('fpsLimit').value = defaultConfig.fpsLimit;
+        document.getElementById('showStats').checked = defaultConfig.showStats;
+
+        // Update displays
+        updateShapeDistribution();
+        document.getElementById('maxParticlesValue').textContent = defaultConfig.maxParticles;
+        document.getElementById('particleLifetimeValue').textContent = (defaultConfig.particleLifetime / 1000).toFixed(1) + 's';
+        document.getElementById('gravityValue').textContent = defaultConfig.gravity.toFixed(2);
+        document.getElementById('windValue').textContent = defaultConfig.wind.toFixed(2);
+        document.getElementById('autoTriggerIntervalValue').textContent = (defaultConfig.autoTriggerInterval / 1000).toFixed(1) + 's';
+        document.getElementById('fpsLimitValue').textContent = defaultConfig.fpsLimit;
+        updateSpeedDisplay();
+
+        // Update colors
+        colorPalette.innerHTML = defaultConfig.colors.map((color, index) => `
+            <div class="color-item">
+                <input type="color" class="color-picker" data-index="${index}" value="${color}">
+                <button class="remove-color" data-index="${index}">×</button>
+            </div>
+        `).join('');
+
+        // Re-attach remove listeners
+        document.querySelectorAll('.remove-color').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const items = colorPalette.querySelectorAll('.color-item');
+                if (items.length > 1) {
+                    btn.closest('.color-item').remove();
+                } else {
+                    this.showToast('At least one color is required', 'warning');
+                }
+            });
+        });
+
+        autoTriggerGroup.style.display = defaultConfig.autoTrigger ? 'block' : 'none';
+
+        this.showToast('Settings reset to defaults', 'info');
+    });
+
+    // Apply button
+    const applyBtn = document.getElementById('applySettings');
+    const cancelBtn = document.getElementById('cancelSettings');
+    const closeBtn = dialog.querySelector('.confetti-settings-close');
+
+    const closeDialog = () => {
+        dialog.style.opacity = '0';
+        dialog.style.transform = 'translateY(20px) scale(0.95)';
+        backdrop.style.opacity = '0';
+        setTimeout(() => {
+            dialog.remove();
+            backdrop.remove();
+        }, 300);
+    };
+
+    applyBtn.addEventListener('click', () => {
+        // Gather all settings
+        const newConfig = {
+            maxParticles: parseInt(document.getElementById('maxParticles').value),
+            particleLifetime: parseInt(document.getElementById('particleLifetime').value),
+            gravity: parseFloat(document.getElementById('gravity').value),
+            wind: parseFloat(document.getElementById('wind').value),
+            explosionSpeed: {
+                min: parseFloat(document.getElementById('explosionSpeedMin').value),
+                max: parseFloat(document.getElementById('explosionSpeedMax').value)
+            },
+            shapeDistribution: {
+                circle: parseFloat(document.getElementById('shapeCircle').value),
+                rect: parseFloat(document.getElementById('shapeRect').value),
+                triangle: parseFloat(document.getElementById('shapeTriangle').value),
+                star: parseFloat(document.getElementById('shapeStar').value),
+                heart: parseFloat(document.getElementById('shapeHeart').value)
+            },
+            colors: Array.from(document.querySelectorAll('.color-picker')).map(p => p.value),
+            interactive: document.getElementById('interactive').checked,
+            followMouse: document.getElementById('followMouse').checked,
+            autoTrigger: document.getElementById('autoTrigger').checked,
+            autoTriggerInterval: parseInt(document.getElementById('autoTriggerInterval').value),
+            fpsLimit: parseInt(document.getElementById('fpsLimit').value),
+            showStats: document.getElementById('showStats').checked
+        };
+
+        // Validate shape distribution
+        const total = Object.values(newConfig.shapeDistribution).reduce((a, b) => a + b, 0);
+        if (Math.abs(total - 1) > 0.05) {
+            this.showToast('Shape distribution must sum to 100%', 'error');
+            return;
+        }
+
+        // Apply new configuration
+        this.modules.confetti.updateConfig(newConfig);
+
+        // Save to preferences
+        this.state.preferences = this.state.preferences || {};
+        this.state.preferences.DropdownManager = this.state.preferences.DropdownManager || {};
+        this.state.preferences.DropdownManager.confettiSettings = newConfig;
+        this.savePreferences();
+
+        this.showToast('Confetti settings applied successfully!', 'success');
+        closeDialog();
+    });
+
+    cancelBtn.addEventListener('click', closeDialog);
+    closeBtn.addEventListener('click', closeDialog);
+    backdrop.addEventListener('click', (e) => {
+        if (e.target === backdrop) closeDialog();
+    });
+
+    // Keyboard support
+    const handleKeyDown = (e) => {
+        if (e.key === 'Escape') {
+            closeDialog();
+            document.removeEventListener('keydown', handleKeyDown);
+        }
+    };
+    document.addEventListener('keydown', handleKeyDown);
+}
 
   /**
    * Show about dialog
@@ -5478,7 +6206,7 @@ showAboutDialog() {
             <div class="logo-outer-ring" ></div>
 
             <div class="logo-main">
-              <span style="font-size: 32px; color: var(--primary, #667eea);">🎓</span>
+              <span style="font-size: 75px; color: var(--primary, #667eea);">🎓</span>
               <div class="logo-shine" ></div>
             </div>
           </div>
@@ -5760,6 +6488,8 @@ showAboutDialog() {
       case 'import':
         this.importData();
         break;
+        case 'setting':
+
       default:
         appLogger.warn("Unknown dropdown action", { action });
     }
@@ -5775,21 +6505,498 @@ showAboutDialog() {
     }, 1000);
   }
 
-  /**
-   * Export app data
-   */
-  exportData() {
-    // Implementation for data export
-    this.showToast('Export feature coming soon', 'info');
+/**
+ * Show Export Dialog – user selects which data to export
+ */
+exportData() {
+  // Define all exportable data categories
+const categories = [
+  {
+    id: 'imageSettings',
+    name: 'Image Slideshow Settings',
+    description: 'Rotation speed, transition effects, preload count, etc.',
+    icon: '🖼️',
+    getData: () => this.modules.imageLoader?.config || this.state.preferences?.DropdownManager?.imageSettings || {}
+  },
+  {
+    id: 'confettiSettings',
+    name: 'Confetti Settings',
+    description: 'Particle counts, shapes, colors, interaction preferences',
+    icon: '🎉',
+    getData: () => this.modules.confetti?.config || this.state.preferences?.DropdownManager?.confettiSettings || {}
+  },
+  {
+    id: 'dropdownManagerSettings',
+    name: 'Menu & UI Settings',
+    description: 'Dropdown position, animations, keyboard shortcuts',
+    icon: '⚙️',
+    getData: () => this.state.preferences?.DropdownManager?.Settings || {}
+  },
+  {
+    id: 'appPreferences',
+    name: 'App Preferences',
+    description: 'Theme, sound, notifications, autoplay preferences',
+    icon: '🎨',
+    getData: () => {
+      const { DropdownManager, ...prefs } = this.state.preferences || {};
+      return prefs;
+    }
+  },
+  {
+    id: 'userAuth',
+    name: 'Authentication Info',
+    description: 'Your saved login session (not password)',
+    icon: '🔐',
+    getData: () => {
+      const auth = localStorage.getItem('GraduationAppPassword');
+      return auth ? JSON.parse(auth) : null;
+    }
+  },
+  // NEW: Other Data category
+  {
+    id: 'others',
+    name: 'Other Data',
+    description: 'PWA prompt dismissal history, modal backup styles, etc.',
+    icon: '📱',
+    getData: () => {
+      const modalBackUpStyles = (() => {
+        try {
+          const val = localStorage.getItem('modal-backup-styles');
+          return val ? JSON.parse(val) : null;
+        } catch { return null; }
+      })();
+      const pwaPromptDismissal = (() => {
+        try {
+          const val = localStorage.getItem('pwa-prompt-dismissal');
+          return val ? JSON.parse(val) : null;
+        } catch { return null; }
+      })();
+      const pwaPromptDismissalHistory = (() => {
+        try {
+          const val = localStorage.getItem('pwa-prompt-display-history');
+          return val ? JSON.parse(val) : null;
+        } catch { return null; }
+      })();
+      return {
+        modalBackUpStyles,
+        pwaPromptDismissal,
+        pwaPromptDismissalHistory
+      };
+    }
+  }
+];
+
+  // Build modal using DM classes
+  const backdrop = document.createElement('div');
+  backdrop.className = 'dm-overlay';
+  backdrop.setAttribute('role', 'presentation');
+
+  const dialog = document.createElement('div');
+  dialog.className = 'dm-modal export-import-modal';
+  dialog.setAttribute('role', 'dialog');
+  dialog.setAttribute('aria-modal', 'true');
+  dialog.setAttribute('aria-labelledby', 'export-dialog-title');
+
+  const categoriesHtml = categories.map(cat => `
+    <label class="dm-setting-row export-category">
+      <span class="dm-setting-row__label">
+        <span class="dm-setting-row__name">
+          <span style="font-size: 1.2rem; margin-right: 8px;">${cat.icon}</span>
+          ${cat.name}
+        </span>
+        <span class="dm-setting-row__hint">${cat.description}</span>
+      </span>
+      <span class="dm-setting-row__control">
+        <span class="dm-toggle">
+          <input class="dm-toggle__input" type="checkbox" data-category="${cat.id}" checked>
+          <span class="dm-toggle__track"></span>
+        </span>
+      </span>
+    </label>
+  `).join('');
+
+  dialog.innerHTML = `
+    <div class="dm-modal__header">
+      <h2 class="dm-modal__title" id="export-dialog-title">
+        <span class="dm-modal__title-icon">📤</span>
+        Export Data
+      </h2>
+      <button class="dm-modal__close" aria-label="Close">×</button>
+    </div>
+    <div class="dm-modal__body">
+      <p style="margin-bottom: 16px; color: var(--dm-text-secondary);">
+        Select the data you wish to export:
+      </p>
+      <div class="dm-settings-list" id="export-categories-list">
+        ${categoriesHtml}
+      </div>
+      <div class="dm-setting-row" style="margin-top: 16px;">
+        <label class="dm-setting-row__label">
+          <span class="dm-setting-row__name">Format</span>
+          <span class="dm-setting-row__hint">Prettify JSON for readability</span>
+        </label>
+        <span class="dm-setting-row__control">
+          <label class="dm-toggle">
+            <input class="dm-toggle__input" type="checkbox" id="export-pretty">
+            <span class="dm-toggle__track"></span>
+          </label>
+        </span>
+      </div>
+    </div>
+    <div class="dm-modal__footer">
+      <button class="dm-btn dm-btn--ghost" id="export-cancel">Cancel</button>
+      <button class="dm-btn dm-btn--primary" id="export-confirm">Download Export</button>
+    </div>
+  `;
+
+  backdrop.appendChild(dialog);
+  document.body.appendChild(backdrop);
+
+  // Close handlers
+  const closeModal = () => {
+    backdrop.classList.add('is-closing');
+    dialog.classList.add('is-closing');
+    setTimeout(() => backdrop.remove(), 300);
+  };
+  dialog.querySelector('.dm-modal__close').addEventListener('click', closeModal);
+  dialog.querySelector('#export-cancel').addEventListener('click', closeModal);
+  backdrop.addEventListener('click', (e) => {
+    if (e.target === backdrop) closeModal();
+  });
+
+  // Export action
+  const exportBtn = dialog.querySelector('#export-confirm');
+  exportBtn.addEventListener('click', () => {
+    const selectedCategories = Array.from(dialog.querySelectorAll('.dm-toggle__input:checked'))
+      .map(cb => cb.dataset.category);
+    const pretty = dialog.querySelector('#export-pretty').checked;
+
+    const exportData = {
+      version: '1.0',
+      exportedAt: new Date().toISOString(),
+      appVersion: '2.0.0',
+      data: {}
+    };
+
+    for (const cat of categories) {
+      if (selectedCategories.includes(cat.id)) {
+        const rawData = cat.getData();
+        if (rawData && Object.keys(rawData).length) {
+          exportData.data[cat.id] = rawData;
+        } else {
+          this.showToast(`No data available for ${cat.name}`, 'warning');
+        }
+      }
+    }
+
+    if (Object.keys(exportData.data).length === 0) {
+      this.showToast('No data selected for export', 'error');
+      return;
+    }
+
+    const jsonStr = pretty ? JSON.stringify(exportData, null, 2) : JSON.stringify(exportData);
+    const blob = new Blob([jsonStr], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `graduation-app-export-${new Date().toISOString().slice(0,19)}.json`;
+    a.style.display = 'none';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+
+    this.showToast('Export successful!', 'success');
+    closeModal();
+  });
+}
+
+/**
+ * Show Import Dialog – user selects file and chooses what to import
+ */
+importData() {
+  // First, create file input hidden and let user pick a file
+  const fileInput = document.createElement('input');
+  fileInput.type = 'file';
+  fileInput.accept = '.json,application/json';
+  fileInput.style.display = 'none';
+  document.body.appendChild(fileInput);
+
+  fileInput.addEventListener('change', async (event) => {
+    const file = event.target.files[0];
+    if (!file) {
+      document.body.removeChild(fileInput);
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const content = e.target.result;
+        const imported = JSON.parse(content);
+
+        // Validate structure
+        if (!imported.version || !imported.data || typeof imported.data !== 'object') {
+          throw new Error('Invalid export file: missing version or data object');
+        }
+
+        // Show import preview dialog
+        this.showImportPreviewDialog(imported, () => {
+          document.body.removeChild(fileInput);
+        });
+      } catch (err) {
+        this.showToast(`Import failed: ${err.message}`, 'error');
+        document.body.removeChild(fileInput);
+      }
+    };
+    reader.onerror = () => {
+      this.showToast('Failed to read file', 'error');
+      document.body.removeChild(fileInput);
+    };
+    reader.readAsText(file);
+  });
+
+  fileInput.click();
+}
+
+/**
+ * Show preview dialog for import – user selects which categories to import
+ * @param {Object} importedData - parsed JSON from file
+ * @param {Function} onComplete - cleanup callback
+ */
+showImportPreviewDialog(importedData, onComplete) {
+const categories = [
+  { id: 'imageSettings', name: 'Image Slideshow Settings', icon: '🖼️', target: () => this.modules.imageLoader?.updateConfig(importedData.data.imageSettings) },
+  { id: 'confettiSettings', name: 'Confetti Settings', icon: '🎉', target: () => this.modules.confetti?.updateConfig(importedData.data.confettiSettings) },
+  { id: 'dropdownManagerSettings', name: 'Menu & UI Settings', icon: '⚙️', target: () => this.saveDropdownManagerSetting(importedData.data.dropdownManagerSettings) },
+  { id: 'appPreferences', name: 'App Preferences', icon: '🎨', target: () => this.mergePreferences(importedData.data.appPreferences) },
+  { id: 'userAuth', name: 'Authentication Info', icon: '🔐', target: () => this.importAuth(importedData.data.userAuth) },
+  { id: 'others', name: 'Other Data', icon: '📱', target: () => this.importOtherData(importedData.data.others, mode) }
+];
+  // Filter only categories present in the file
+  const available = categories.filter(cat => importedData.data[cat.id] !== undefined && importedData.data[cat.id] !== null);
+
+  if (available.length === 0) {
+    this.showToast('No recognizable data to import', 'error');
+    onComplete();
+    return;
   }
 
-  /**
-   * Import app data
-   */
-  importData() {
-    // Implementation for data import
-    this.showToast('Import feature coming soon', 'info');
+  const backdrop = document.createElement('div');
+  backdrop.className = 'dm-overlay';
+  backdrop.setAttribute('role', 'presentation');
+
+  const dialog = document.createElement('div');
+  dialog.className = 'dm-modal export-import-modal';
+  dialog.setAttribute('role', 'dialog');
+  dialog.setAttribute('aria-modal', 'true');
+  dialog.setAttribute('aria-labelledby', 'import-dialog-title');
+
+  const categoriesHtml = available.map(cat => `
+    <label class="dm-setting-row import-category">
+      <span class="dm-setting-row__label">
+        <span class="dm-setting-row__name">
+          <span style="font-size: 1.2rem; margin-right: 8px;">${cat.icon}</span>
+          ${cat.name}
+        </span>
+      </span>
+      <span class="dm-setting-row__control">
+        <span class="dm-toggle">
+          <input class="dm-toggle__input" type="checkbox" data-category="${cat.id}" checked>
+          <span class="dm-toggle__track"></span>
+        </span>
+      </span>
+    </label>
+  `).join('');
+
+  dialog.innerHTML = `
+    <div class="dm-modal__header">
+      <h2 class="dm-modal__title" id="import-dialog-title">
+        <span class="dm-modal__title-icon">📥</span>
+        Import Data
+      </h2>
+      <button class="dm-modal__close" aria-label="Close">×</button>
+    </div>
+    <div class="dm-modal__body">
+      <p style="margin-bottom: 8px; color: var(--dm-text-secondary);">
+        File: <strong>${importedData.exportedAt ? new Date(importedData.exportedAt).toLocaleString() : 'unknown date'}</strong>
+      </p>
+      <p style="margin-bottom: 16px; color: var(--dm-text-secondary);">
+        Select which categories to import:
+      </p>
+      <div class="dm-settings-list" id="import-categories-list">
+        ${categoriesHtml}
+      </div>
+      <div class="dm-setting-row" style="margin-top: 16px;">
+        <label class="dm-setting-row__label">
+          <span class="dm-setting-row__name">Import mode</span>
+          <span class="dm-setting-row__hint">Merge: only overwrite existing keys. Replace: full replace</span>
+        </label>
+        <span class="dm-setting-row__control">
+          <select id="import-mode" class="dm-select">
+            <option value="merge">Merge (safe)</option>
+            <option value="replace">Replace (overwrites all)</option>
+          </select>
+        </span>
+      </div>
+    </div>
+    <div class="dm-modal__footer">
+      <button class="dm-btn dm-btn--ghost" id="import-cancel">Cancel</button>
+      <button class="dm-btn dm-btn--primary" id="import-confirm">Import Selected</button>
+    </div>
+  `;
+
+  backdrop.appendChild(dialog);
+  document.body.appendChild(backdrop);
+
+  const closeModal = () => {
+    backdrop.classList.add('is-closing');
+    dialog.classList.add('is-closing');
+    setTimeout(() => {
+      backdrop.remove();
+      if (onComplete) onComplete();
+    }, 300);
+  };
+  dialog.querySelector('.dm-modal__close').addEventListener('click', closeModal);
+  dialog.querySelector('#import-cancel').addEventListener('click', closeModal);
+  backdrop.addEventListener('click', (e) => {
+    if (e.target === backdrop) closeModal();
+  });
+
+  const confirmBtn = dialog.querySelector('#import-confirm');
+  confirmBtn.addEventListener('click', () => {
+    const selected = Array.from(dialog.querySelectorAll('.dm-toggle__input:checked'))
+      .map(cb => cb.dataset.category);
+    const mode = dialog.querySelector('#import-mode').value;
+
+    for (const cat of available) {
+      if (selected.includes(cat.id)) {
+        const data = importedData.data[cat.id];
+        if (mode === 'replace') {
+          // For replace, we need a more aggressive approach
+          this.applyFullReplace(cat.id, data);
+        } else {
+          // Merge
+          cat.target(); // The target methods already merge by default
+        }
+      }
+    }
+
+    // Special handling for dropdown manager settings – reinitialize dropdown
+    if (selected.includes('dropdownManagerSettings')) {
+      setTimeout(() => {
+        if (this.dropdownManager) {
+          this.dropdownManager.updateOptions(this.state.preferences?.DropdownManager?.Settings || {});
+          this.dropdownManager.recreateDropdown();
+        }
+      }, 100);
+    }
+
+    this.showToast('Import completed successfully', 'success');
+    closeModal();
+    // Reload to apply all changes
+    setTimeout(() => {
+      if (confirm('Import successful. Reload to see full changes?')) {
+        window.location.reload();
+      }
+    }, 500);
+  });
+}
+
+/**
+ * Helper: merge preferences into current state
+ */
+mergePreferences(newPrefs) {
+  if (!newPrefs) return;
+  this.state.preferences = { ...this.state.preferences, ...newPrefs };
+  this.savePreferences();
+  // Apply theme if changed
+  if (newPrefs.theme && this.themeManager) {
+    this.themeManager.applyTheme(newPrefs.theme);
   }
+}
+
+/**
+ * Helper: import authentication data (only if user confirms)
+ */
+importAuth(authData) {
+  if (!authData || !authData.name) return;
+  const confirmed = confirm(`Import authentication for ${authData.name}? This will log you in.`);
+  if (confirmed) {
+    localStorage.setItem('GraduationAppPassword', JSON.stringify(authData));
+    this.showToast('Authentication imported. Please refresh.', 'success');
+  }
+}
+/**
+ * Import "Other Data" (PWA prompts, modal backup styles)
+ * @param {Object} data - The 'others' object from import file
+ * @param {string} mode - 'merge' or 'replace'
+ */
+importOtherData(data, mode) {
+  if (!data || typeof data !== 'object') return;
+
+  const keys = ['modal-backup-styles', 'pwa-prompt-dismissal', 'pwa-prompt-display-history'];
+  const map = {
+    'modal-backup-styles': data.modalBackUpStyles,
+    'pwa-prompt-dismissal': data.pwaPromptDismissal,
+    'pwa-prompt-display-history': data.pwaPromptDismissalHistory
+  };
+
+  if (mode === 'replace') {
+    // Remove existing items first
+    keys.forEach(key => localStorage.removeItem(key));
+  }
+
+  // Write imported values (if not null)
+  for (const [storageKey, value] of Object.entries(map)) {
+    if (value !== undefined && value !== null) {
+      localStorage.setItem(storageKey, JSON.stringify(value));
+    }
+  }
+
+  this.showToast('Other data imported', 'info');
+}
+
+/**
+ * Apply full replace for a category (used in import replace mode)
+ */
+applyFullReplace(categoryId, newData) {
+  switch (categoryId) {
+    case 'imageSettings':
+      if (this.modules.imageLoader) {
+        // Replace config entirely
+        Object.assign(this.modules.imageLoader.config, newData);
+        this.modules.imageLoader.saveSettingsToStorage?.();
+        // Reapply to swiper
+        if (this.modules.imageLoader.swiper) {
+          if (newData.rotationDelay) this.modules.imageLoader.setRotationSpeed(newData.rotationDelay);
+          if (newData.transitionEffect) this.modules.imageLoader.applyTransitionEffect?.();
+        }
+      }
+      break;
+    case 'confettiSettings':
+      if (this.modules.confetti) {
+        this.modules.confetti.updateConfig(newData);
+      }
+      break;
+    case 'dropdownManagerSettings':
+      this.saveDropdownManagerSetting(newData);
+      break;
+    case 'appPreferences':
+      this.state.preferences = newData;
+      this.savePreferences();
+      if (newData.theme && this.themeManager) this.themeManager.applyTheme(newData.theme);
+      break;
+    case 'userAuth':
+      this.importAuth(newData);
+      break;
+    case 'others':
+      this.importOtherData(newData, 'replace');
+      break;
+    default:
+      appLogger.warn('Unknown category for full replace', { categoryId });
+  }
+}
 
   /**
    * Show toast message
@@ -6024,12 +7231,14 @@ updateMenuItems() {
       this.modules = {
         confetti: this.createModuleWithFallback(
           ConfettiSystem,
-          this.elements.card
+          this.elements.card,
+          this.state.preferences?.DropdownManager?.confettiSettings || {}
         ),
         imageLoader: this.createModuleWithFallback(
           ImageLoader,
           this.elements.GraduationImage,
-          this.elements.imagePlaceholder
+          this.elements.imagePlaceholder,
+          this.state.preferences?.DropdownManager?.imageSettings || {}
         ),
         scrollAnimator: this.createModuleWithFallback(ScrollAnimator),
         shareManager: this.createModuleWithFallback(ShareManager,{shareText: "Check out these graduation wishes!",
@@ -6145,6 +7354,7 @@ updateMenuItems() {
 
     window.addEventListener('dropdown:close', this.handleDropdownEvent);
     window.addEventListener('dropdown:open', this.handleDropdownEvent);
+    document.addEventListener('settings', this.handleSetting);
     window.addEventListener("resize", this.eventHandlers.resize);
     window.addEventListener('themechanged', () => {
       this.updateMenuItems();
@@ -6285,6 +7495,64 @@ updateMenuItems() {
       appLogger.debug("Image rotation resumed due to dropdown open");
     }
   }
+
+  handleSetting = (e) => {
+    const settings = e?.detail?.settings;
+    const action = e?.detail?.action || 'unknown';
+    appLogger.debug('Settings event received', { action, settings });
+    switch (action) {
+      case 'save':
+        this.saveDropdownManagerSetting(settings);
+        break;
+      case 'reset':
+        this.resetDropdownManagerSettings();
+        appLogger.info('DropdownManager settings reset to default');
+        break;
+      default:
+        break;
+    }
+  }
+   saveDropdownManagerSetting(value) {
+    if (!value) {
+      appLogger.warn('No value provided for saving DropdownManager setting');
+      return;
+    }
+    this.state.preferences = this.state.preferences || {};
+    this.state.preferences.DropdownManager = this.state.preferences.DropdownManager || {};
+    this.state.preferences.DropdownManager.Settings = value;
+
+    try {
+      this.savePreferences();
+      appLogger.debug(`Saved DropdownManager setting:=${value}`, {
+        value,
+        preferences: this.state.preferences,
+      });
+      this.showToast('Settings saved successfully', 'success');
+    } catch (error) {
+      appLogger.error('Failed to save DropdownManager setting', {value, error });
+    }
+  }
+
+resetDropdownManagerSettings() {
+  try {
+    // Ensure nested objects are initialized before assignment
+    this.state.preferences = this.state.preferences || {};
+    this.state.preferences.DropdownManager = this.state.preferences.DropdownManager || {};
+
+    this.state.preferences.DropdownManager.Settings = {};
+
+    this.savePreferences();
+    this.showToast('Settings reset to default', 'success');
+    appLogger.info('DropdownManager settings reset to default');
+    setTimeout(() => {
+      this.dropdownManager.createDropdown();
+    }, 5000);
+  } catch (error) {
+    appLogger.error('Failed to reset DropdownManager settings', { error });
+    this.showToast('Reset failed', 'error');
+  }
+}
+
 
   /**
   * Change the name of the title

@@ -1,0 +1,1780 @@
+/* =============================================================================
+   DROPDOWN MANAGER & CONFETTI SETTINGS — PROFESSIONAL GRADE
+   Version 2.0.0 | Modern CSS | Fully accessible | Dark mode ready
+   ============================================================================= */
+
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=DM+Mono:wght@400;500&display=swap');
+
+/* -----------------------------------------------------------------------------
+   1. DESIGN SYSTEM TOKENS (Light & Dark)
+   ----------------------------------------------------------------------------- */
+:root {
+  /* Color – Light */
+  --dm-bg-overlay: rgba(8, 10, 18, 0.6);
+  --dm-surface: #ffffff;
+  --dm-surface-raised: #f8f8fc;
+  --dm-surface-inset: #f0f0f6;
+  --dm-border: rgba(0, 0, 0, 0.08);
+  --dm-border-strong: rgba(0, 0, 0, 0.14);
+
+  --dm-text-primary: #0a0c15;
+  --dm-text-secondary: #5a5e75;
+  --dm-text-muted: #8e92a8;
+  --dm-text-inverse: #ffffff;
+
+  --dm-accent: #5a54f9;
+  --dm-accent-hover: #453ee0;
+  --dm-accent-subtle: rgba(90, 84, 249, 0.12);
+  --dm-accent-ring: rgba(90, 84, 249, 0.4);
+
+  --dm-success: #22c55e;
+  --dm-danger: #ef4444;
+  --dm-warning: #f59e0b;
+  --dm-info: #3b82f6;
+
+  /* Toast base (overridden by type modifiers) */
+  --toast-color: rgba(33, 150, 243, 0.96);
+  --toast-duration: 5000ms;
+
+  /* Typography */
+  --dm-font-family: 'DM Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --dm-font-mono: 'DM Mono', 'Fira Code', monospace;
+
+  /* Spacing */
+  --dm-space-1: 4px;
+  --dm-space-2: 8px;
+  --dm-space-3: 12px;
+  --dm-space-4: 16px;
+  --dm-space-5: 20px;
+  --dm-space-6: 24px;
+  --dm-space-8: 32px;
+
+  /* Radius */
+  --dm-radius-sm: 8px;
+  --dm-radius-md: 12px;
+  --dm-radius-lg: 18px;
+  --dm-radius-xl: 24px;
+  --dm-radius-2xl: 32px;
+
+  /* Shadows */
+  --dm-shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.05);
+  --dm-shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.1);
+  --dm-shadow-md: 0 4px 12px rgba(0, 0, 0, 0.08);
+  --dm-shadow-lg: 0 12px 28px rgba(0, 0, 0, 0.12);
+  --dm-shadow-xl: 0 24px 64px rgba(0, 0, 0, 0.18);
+  --dm-shadow-modal: var(--dm-shadow-xl);
+  --dm-shadow-btn: 0 2px 8px rgba(90, 84, 249, 0.3);
+
+  /* Motion */
+  --dm-ease-spring: cubic-bezier(0.34, 1.3, 0.64, 1);
+  --dm-ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --dm-ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --dm-duration-fast: 150ms;
+  --dm-duration-base: 250ms;
+  --dm-duration-slow: 400ms;
+}
+
+/* Dark theme – applied automatically with [data-theme="dark"] */
+[data-theme="dark"] {
+  --dm-bg-overlay: rgba(0, 0, 0, 0.75);
+  --dm-surface: #13141c;
+  --dm-surface-raised: #1b1c26;
+  --dm-surface-inset: #20222e;
+  --dm-border: rgba(255, 255, 255, 0.06);
+  --dm-border-strong: rgba(255, 255, 255, 0.12);
+
+  --dm-text-primary: #edeef5;
+  --dm-text-secondary: #8b8ea8;
+  --dm-text-muted: #5c5f74;
+
+  --dm-shadow-modal: 0 28px 80px rgba(0, 0, 0, 0.6), 0 8px 24px rgba(0, 0, 0, 0.4);
+  --dm-shadow-btn: 0 2px 8px rgba(90, 84, 249, 0.4);
+}
+
+/* -----------------------------------------------------------------------------
+   2. GLOBAL RESETS & ACCESSIBILITY
+   ----------------------------------------------------------------------------- */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+/* Focus styles – accessible outline */
+:focus-visible {
+  outline: 2px solid var(--dm-accent);
+  outline-offset: 2px;
+  border-radius: var(--dm-radius-sm);
+}
+
+/* Reduced motion preferences */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* -----------------------------------------------------------------------------
+   3. KEYFRAMES – Modern & Fluid
+   ----------------------------------------------------------------------------- */
+@keyframes dm-fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes dm-slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(16px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes dm-slide-down {
+  from {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(16px) scale(0.96);
+  }
+}
+
+@keyframes dm-scale-in {
+  from {
+    opacity: 0;
+    transform: scale(0.92);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes dm-ripple {
+  0% {
+    transform: scale(0);
+    opacity: 0.6;
+  }
+  100% {
+    transform: scale(4);
+    opacity: 0;
+  }
+}
+
+@keyframes dm-toast-progress {
+  from { transform: scaleX(1); }
+  to   { transform: scaleX(0); }
+}
+
+@keyframes dm-icon-pop {
+  0% {
+    transform: scale(0) rotate(-180deg);
+    opacity: 0;
+  }
+  70% {
+    transform: scale(1.2) rotate(6deg);
+  }
+  100% {
+    transform: scale(1) rotate(0);
+    opacity: 1;
+  }
+}
+
+@keyframes dm-glow-pulse {
+  0%, 100% { opacity: 0.2; transform: scale(1); }
+  50%      { opacity: 0.5; transform: scale(1.02); }
+}
+
+@keyframes dm-float {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-6px); }
+}
+
+@keyframes dm-shake {
+  0%, 100%          { transform: translateX(0); }
+  10%, 30%, 50%, 70%, 90% { transform: translateX(-2px); }
+  20%, 40%, 60%, 80%      { transform: translateX(2px); }
+}
+
+/* -----------------------------------------------------------------------------
+   4. OVERLAY & MODAL BASE (used by Settings & Help)
+   ----------------------------------------------------------------------------- */
+.dm-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 20000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--dm-space-4);
+  background: var(--dm-bg-overlay);
+  backdrop-filter: blur(8px) saturate(1.5);
+  animation: dm-fade-in var(--dm-duration-base) var(--dm-ease-out) both;
+}
+
+.dm-overlay--closing {
+  animation: dm-fade-in var(--dm-duration-fast) var(--dm-ease-out) reverse both;
+}
+
+.dm-modal {
+  font-family: var(--dm-font-family);
+  background: var(--dm-surface);
+  color: var(--dm-text-primary);
+  border-radius: var(--dm-radius-xl);
+  box-shadow: var(--dm-shadow-modal);
+  width: min(440px, 100%);
+  max-height: 88vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid var(--dm-border);
+  animation: dm-slide-up var(--dm-duration-slow) var(--dm-ease-spring) both;
+}
+
+.dm-modal--closing {
+  animation: dm-slide-down var(--dm-duration-base) var(--dm-ease-out) both;
+}
+
+.dm-modal--help {
+  width: min(500px, 100%);
+}
+
+/* Modal Header */
+.dm-modal__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--dm-space-6) var(--dm-space-6) var(--dm-space-5);
+  border-bottom: 1px solid var(--dm-border);
+  flex-shrink: 0;
+}
+
+.dm-modal__title {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  display: flex;
+  align-items: center;
+  gap: var(--dm-space-2);
+}
+
+.dm-modal__title-icon {
+  font-size: 1.35rem;
+}
+
+.dm-modal__close {
+  width: 34px;
+  height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--dm-radius-sm);
+  background: transparent;
+  border: none;
+  color: var(--dm-text-secondary);
+  font-size: 1.5rem;
+  cursor: pointer;
+  transition: all var(--dm-duration-fast) ease;
+}
+
+.dm-modal__close:hover {
+  background: var(--dm-surface-inset);
+  color: var(--dm-text-primary);
+  transform: rotate(90deg);
+}
+
+/* Modal Body */
+.dm-modal__body {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--dm-space-4) var(--dm-space-6) var(--dm-space-6);
+  scrollbar-width: thin;
+}
+
+.dm-modal__body::-webkit-scrollbar {
+  width: 5px;
+}
+
+.dm-modal__body::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.dm-modal__body::-webkit-scrollbar-thumb {
+  background: var(--dm-border-strong);
+  border-radius: 99px;
+}
+
+/* Modal Footer */
+.dm-modal__footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--dm-space-3);
+  padding: var(--dm-space-4) var(--dm-space-6) var(--dm-space-6);
+  border-top: 1px solid var(--dm-border);
+  flex-shrink: 0;
+}
+
+/* Buttons */
+.dm-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--dm-space-2);
+  padding: 8px 18px;
+  border-radius: var(--dm-radius-md);
+  font-family: var(--dm-font-family);
+  font-weight: 600;
+  font-size: 0.875rem;
+  line-height: 1.4;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: all var(--dm-duration-fast) ease;
+}
+
+.dm-btn:active {
+  transform: scale(0.97);
+}
+
+.dm-btn--primary {
+  background: var(--dm-accent);
+  color: var(--dm-text-inverse);
+  box-shadow: var(--dm-shadow-btn);
+}
+
+.dm-btn--primary:hover {
+  background: var(--dm-accent-hover);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 14px rgba(90, 84, 249, 0.35);
+}
+
+.dm-btn--ghost {
+  background: transparent;
+  color: var(--dm-text-secondary);
+  border-color: var(--dm-border-strong);
+}
+
+.dm-btn--ghost:hover {
+  background: var(--dm-surface-inset);
+  color: var(--dm-text-primary);
+  border-color: var(--dm-border-strong);
+}
+
+/* -----------------------------------------------------------------------------
+   5. SETTINGS PANEL – ROWS & CONTROLS
+   ----------------------------------------------------------------------------- */
+.dm-settings-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.dm-setting-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--dm-space-4);
+  padding: var(--dm-space-4) 0;
+  border-bottom: 1px solid var(--dm-border);
+}
+
+.dm-setting-row:last-child {
+  border-bottom: none;
+}
+
+.dm-setting-row__label {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.dm-setting-row__name {
+  font-weight: 500;
+  font-size: 0.875rem;
+  color: var(--dm-text-primary);
+}
+
+.dm-setting-row__hint {
+  font-size: 0.75rem;
+  color: var(--dm-text-muted);
+}
+
+.dm-setting-row__control {
+  flex-shrink: 0;
+}
+
+/* Range row (vertical layout) */
+.dm-setting-row--range {
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--dm-space-3);
+}
+
+.dm-setting-row--range .dm-setting-row__top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+/* Toggle Switch */
+.dm-toggle {
+  position: relative;
+  display: inline-block;
+  width: 44px;
+  height: 24px;
+  flex-shrink: 0;
+}
+
+.dm-toggle__input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+  position: absolute;
+}
+
+.dm-toggle__track {
+  position: absolute;
+  inset: 0;
+  background: var(--dm-surface-inset);
+  border: 1px solid var(--dm-border-strong);
+  border-radius: 99px;
+  cursor: pointer;
+  transition: background var(--dm-duration-base) ease, border-color var(--dm-duration-base) ease;
+}
+
+.dm-toggle__track::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 18px;
+  height: 18px;
+  background: var(--dm-text-muted);
+  border-radius: 50%;
+  transition: transform var(--dm-duration-base) var(--dm-ease-spring);
+}
+
+.dm-toggle__input:checked + .dm-toggle__track {
+  background: var(--dm-accent);
+  border-color: var(--dm-accent);
+}
+
+.dm-toggle__input:checked + .dm-toggle__track::after {
+  background: white;
+  transform: translateX(20px);
+}
+
+/* Range Slider */
+.dm-range {
+  width: 100%;
+  height: 5px;
+  -webkit-appearance: none;
+  background: var(--dm-surface-inset);
+  border-radius: 99px;
+  outline: none;
+}
+
+.dm-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 18px;
+  height: 18px;
+  background: var(--dm-accent);
+  border-radius: 50%;
+  border: 2px solid var(--dm-surface);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
+  cursor: pointer;
+  transition: transform 0.1s ease;
+}
+
+.dm-range::-webkit-slider-thumb:hover {
+  transform: scale(1.2);
+}
+
+.dm-range-value {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--dm-accent);
+  font-variant-numeric: tabular-nums;
+  background: var(--dm-accent-subtle);
+  padding: 2px 8px;
+  border-radius: 20px;
+}
+
+/* Select dropdown */
+.dm-select {
+  padding: 6px 32px 6px 12px;
+  border-radius: var(--dm-radius-sm);
+  border: 1px solid var(--dm-border-strong);
+  background: var(--dm-surface-raised);
+  color: var(--dm-text-primary);
+  font-family: var(--dm-font-family);
+  font-size: 0.8rem;
+  font-weight: 500;
+  cursor: pointer;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='%238e92a8' d='M1 1l5 5 5-5'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  transition: border-color var(--dm-duration-fast) ease;
+}
+
+.dm-select:hover {
+  border-color: var(--dm-accent);
+}
+
+/* -----------------------------------------------------------------------------
+   6. HELP MODAL – TABS & PANELS
+   ----------------------------------------------------------------------------- */
+.dm-tabs {
+  display: flex;
+  gap: 2px;
+  padding: 0 var(--dm-space-6);
+  border-bottom: 1px solid var(--dm-border);
+  flex-shrink: 0;
+}
+
+.dm-tab {
+  position: relative;
+  padding: 12px 16px;
+  background: transparent;
+  border: none;
+  font-family: var(--dm-font-family);
+  font-weight: 600;
+  font-size: 0.85rem;
+  color: var(--dm-text-muted);
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  transition: all var(--dm-duration-fast) ease;
+}
+
+.dm-tab.is-active {
+  color: var(--dm-accent);
+  border-bottom-color: var(--dm-accent);
+}
+
+.dm-tab:hover:not(.is-active) {
+  color: var(--dm-text-secondary);
+}
+
+.dm-panel {
+  display: none;
+  animation: dm-fade-in var(--dm-duration-base) ease;
+}
+
+.dm-panel.is-active {
+  display: block;
+}
+
+/* FAQ */
+.dm-faq-item {
+  border-bottom: 1px solid var(--dm-border);
+}
+
+.dm-faq-item:last-child {
+  border-bottom: none;
+}
+
+.dm-faq-item summary {
+  list-style: none;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--dm-space-3);
+  padding: var(--dm-space-4) 0;
+  font-weight: 600;
+  font-size: 0.9rem;
+  cursor: pointer;
+  user-select: none;
+}
+
+.dm-faq-item summary::-webkit-details-marker {
+  display: none;
+}
+
+.dm-faq-item__chevron {
+  font-size: 1.2rem;
+  color: var(--dm-text-muted);
+  transition: transform var(--dm-duration-base) var(--dm-ease-spring);
+}
+
+.dm-faq-item[open] .dm-faq-item__chevron {
+  transform: rotate(90deg);
+  color: var(--dm-accent);
+}
+
+.dm-faq-item__answer {
+  margin: 0 0 var(--dm-space-4);
+  font-size: 0.85rem;
+  line-height: 1.6;
+  color: var(--dm-text-secondary);
+}
+
+.dm-faq-item__answer code {
+  font-family: var(--dm-font-mono);
+  background: var(--dm-accent-subtle);
+  color: var(--dm-accent);
+  padding: 2px 6px;
+  border-radius: 6px;
+  font-size: 0.8rem;
+}
+
+/* Shortcuts Table */
+.dm-shortcuts-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: var(--dm-space-2);
+}
+
+.dm-shortcuts-table td {
+  padding: 10px 8px;
+  border-bottom: 1px solid var(--dm-border);
+  font-size: 0.85rem;
+  color: var(--dm-text-secondary);
+}
+
+.dm-shortcuts-table tr:last-child td {
+  border-bottom: none;
+}
+
+.dm-kbd {
+  display: inline-block;
+  font-family: var(--dm-font-mono);
+  background: var(--dm-surface-raised);
+  border: 1px solid var(--dm-border-strong);
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--dm-text-primary);
+  box-shadow: var(--dm-shadow-xs);
+}
+
+/* About */
+.dm-about {
+  padding-top: var(--dm-space-2);
+}
+
+.dm-about__body {
+  font-size: 0.9rem;
+  line-height: 1.7;
+  margin-bottom: var(--dm-space-4);
+  color: var(--dm-text-secondary);
+}
+
+.dm-about__meta {
+  font-size: 0.8rem;
+  color: var(--dm-text-muted);
+}
+
+/* -----------------------------------------------------------------------------
+   7. TOAST SYSTEM – Glassmorphism, Accessible, Stackable
+   ----------------------------------------------------------------------------- */
+.dropdown-toast {
+  position: fixed;
+  bottom: 30px;
+  right: 30px;
+  width: 380px;
+  max-width: calc(100vw - 60px);
+  z-index: 10001;
+  border-radius: 20px;
+  pointer-events: none;
+  opacity: 0;
+  animation: dm-slide-up 0.5s var(--dm-ease-spring) forwards;
+}
+
+/* Type modifiers */
+.dropdown-toast-success { --toast-color: rgba(34, 197, 94, 0.96); }
+.dropdown-toast-error   { --toast-color: rgba(239, 68, 68, 0.96); }
+.dropdown-toast-warning { --toast-color: rgba(245, 158, 11, 0.96); }
+.dropdown-toast-info    { --toast-color: rgba(59, 130, 246, 0.96); }
+.dropdown-toast-dark    { --toast-color: rgba(30, 30, 40, 0.96); }
+.dropdown-toast-light   { --toast-color: rgba(255, 255, 255, 0.96); }
+
+/* Glass background layers */
+.toast-glass-bg {
+  position: absolute;
+  inset: 0;
+  background: var(--toast-color);
+  border-radius: 20px;
+  opacity: 0.92;
+}
+
+.toast-glass-effect {
+  position: absolute;
+  inset: 0;
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(20px);
+  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+/* Content row */
+.toast-content {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: var(--dm-space-4);
+  padding: var(--dm-space-5) var(--dm-space-6);
+}
+
+.toast-icon {
+  flex-shrink: 0;
+  width: 44px;
+  height: 44px;
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+  backdrop-filter: blur(10px);
+  animation: dm-icon-pop 0.5s var(--dm-ease-spring) both;
+}
+
+.toast-message {
+  flex: 1;
+}
+
+.toast-title {
+  font-weight: 700;
+  font-size: 0.95rem;
+  margin-bottom: 4px;
+  color: white;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+.toast-text {
+  font-size: 0.85rem;
+  color: rgba(255, 255, 255, 0.9);
+  line-height: 1.4;
+}
+
+.toast-close {
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  color: white;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+
+.toast-close span {
+  display: block;
+  transform: rotate(45deg);
+  font-size: 1.2rem;
+}
+
+.toast-close:hover {
+  background: rgba(255, 255, 255, 0.3);
+  transform: rotate(90deg);
+}
+
+/* Progress bar */
+.toast-progress {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.3);
+  border-radius: 0 0 20px 20px;
+  overflow: hidden;
+}
+
+.toast-progress-bar {
+  width: 100%;
+  height: 100%;
+  background: rgba(255, 255, 255, 0.9);
+  transform-origin: left;
+  animation: dm-toast-progress var(--toast-duration) linear forwards;
+}
+
+/* Glow effect */
+.toast-glow {
+  position: absolute;
+  inset: -12px;
+  background: var(--toast-color);
+  filter: blur(20px);
+  opacity: 0.3;
+  z-index: -1;
+  animation: dm-glow-pulse 2s ease infinite;
+  border-radius: 32px;
+}
+
+/* Action buttons (advanced toasts) */
+.toast-actions {
+  display: flex;
+  gap: var(--dm-space-2);
+  margin-top: var(--dm-space-3);
+  flex-wrap: wrap;
+}
+
+.toast-action-btn {
+  padding: 5px 12px;
+  background: rgba(255, 255, 255, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 30px;
+  color: white;
+  font-size: 0.75rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.toast-action-btn:hover {
+  background: rgba(255, 255, 255, 0.3);
+  transform: translateY(-1px);
+}
+
+/* Stacking multiple toasts */
+.dropdown-toast:nth-child(1) { bottom: 30px; }
+.dropdown-toast:nth-child(2) { bottom: 130px; }
+.dropdown-toast:nth-child(3) { bottom: 230px; }
+
+/* Light toast adjustments */
+.dropdown-toast-light .toast-title,
+.dropdown-toast-light .toast-text {
+  color: #1a1c2c;
+}
+.dropdown-toast-light .toast-close {
+  color: #2d2f3e;
+  border-color: rgba(0, 0, 0, 0.2);
+  background: rgba(0, 0, 0, 0.05);
+}
+.dropdown-toast-light .toast-close:hover {
+  background: rgba(0, 0, 0, 0.1);
+}
+
+/* -----------------------------------------------------------------------------
+   8. RIPPLE EFFECT (for dropdown buttons)
+   ----------------------------------------------------------------------------- */
+.ripple-effect {
+  position: relative;
+  overflow: hidden;
+}
+
+.ripple {
+  position: absolute;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.4);
+  transform: scale(0);
+  pointer-events: none;
+  animation: dm-ripple 0.6s linear forwards;
+}
+
+/* -----------------------------------------------------------------------------
+   9. DROPDOWN MENU UTILITIES
+   ----------------------------------------------------------------------------- */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Enhanced FAQ styling */
+.faq-container {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.dm-faq-item {
+  background: var(--dm-surface-raised);
+  border-radius: var(--dm-radius-md);
+  border: 1px solid var(--dm-border);
+  transition: all 0.2s ease;
+}
+
+.dm-faq-item:hover {
+  border-color: var(--dm-accent);
+  background: var(--dm-surface);
+}
+
+.dm-faq-item summary {
+  padding: 14px 18px;
+  font-weight: 600;
+  font-size: 0.9rem;
+  cursor: pointer;
+  list-style: none;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.dm-faq-item summary::-webkit-details-marker {
+  display: none;
+}
+
+.faq-question {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.dm-faq-item__chevron {
+  transition: transform 0.25s var(--dm-ease-spring);
+  font-size: 1.2rem;
+  color: var(--dm-text-muted);
+}
+
+.dm-faq-item[open] .dm-faq-item__chevron {
+  transform: rotate(90deg);
+  color: var(--dm-accent);
+}
+
+.dm-faq-item__answer {
+  padding: 0 18px 18px 18px;
+  font-size: 0.85rem;
+  line-height: 1.6;
+  color: var(--dm-text-secondary);
+  border-top: 1px solid var(--dm-border);
+  margin-top: 0;
+}
+
+/* About section enhancements */
+.dm-about__hero {
+  text-align: center;
+  margin-bottom: 24px;
+}
+
+.dm-about__icon {
+  font-size: 48px;
+  display: block;
+  margin-bottom: 12px;
+}
+
+.dm-about__title {
+  font-size: 1.4rem;
+  font-weight: 700;
+  margin: 0 0 4px;
+  background: linear-gradient(135deg, var(--dm-accent), var(--dm-accent-hover));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.dm-about__badge {
+  display: inline-block;
+  background: var(--dm-accent-subtle);
+  padding: 4px 12px;
+  border-radius: 50px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--dm-accent);
+  margin-top: 8px;
+}
+
+.dm-about__stats {
+  display: flex;
+  justify-content: space-around;
+  margin: 24px 0;
+  padding: 16px 0;
+  border-top: 1px solid var(--dm-border);
+  border-bottom: 1px solid var(--dm-border);
+}
+
+.stat {
+  text-align: center;
+}
+
+.stat-value {
+  display: block;
+  font-size: 1.2rem;
+  font-weight: 800;
+  color: var(--dm-accent);
+}
+
+.stat-label {
+  font-size: 0.7rem;
+  color: var(--dm-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.dm-about__tech {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin: 20px 0;
+  font-size: 0.75rem;
+  color: var(--dm-text-muted);
+}
+
+.tech-badge {
+  background: var(--dm-surface-inset);
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-family: var(--dm-font-mono);
+  font-size: 0.7rem;
+  border: 1px solid var(--dm-border);
+}
+
+.dm-about__footer {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid var(--dm-border);
+  font-size: 0.7rem;
+  color: var(--dm-text-muted);
+}
+
+/* Keyboard shortcuts table enhancement */
+.dm-shortcuts-table thead th {
+  text-align: left;
+  padding: 10px 8px;
+  font-weight: 600;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--dm-text-muted);
+  border-bottom: 1px solid var(--dm-border);
+}
+
+.dm-shortcuts-table td {
+  padding: 10px 8px;
+  font-size: 0.85rem;
+}
+
+/* Smooth panel transitions */
+.dm-panel {
+  transition: opacity 0.2s ease;
+}
+.dm-panel.is-active {
+  animation: dm-fade-in 0.25s ease;
+}
+
+/* -----------------------------------------------------------------------------
+   10. CONFETTI SETTINGS DIALOG – Fully Integrated with DM
+   ----------------------------------------------------------------------------- */
+.confetti-settings-backdrop {
+  position: fixed;
+  inset: 0;
+  background: var(--dm-bg-overlay);
+  backdrop-filter: blur(10px);
+  z-index: 100000;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.confetti-settings-dialog {
+  background: var(--dm-surface);
+  border-radius: var(--dm-radius-2xl);
+  width: min(860px, 90vw);
+  max-height: 85vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: var(--dm-shadow-modal);
+  border: 1px solid var(--dm-border);
+  animation: dm-slide-up 0.4s var(--dm-ease-spring) both;
+  overflow: hidden;
+}
+
+.confetti-settings-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--dm-space-6) var(--dm-space-6) var(--dm-space-5);
+  background: linear-gradient(135deg, var(--dm-accent), var(--dm-accent-hover));
+  color: white;
+}
+
+.confetti-settings-header h2 {
+  margin: 0;
+  font-size: 1.4rem;
+  display: flex;
+  align-items: center;
+  gap: var(--dm-space-3);
+  font-weight: 700;
+}
+
+.confetti-settings-close {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.2);
+  border: none;
+  color: white;
+  font-size: 1.6rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.confetti-settings-close:hover {
+  background: rgba(255, 255, 255, 0.35);
+  transform: rotate(90deg);
+}
+
+.confetti-settings-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--dm-space-6);
+  scrollbar-width: thin;
+}
+
+.settings-section {
+  margin-bottom: var(--dm-space-8);
+  padding-bottom: var(--dm-space-6);
+  border-bottom: 1px solid var(--dm-border);
+}
+
+.settings-section:last-child {
+  border-bottom: none;
+  margin-bottom: 0;
+}
+
+.settings-section-title {
+  font-size: 1.1rem;
+  font-weight: 700;
+  margin: 0 0 var(--dm-space-5) 0;
+  color: var(--dm-text-primary);
+  display: flex;
+  align-items: center;
+  gap: var(--dm-space-2);
+}
+
+.section-icon {
+  font-size: 1.3rem;
+}
+
+.setting-group {
+  margin-bottom: var(--dm-space-5);
+}
+
+.setting-label {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: var(--dm-space-2);
+  font-size: 0.85rem;
+  color: var(--dm-text-secondary);
+}
+
+.label-value {
+  font-family: var(--dm-font-mono);
+  background: var(--dm-surface-inset);
+  padding: 2px 8px;
+  border-radius: 20px;
+  font-size: 0.75rem;
+}
+
+.setting-range,
+.shape-range {
+  width: 100%;
+  height: 5px;
+  -webkit-appearance: none;
+  background: var(--dm-surface-inset);
+  border-radius: 99px;
+}
+
+.setting-range::-webkit-slider-thumb,
+.shape-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 18px;
+  height: 18px;
+  background: var(--dm-accent);
+  border-radius: 50%;
+  border: 2px solid var(--dm-surface);
+  cursor: pointer;
+  box-shadow: var(--dm-shadow-xs);
+  transition: transform 0.1s;
+}
+
+.setting-range::-webkit-slider-thumb:hover,
+.shape-range::-webkit-slider-thumb:hover {
+  transform: scale(1.2);
+}
+
+.dual-range {
+  display: flex;
+  gap: var(--dm-space-4);
+}
+
+.shape-distribution {
+  margin-bottom: var(--dm-space-4);
+}
+
+.shape-item {
+  display: flex;
+  align-items: center;
+  gap: var(--dm-space-3);
+  margin-bottom: var(--dm-space-3);
+}
+
+.shape-name {
+  width: 90px;
+  font-size: 0.85rem;
+  color: var(--dm-text-secondary);
+}
+
+.shape-percent {
+  width: 45px;
+  text-align: right;
+  font-family: var(--dm-font-mono);
+  font-size: 0.75rem;
+  color: var(--dm-accent);
+}
+
+.distribution-total {
+  text-align: right;
+  font-size: 0.8rem;
+  font-weight: 600;
+  margin-top: var(--dm-space-3);
+  padding-top: var(--dm-space-2);
+  border-top: 1px dashed var(--dm-border);
+  color: var(--dm-text-secondary);
+}
+
+.color-palette {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--dm-space-3);
+  margin-bottom: var(--dm-space-3);
+}
+
+.color-item {
+  display: flex;
+  align-items: center;
+  gap: var(--dm-space-2);
+}
+
+.color-picker {
+  width: 44px;
+  height: 44px;
+  border: 2px solid var(--dm-border);
+  border-radius: var(--dm-radius-md);
+  cursor: pointer;
+  background: transparent;
+  padding: 2px;
+}
+
+.remove-color {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--dm-danger);
+  color: white;
+  border: none;
+  font-size: 1.1rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+
+.remove-color:hover {
+  transform: scale(1.1);
+  filter: brightness(1.1);
+}
+
+.setting-checkbox {
+  display: flex;
+  align-items: center;
+  gap: var(--dm-space-3);
+  margin-bottom: var(--dm-space-4);
+  cursor: pointer;
+  font-size: 0.85rem;
+  color: var(--dm-text-primary);
+}
+
+.setting-checkbox input {
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+  accent-color: var(--dm-accent);
+}
+
+.confetti-settings-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--dm-space-3);
+  padding: var(--dm-space-5) var(--dm-space-6);
+  border-top: 1px solid var(--dm-border);
+  background: var(--dm-surface-raised);
+}
+
+.settings-btn-primary,
+.settings-btn-secondary {
+  padding: 10px 24px;
+  border-radius: var(--dm-radius-md);
+  font-weight: 600;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: none;
+}
+
+.settings-btn-primary {
+  background: linear-gradient(135deg, var(--dm-accent), var(--dm-accent-hover));
+  color: white;
+  box-shadow: var(--dm-shadow-sm);
+}
+
+.settings-btn-primary:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--dm-shadow-md);
+}
+
+.settings-btn-secondary {
+  background: var(--dm-surface-inset);
+  color: var(--dm-text-secondary);
+  border: 1px solid var(--dm-border);
+}
+
+.settings-btn-secondary:hover {
+  background: var(--dm-surface);
+  color: var(--dm-text-primary);
+}
+
+/* -----------------------------------------------------------------------------
+   11. RESPONSIVE (Mobile)
+   ----------------------------------------------------------------------------- */
+@media (max-width: 768px) {
+  :root {
+    --dm-space-6: 20px;
+    --dm-space-5: 16px;
+  }
+
+  .dm-modal,
+  .dm-modal--help {
+    width: 100%;
+    max-height: 95vh;
+    border-radius: var(--dm-radius-xl) var(--dm-radius-xl) 0 0;
+    animation-name: dm-slide-up-mobile;
+  }
+
+  @keyframes dm-slide-up-mobile {
+    from { transform: translateY(100%); opacity: 0; }
+    to   { transform: translateY(0); opacity: 1; }
+  }
+
+  .confetti-settings-dialog {
+    width: 95vw;
+    max-height: 90vh;
+  }
+
+  .dropdown-toast {
+    right: 15px;
+    left: 15px;
+    width: auto;
+    max-width: none;
+  }
+
+  .toast-content {
+    padding: var(--dm-space-4);
+  }
+
+  .toast-icon {
+    width: 36px;
+    height: 36px;
+    font-size: 1.2rem;
+  }
+}
+
+/* -----------------------------------------------------------------------------
+   12. PRINT – Hide transient UI
+   ----------------------------------------------------------------------------- */
+@media print {
+  .dm-overlay,
+  .dropdown-toast,
+  .confetti-settings-backdrop,
+  .floating-dropdown {
+    display: none !important;
+  }
+}
+/* =============================================================================
+   DROPDOWN MANAGER & CONFETTI SETTINGS — LIQUID GLASS (Apple‑inspired)
+   Version 3.0.0 | Glassmorphism + Spring animations
+   ============================================================================= */
+
+/* -----------------------------------------------------------------------------
+   1. DESIGN TOKENS (Liquid Glass)
+   ----------------------------------------------------------------------------- */
+:root {
+  /* Glass surface (light mode) */
+  --dm-glass-bg: rgba(255, 255, 255, 0.72);
+  --dm-glass-border: rgba(255, 255, 255, 0.5);
+  --dm-glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.02);
+  --dm-glass-blur: blur(20px) saturate(180%);
+
+  /* Dark glass */
+  --dm-glass-dark-bg: rgba(28, 28, 35, 0.75);
+  --dm-glass-dark-border: rgba(255, 255, 255, 0.12);
+
+  /* Colors */
+  --dm-accent: #5e5ce0;
+  --dm-accent-glow: rgba(94, 92, 224, 0.4);
+  --dm-text-primary: #1c1c1e;
+  --dm-text-secondary: #6c6c70;
+  --dm-text-muted: #8e8e93;
+
+  /* Shadows – layered glass depth */
+  --dm-shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.03);
+  --dm-shadow-md: 0 8px 28px rgba(0, 0, 0, 0.08), 0 2px 4px rgba(0, 0, 0, 0.02);
+  --dm-shadow-lg: 0 20px 48px rgba(0, 0, 0, 0.12), 0 4px 12px rgba(0, 0, 0, 0.04);
+  --dm-shadow-xl: 0 32px 64px rgba(0, 0, 0, 0.16), 0 8px 20px rgba(0, 0, 0, 0.06);
+
+  /* Motion – liquid spring */
+  --dm-ease-liquid: cubic-bezier(0.25, 1, 0.5, 1);
+  --dm-ease-spring: cubic-bezier(0.34, 1.4, 0.64, 1);
+  --dm-duration-fast: 200ms;
+  --dm-duration-base: 320ms;
+  --dm-duration-slow: 500ms;
+}
+
+/* Dark mode glass */
+[data-theme="dark"] {
+  --dm-glass-bg: var(--dm-glass-dark-bg);
+  --dm-glass-border: var(--dm-glass-dark-border);
+  --dm-glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+  --dm-text-primary: #ffffff;
+  --dm-text-secondary: #aeaeb2;
+  --dm-text-muted: #7c7c82;
+}
+
+/* -----------------------------------------------------------------------------
+   2. GLOBAL LIQUID BEHAVIOUR
+   ----------------------------------------------------------------------------- */
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* -----------------------------------------------------------------------------
+   3. KEYFRAMES – LIQUID & GLASS ENTRANCES
+   ----------------------------------------------------------------------------- */
+@keyframes liquid-fade-in {
+  from { opacity: 0; backdrop-filter: blur(0); }
+  to   { opacity: 1; backdrop-filter: var(--dm-glass-blur); }
+}
+
+@keyframes liquid-slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(20px) scale(0.96);
+    filter: blur(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    filter: blur(0);
+  }
+}
+
+@keyframes liquid-scale-bounce {
+  0% { transform: scale(0.9); opacity: 0; }
+  60% { transform: scale(1.02); }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+@keyframes liquid-ripple {
+  0% { transform: scale(0); opacity: 0.5; }
+  100% { transform: scale(6); opacity: 0; }
+}
+
+@keyframes liquid-progress {
+  from { transform: scaleX(0); }
+  to   { transform: scaleX(1); }
+}
+
+/* -----------------------------------------------------------------------------
+   4. OVERLAY – FROSTED GLASS BACKDROP
+   ----------------------------------------------------------------------------- */
+.dm-overlay,
+.confetti-settings-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 20000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: rgba(0, 0, 0, 0.3);
+  backdrop-filter: blur(12px) saturate(180%);
+  animation: liquid-fade-in var(--dm-duration-base) var(--dm-ease-liquid) both;
+}
+
+/* -----------------------------------------------------------------------------
+   5. MODAL – LIQUID GLASS CARD
+   ----------------------------------------------------------------------------- */
+.dm-modal,
+.confetti-settings-dialog {
+  background: var(--dm-glass-bg);
+  backdrop-filter: var(--dm-glass-blur);
+  border-radius: 32px;
+  border: 1px solid var(--dm-glass-border);
+  box-shadow: var(--dm-shadow-xl);
+  animation: liquid-slide-up var(--dm-duration-slow) var(--dm-ease-spring) both;
+  transition: transform 0.2s var(--dm-ease-liquid), box-shadow 0.2s ease;
+}
+
+.dm-modal:hover,
+.confetti-settings-dialog:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 40px 80px rgba(0, 0, 0, 0.2);
+}
+
+/* Modal Header – glass with gradient edge */
+.dm-modal__header,
+.confetti-settings-header {
+  background: linear-gradient(135deg, rgba(94, 92, 224, 0.15), rgba(94, 92, 224, 0.05));
+  border-bottom: 1px solid var(--dm-glass-border);
+  border-radius: 32px 32px 0 0;
+  padding: 20px 24px;
+}
+
+/* Buttons – glassmorphic */
+.dm-btn,
+.settings-btn-primary,
+.settings-btn-secondary {
+  background: rgba(255, 255, 255, 0.2);
+  backdrop-filter: blur(8px);
+  border: 0.5px solid rgba(255, 255, 255, 0.4);
+  border-radius: 40px;
+  padding: 8px 20px;
+  font-weight: 600;
+  transition: all 0.2s var(--dm-ease-liquid);
+}
+
+.dm-btn--primary,
+.settings-btn-primary {
+  background: var(--dm-accent);
+  border-color: rgba(255, 255, 255, 0.3);
+  box-shadow: 0 4px 12px var(--dm-accent-glow);
+}
+
+.dm-btn--primary:hover,
+.settings-btn-primary:hover {
+  transform: scale(1.02);
+  box-shadow: 0 8px 20px var(--dm-accent-glow);
+}
+
+/* -----------------------------------------------------------------------------
+   6. TOAST – LIQUID GLASS NOTIFICATION
+   ----------------------------------------------------------------------------- */
+.dropdown-toast {
+  background: var(--dm-glass-bg);
+  backdrop-filter: var(--dm-glass-blur);
+  border: 1px solid var(--dm-glass-border);
+  border-radius: 28px;
+  box-shadow: var(--dm-shadow-lg);
+  animation: liquid-scale-bounce 0.4s var(--dm-ease-spring) forwards;
+}
+
+.toast-glass-effect {
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(24px);
+  border-radius: 28px;
+}
+
+.toast-icon {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 50%;
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.5), 0 2px 6px rgba(0, 0, 0, 0.1);
+}
+
+.toast-progress-bar {
+  background: rgba(255, 255, 255, 0.9);
+  animation: liquid-progress var(--toast-duration) linear forwards;
+  transform-origin: left;
+}
+
+/* -----------------------------------------------------------------------------
+   7. SETTINGS CONTROLS – GLASS TOUCH
+   ----------------------------------------------------------------------------- */
+.dm-toggle__track {
+  background: rgba(0, 0, 0, 0.2);
+  backdrop-filter: blur(4px);
+  border: 0.5px solid rgba(255, 255, 255, 0.3);
+}
+
+.dm-toggle__input:checked + .dm-toggle__track {
+  background: var(--dm-accent);
+  box-shadow: 0 0 0 3px var(--dm-accent-glow);
+}
+
+.dm-range::-webkit-slider-thumb,
+.shape-range::-webkit-slider-thumb {
+  background: var(--dm-accent);
+  box-shadow: 0 0 0 2px white, 0 2px 8px rgba(0, 0, 0, 0.2);
+  transition: transform 0.1s var(--dm-ease-liquid);
+}
+
+.dm-range::-webkit-slider-thumb:hover,
+.shape-range::-webkit-slider-thumb:hover {
+  transform: scale(1.25);
+}
+
+/* -----------------------------------------------------------------------------
+   8. RIPPLE – LIQUID EXPANSION
+   ----------------------------------------------------------------------------- */
+.ripple {
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.6) 0%, rgba(255, 255, 255, 0) 80%);
+  animation: liquid-ripple 0.5s var(--dm-ease-liquid) forwards;
+}
+
+/* -----------------------------------------------------------------------------
+   9. CONFETTI DIALOG – FULL LIQUID GLASS
+   ----------------------------------------------------------------------------- */
+.confetti-settings-dialog {
+  width: min(860px, 90vw);
+  max-height: 85vh;
+  overflow: hidden;
+}
+
+.confetti-settings-body {
+  scrollbar-width: thin;
+  padding: 24px;
+}
+
+.settings-section {
+  border-bottom: 1px solid var(--dm-glass-border);
+  margin-bottom: 24px;
+}
+
+.color-picker {
+  border: 2px solid var(--dm-glass-border);
+  border-radius: 16px;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.05);
+  transition: transform 0.1s ease;
+}
+
+.color-picker:hover {
+  transform: scale(1.05);
+}
+
+.remove-color {
+  background: rgba(239, 68, 68, 0.8);
+  backdrop-filter: blur(4px);
+  border: none;
+}
+
+/* -----------------------------------------------------------------------------
+   10. RESPONSIVE – GLASS ON MOBILE
+   ----------------------------------------------------------------------------- */
+@media (max-width: 768px) {
+  .dm-modal,
+  .confetti-settings-dialog {
+    width: 100%;
+    max-height: 90vh;
+    border-radius: 28px 28px 0 0;
+    animation: liquid-slide-up 0.4s var(--dm-ease-spring);
+  }
+
+  .dropdown-toast {
+    left: 16px;
+    right: 16px;
+    width: auto;
+    border-radius: 24px;
+  }
+}
+
+/* -----------------------------------------------------------------------------
+   Image Settings Modal – Extends DM glass styles
+   ----------------------------------------------------------------------------- */
+.image-settings-modal {
+  width: min(480px, 90vw);
+}
+
+/* Ensure range value inside setting row is aligned */
+.dm-setting-row--range .dm-setting-row__top {
+  margin-bottom: 8px;
+}
+
+/* Additional spacing for nested toggles (already covered, but safety) */
+.dm-setting-row .dm-toggle {
+  margin-left: auto;
+}
+
+/* Override any potential inline style conflicts */
+.dm-setting-row__control .dm-toggle__input:focus-visible + .dm-toggle__track {
+  outline: 2px solid var(--dm-accent-ring);
+  outline-offset: 2px;
+}
+/* Export/Import Modal - ensure consistent width and spacing */
+.export-import-modal {
+  width: min(520px, 90vw);
+}
+
+.export-category,
+.import-category {
+  cursor: pointer;
+  border-bottom: 1px solid var(--dm-border);
+}
+
+.export-category:last-child,
+.import-category:last-child {
+  border-bottom: none;
+}
+
+#export-categories-list,
+#import-categories-list {
+  max-height: 380px;
+  overflow-y: auto;
+  padding-right: 8px;
+}
+
+/* Custom scrollbar for category list */
+#export-categories-list::-webkit-scrollbar,
+#import-categories-list::-webkit-scrollbar {
+  width: 5px;
+}
+#export-categories-list::-webkit-scrollbar-track,
+#import-categories-list::-webkit-scrollbar-track {
+  background: var(--dm-surface-inset);
+  border-radius: 4px;
+}
+#export-categories-list::-webkit-scrollbar-thumb,
+#import-categories-list::-webkit-scrollbar-thumb {
+  background: var(--dm-accent);
+  border-radius: 4px;
+}
+/* -----------------------------------------------------------------------------
+   11. PRINT – HIDE EPHEMERAL UI
+   ----------------------------------------------------------------------------- */
+@media print {
+  .dm-overlay,
+  .dropdown-toast,
+  .confetti-settings-backdrop,
+  .floating-dropdown {
+    display: none;
+  }
+}

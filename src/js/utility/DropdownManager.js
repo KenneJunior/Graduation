@@ -1,7 +1,7 @@
 import logger from "./logger.js";
 
 /**
- * DROPDOWN MANAGER - Enhanced floating dropdown menu with theme integration
+ * DROPDOWN MANAGER - Enhanced floating dropdown menu with theme integration.
  * @class DropdownManager
  */
 export default class DropdownManager {
@@ -16,70 +16,70 @@ export default class DropdownManager {
       enableKeyboardNav: true,
       enableRippleEffect: true,
       menuItems: [
-        { 
-          label: 'Toggle Theme', 
-          icon: 'fas fa-moon', 
-          action: 'theme', 
+        {
+          label: 'Toggle Theme',
+          icon: 'fas fa-moon',
+          action: 'theme',
           className: 'theme-toggle',
-          dynamicLabel: true 
+          dynamicLabel: true
         },
-        { 
-          label: 'Settings', 
-          icon: 'fas fa-cog', 
-          action: 'settings' 
+        {
+          label: 'Settings',
+          icon: 'fas fa-cog',
+          action: 'settings'
         },
-        { 
-          label: 'Help & Support', 
-          icon: 'fas fa-question-circle', 
-          action: 'help' 
+        {
+          label: 'Help & Support',
+          icon: 'fas fa-question-circle',
+          action: 'help'
         },
-        { 
-          label: 'Share App', 
-          icon: 'fas fa-share-alt', 
-          action: 'share' 
+        {
+          label: 'Share App',
+          icon: 'fas fa-share-alt',
+          action: 'share'
         },
         { type: 'divider' },
-        { 
-          label: 'Logout', 
-          icon: 'fas fa-sign-out-alt', 
-          action: 'logout', 
-          className: 'logout' 
+        {
+          label: 'Logout',
+          icon: 'fas fa-sign-out-alt',
+          action: 'logout',
+          className: 'logout'
         }
       ],
       ...options
     };
-    
+
     this.state = {
       isOpen: false,
       isMobile: this.checkIfMobile(),
       currentTheme: null
     };
-    
+
     this.elements = {
       container: null,
       button: null,
       dropdown: null,
       backdrop: null
     };
-    
+
     // Performance tracking
     this.performance = {
       openTime: 0,
       closeTime: 0
     };
-    
-    // Bind methods
-    this.toggleDropdown = this.toggleDropdown.bind(this);
-    this.closeDropdown = this.closeDropdown.bind(this);
+
+    // Bound methods
+    this.toggleDropdown     = this.toggleDropdown.bind(this);
+    this.closeDropdown      = this.closeDropdown.bind(this);
     this.handleClickOutside = this.handleClickOutside.bind(this);
-    this.handleKeyDown = this.handleKeyDown.bind(this);
-    this.handleResize = this.handleResize.bind(this);
-    
+    this.handleKeyDown      = this.handleKeyDown.bind(this);
+    this.handleResize       = this.handleResize.bind(this);
+
     this.init();
   }
-  
+
   /**
-   * Initialize the dropdown manager
+   * Initialize the dropdown manager.
    */
   init() {
     try {
@@ -87,56 +87,48 @@ export default class DropdownManager {
       this.setupEventListeners();
       this.setupThemeIntegration();
       this.setupAccessibility();
-      
-      // Initialize theme state
       this.updateThemeState();
-      
       this.options.logger.info('DropdownManager initialized successfully');
-      
     } catch (error) {
       this.options.logger.error('Failed to initialize DropdownManager:', error);
       throw error;
     }
   }
-  
+
   /**
-   * Check if device is mobile
+   * Check if device is mobile.
    */
   checkIfMobile() {
-    return window.matchMedia('(max-width: 768px)').matches || 
-           'ontouchstart' in window || 
+    return window.matchMedia('(max-width: 768px)').matches ||
+           'ontouchstart' in window ||
            navigator.maxTouchPoints > 0;
   }
-  
+
+  // ---------------------------------------------------------------------------
+  // DOM CREATION
+  // ---------------------------------------------------------------------------
+
   /**
-   * Create all DOM elements
+   * Create all DOM elements.
    */
   createElements() {
-    // Create container
     this.elements.container = document.createElement('div');
     this.elements.container.className = 'floating-dropdown';
     this.elements.container.setAttribute('data-dropdown', 'true');
-    
-    // Create button
+
     this.createButton();
-    
-    // Create dropdown menu
     this.createDropdown();
-    
-    // Create backdrop if enabled
+
     if (this.options.showBackdrop) {
       this.createBackdrop();
     }
-    
-    // Set position
+
     this.setPosition();
-    
-    // Append to body
     document.body.appendChild(this.elements.container);
   }
-  
+
   /**
-   * Create floating button
+   * Create the floating trigger button.
    */
   createButton() {
     this.elements.button = document.createElement('button');
@@ -145,164 +137,72 @@ export default class DropdownManager {
     this.elements.button.setAttribute('aria-expanded', 'false');
     this.elements.button.setAttribute('aria-haspopup', 'true');
     this.elements.button.setAttribute('aria-controls', 'dropdown-menu');
-    
-    // Add ripple effect if enabled
+
     if (this.options.enableRippleEffect) {
       this.elements.button.classList.add('ripple-effect');
     }
-    
+
     this.elements.button.innerHTML = `
       <span class="dropdown-btn-icon">
         <i class="fas fa-ellipsis-v"></i>
       </span>
       <span class="dropdown-btn-label sr-only">Menu</span>
     `;
-    
+
     this.elements.container.appendChild(this.elements.button);
   }
-  
+
   /**
-   * Create dropdown menu
+   * Create the dropdown menu panel.
    */
-/**
- * Create dropdown menu
- */
-createDropdown() {
-  this.elements.dropdown = document.createElement('div');
-  this.elements.dropdown.className = 'dropdown-menu';
-  this.elements.dropdown.id = 'dropdown-menu';
-  this.elements.dropdown.setAttribute('role', 'menu');
-  this.elements.dropdown.setAttribute('aria-hidden', 'true');
-  this.elements.dropdown.setAttribute('aria-labelledby', 'dropdown-button');
-  
-  // Add menu items
-  this.options.menuItems.forEach((item, index) => {
-    if (item.type === 'divider') {
-      this.addDivider();
-    } else {
-      this.createMenuItem(item, index); // CHANGED: Call createMenuItem instead
+  createDropdown() {
+    this.elements.dropdown = document.createElement('div');
+    this.elements.dropdown.className = 'dropdown-menu';
+    this.elements.dropdown.id = 'dropdown-menu';
+    this.elements.dropdown.setAttribute('role', 'menu');
+    this.elements.dropdown.setAttribute('aria-hidden', 'true');
+    this.elements.dropdown.setAttribute('aria-labelledby', 'dropdown-button');
+
+    this.options.menuItems.forEach((item, index) => {
+      if (item.type === 'divider') {
+        this.addDivider();
+      } else {
+        this.createMenuItem(item, index);
+      }
+    });
+
+    this.elements.container.appendChild(this.elements.dropdown);
+  }
+
+  /**
+   * Create a single menu item button (internal).
+   */
+  createMenuItem(item, index) {
+    const button = document.createElement('button');
+    button.className = `dropdown-item ${item.className || ''}`.trim();
+    button.setAttribute('role', 'menuitem');
+    button.setAttribute('tabindex', '-1');
+    button.setAttribute('data-action', item.action);
+    button.setAttribute('data-index', index);
+
+    if (item.dynamicLabel) {
+      button.setAttribute('data-dynamic-label', 'true');
     }
-  });
-  
-  this.elements.container.appendChild(this.elements.dropdown);
-}
 
-/**
- * Create a menu item DOM element (internal use)
- */
-createMenuItem(item, index) {
-  const button = document.createElement('button');
-  button.className = `dropdown-item ${item.className || ''}`;
-  button.setAttribute('role', 'menuitem');
-  button.setAttribute('tabindex', '-1');
-  button.setAttribute('data-action', item.action);
-  button.setAttribute('data-index', index);
-  
-  // Add data attributes for dynamic content
-  if (item.dynamicLabel) {
-    button.setAttribute('data-dynamic-label', 'true');
-  }
-  
-  button.innerHTML = `
-    <span class="dropdown-item-icon">
-      <i class="${item.icon}"></i>
-    </span>
-    <span class="dropdown-item-label">${item.label}</span>
-    ${item.shortcut ? `<span class="dropdown-item-shortcut">${item.shortcut}</span>` : ''}
-  `;
-  
-  // Add click handler
-  if(
-    item.action === 'logout' || item.action === 'theme'
-  )
-  button.addEventListener('click', (e) => this.handleMenuItemClick(e, item));
+    button.innerHTML = `
+      <span class="dropdown-item-icon">
+        <i class="${item.icon}"></i>
+      </span>
+      <span class="dropdown-item-label">${item.label}</span>
+      ${item.shortcut ? `<span class="dropdown-item-shortcut">${item.shortcut}</span>` : ''}
+    `;
 
-  this.elements.dropdown.appendChild(button);
-}
-
-/**
- * Add custom menu item to dropdown (public API)
- * @param config {Object}
- * @return boolean
- */
-addMenuItem(config) {
-  // Add to options
-  const index = this.options.menuItems.findIndex(item => 
-    item.action === 'logout' || item.className?.includes('logout')
-  );
-  
-  if (index > -1) {
-    // Insert before logout item
-    this.options.menuItems.splice(index, 0, config);
-  } else {
-    // Add to end if no logout found
-    this.options.menuItems.push(config);
-  }
-  
-  // Re-render the menu item
-  this.renderMenuItem(config, index > -1? index : this.options.menuItems.length - 1);
-  
-  this.options.logger.debug(`Menu item added: ${config.label}`);
-  return true;
-}
-/**
- * Render a single menu item to DOM
- */
-renderMenuItem(config, positionIndex) {
-  // Find where to insert in DOM
-  const logoutItem = this.elements.dropdown.querySelector('.logout, [data-action="logout"]');
-  const items = Array.from(this.elements.dropdown.querySelectorAll('.dropdown-item'));
-  const dividers = Array.from(this.elements.dropdown.querySelectorAll('.dropdown-divider'));
-  
-  let insertBeforeElement = null;
-  let referenceIndex = positionIndex;
-  
-  if (logoutItem && config.action !== 'logout') {
-    // Insert before logout item
-    insertBeforeElement = logoutItem;
-  } else if (items.length > 0) {
-    // Find the element at the specified position
-    const targetItem = items[Math.min(positionIndex, items.length - 1)];
-    if (targetItem) {
-      insertBeforeElement = targetItem.nextElementSibling || targetItem;
-    }
-  }
- 
-  // Create the menu item
-  const button = document.createElement('button');
-  button.className = `dropdown-item ${config.className || ''}`;
-  button.setAttribute('role', 'menuitem');
-  button.setAttribute('tabindex', '-1');
-  button.setAttribute('data-action', config.action);
-  button.setAttribute('data-index', referenceIndex);
-  
-  if (config.dynamicLabel) {
-    button.setAttribute('data-dynamic-label', 'true');
-  }
-  
-  button.innerHTML = `
-    <span class="dropdown-item-icon">
-      <i class="${config.icon}"></i>
-    </span>
-    <span class="dropdown-item-label">${config.label}</span>
-    ${config.shortcut ? `<span class="dropdown-item-shortcut">${config.shortcut}</span>` : ''}
-  `;
-  
-  button.addEventListener('click', (e) => this.handleMenuItemClick(e, config));
-  
-  // Insert into DOM
-  if (insertBeforeElement) {
-    insertBeforeElement.parentNode.insertBefore(button, insertBeforeElement);
-  } else {
+    button.addEventListener('click', (e) => this.handleMenuItemClick(e, item));
     this.elements.dropdown.appendChild(button);
   }
-  
-  // Update indices for all items
-  this.updateMenuItemIndices();
-}
 
   /**
-   * Add divider to dropdown
+   * Add a visual divider to the dropdown.
    */
   addDivider() {
     const divider = document.createElement('div');
@@ -310,132 +210,284 @@ renderMenuItem(config, positionIndex) {
     divider.setAttribute('role', 'separator');
     this.elements.dropdown.appendChild(divider);
   }
-  
+
   /**
-   * Create backdrop element
+   * Create the backdrop overlay element.
    */
   createBackdrop() {
     this.elements.backdrop = document.createElement('div');
     this.elements.backdrop.className = 'dropdown-backdrop';
     this.elements.backdrop.setAttribute('aria-hidden', 'true');
+    // Clicking the backdrop should respect autoClose the same way an
+    // outside click does — the handler already checks this.options.autoClose.
+    this.elements.backdrop.addEventListener('click', this.handleClickOutside);
     document.body.appendChild(this.elements.backdrop);
   }
-  
+
   /**
-   * Set dropdown position
+   * Destroy and optionally recreate the backdrop based on the current
+   * showBackdrop option.  Call this whenever showBackdrop changes at runtime.
+   */
+  syncBackdrop() {
+    if (this.options.showBackdrop) {
+      if (!this.elements.backdrop) {
+        this.createBackdrop();
+      }
+    } else {
+      if (this.elements.backdrop) {
+        this.elements.backdrop.removeEventListener('click', this.handleClickOutside);
+        this.elements.backdrop.remove();
+        this.elements.backdrop = null;
+      }
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // PUBLIC MENU ITEM API
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Add a custom menu item. Inserts before Logout if present.
+   * @param {Object} config  Menu item config object.
+   * @returns {boolean}
+   */
+  addMenuItem(config) {
+    const index = this.options.menuItems.findIndex(item =>
+      item.action === 'logout' || item.className?.includes('logout')
+    );
+
+    if (index > -1) {
+      this.options.menuItems.splice(index, 0, config);
+    } else {
+      this.options.menuItems.push(config);
+    }
+
+    this.renderMenuItem(config, index > -1 ? index : this.options.menuItems.length - 1);
+    this.options.logger.debug(`Menu item added: ${config.label}`);
+    return true;
+  }
+
+  /**
+   * Render a single menu item into the DOM at the correct position.
+   */
+  renderMenuItem(config, positionIndex) {
+    const logoutItem = this.elements.dropdown.querySelector('.logout, [data-action="logout"]');
+    const items      = Array.from(this.elements.dropdown.querySelectorAll('.dropdown-item'));
+
+    let insertBeforeElement = null;
+
+    if (logoutItem && config.action !== 'logout') {
+      insertBeforeElement = logoutItem;
+    } else if (items.length > 0) {
+      const targetItem = items[Math.min(positionIndex, items.length - 1)];
+      if (targetItem) {
+        insertBeforeElement = targetItem.nextElementSibling || targetItem;
+      }
+    }
+
+    const button = document.createElement('button');
+    button.className = `dropdown-item ${config.className || ''}`.trim();
+    button.setAttribute('role', 'menuitem');
+    button.setAttribute('tabindex', '-1');
+    button.setAttribute('data-action', config.action);
+    button.setAttribute('data-index', positionIndex);
+
+    if (config.dynamicLabel) {
+      button.setAttribute('data-dynamic-label', 'true');
+    }
+
+    button.innerHTML = `
+      <span class="dropdown-item-icon">
+        <i class="${config.icon}"></i>
+      </span>
+      <span class="dropdown-item-label">${config.label}</span>
+      ${config.shortcut ? `<span class="dropdown-item-shortcut">${config.shortcut}</span>` : ''}
+    `;
+
+    button.addEventListener('click', (e) => this.handleMenuItemClick(e, config));
+
+    if (insertBeforeElement) {
+      insertBeforeElement.parentNode.insertBefore(button, insertBeforeElement);
+    } else {
+      this.elements.dropdown.appendChild(button);
+    }
+
+    this.updateMenuItemIndices();
+  }
+
+  /**
+   * Remove a menu item by its action key.
+   * @param {string} action
+   * @returns {boolean}
+   */
+  removeMenuItem(action) {
+    const itemIndex = this.options.menuItems.findIndex(item => item.action === action);
+    if (itemIndex > -1) this.options.menuItems.splice(itemIndex, 1);
+
+    const el = this.elements.dropdown.querySelector(`[data-action="${action}"]`);
+    if (el) {
+      el.remove();
+      this.updateMenuItemIndices();
+      this.options.logger.debug(`Menu item removed: ${action}`);
+      return true;
+    }
+
+    return false;
+  }
+
+  /**
+   * Update an existing menu item in place.
+   * @param {string} action
+   * @param {Object} updates  Partial config to merge.
+   * @returns {boolean}
+   */
+  updateMenuItem(action, updates) {
+    const itemIndex = this.options.menuItems.findIndex(item => item.action === action);
+    if (itemIndex > -1) {
+      this.options.menuItems[itemIndex] = { ...this.options.menuItems[itemIndex], ...updates };
+    }
+
+    const el = this.elements.dropdown.querySelector(`[data-action="${action}"]`);
+    if (el) {
+      if (updates.label) {
+        const label = el.querySelector('.dropdown-item-label');
+        if (label) label.textContent = updates.label;
+      }
+      if (updates.icon) {
+        const icon = el.querySelector('.dropdown-item-icon i');
+        if (icon) icon.className = updates.icon;
+      }
+      if (updates.className !== undefined) {
+        el.className = 'dropdown-item';
+        if (updates.className) el.classList.add(updates.className);
+      }
+
+      this.options.logger.debug(`Menu item updated: ${action}`);
+      return true;
+    }
+
+    return false;
+  }
+
+  /**
+   * Re-index all menu item data-index attributes after DOM mutations.
+   */
+  updateMenuItemIndices() {
+    this.elements.dropdown
+      .querySelectorAll('.dropdown-item')
+      .forEach((item, index) => item.setAttribute('data-index', index));
+  }
+
+  // ---------------------------------------------------------------------------
+  // POSITION
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Apply the chosen position to the container via CSS data-attribute.
    */
   setPosition() {
     const positionMap = {
-      'bottom-right': { bottom: '20px', right: '20px' },
-      'bottom-left': { bottom: '20px', left: '20px' },
-      'top-right': { top: '20px', right: '20px' },
-      'top-left': { top: '20px', left: '20px' },
-      'center-right': { top: '50%', right: '20px', transform: 'translateY(-50%)' },
-      'center-left': { top: '50%', left: '20px', transform: 'translateY(-50%)' }
+      'bottom-right': { bottom: '20px', right: '20px',  top: '',     left: '',     transform: '' },
+      'bottom-left':  { bottom: '20px', left: '20px',   top: '',     right: '',    transform: '' },
+      'top-right':    { top: '20px',    right: '20px',  bottom: '',  left: '',     transform: '' },
+      'top-left':     { top: '20px',    left: '20px',   bottom: '',  right: '',    transform: '' },
+      'center-right': { top: '50%',     right: '20px',  bottom: '',  left: '',     transform: 'translateY(-50%)' },
+      'center-left':  { top: '50%',     left: '20px',   bottom: '',  right: '',    transform: 'translateY(-50%)' },
     };
-    
-    const position = positionMap[this.options.position] || positionMap['bottom-right'];
-    Object.assign(this.elements.container.style, position);
+
+    const pos = positionMap[this.options.position] || positionMap['bottom-right'];
+    Object.assign(this.elements.container.style, pos);
+    this.elements.container.dataset.position = this.options.position;
   }
-  
-  /**
-   * Setup event listeners
-   */
+
+  // ---------------------------------------------------------------------------
+  // EVENT LISTENERS
+  // ---------------------------------------------------------------------------
+
   setupEventListeners() {
-    // Button click
     this.elements.button.addEventListener('click', this.toggleDropdown);
-    
-    // Click outside to close
+
     if (this.options.autoClose) {
-      document.addEventListener('click', this.handleClickOutside);
+      document.addEventListener('click',      this.handleClickOutside);
       document.addEventListener('touchstart', this.handleClickOutside);
     }
-    
-    // Keyboard navigation
+
     if (this.options.enableKeyboardNav) {
       document.addEventListener('keydown', this.handleKeyDown);
     }
-    
-    // Window resize
+
     window.addEventListener('resize', this.handleResize);
-    
-    // Escape key to close (global)
+
+    // Global Escape handler — always active regardless of autoClose/keyboard nav
     document.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape' && this.state.isOpen) {
-        this.closeDropdown();
-      }
+      if (e.key === 'Escape' && this.state.isOpen) this.closeDropdown();
     });
   }
-  
+
   /**
-   * Setup theme integration
+   * Wire or unwire the outside-click / touchstart listeners based on the
+   * current value of this.options.autoClose.  Call after changing that option
+   * at runtime (e.g. from the Settings modal save handler).
    */
+  syncAutoCloseListeners() {
+    // Always remove first to avoid duplicate listeners
+    document.removeEventListener('click',      this.handleClickOutside);
+    document.removeEventListener('touchstart', this.handleClickOutside);
+
+    if (this.options.autoClose) {
+      document.addEventListener('click',      this.handleClickOutside);
+      document.addEventListener('touchstart', this.handleClickOutside);
+    }
+  }
+
+  /**
+   * Wire or unwire the arrow-key navigation listener based on the current
+   * value of this.options.enableKeyboardNav.  Call after changing that option
+   * at runtime.
+   */
+  syncKeyboardNavListener() {
+    document.removeEventListener('keydown', this.handleKeyDown);
+    if (this.options.enableKeyboardNav) {
+      document.addEventListener('keydown', this.handleKeyDown);
+    }
+  }
+
   setupThemeIntegration() {
-    // Listen for theme changes
     document.addEventListener('theme:change', (e) => {
       this.handleThemeChange(e.detail?.theme);
     });
-    
-    // Check for existing theme
     this.updateThemeState();
   }
-  
-  /**
-   * Setup accessibility features
-   */
+
   setupAccessibility() {
-    // Add focus trap for dropdown
     this.setupFocusTrap();
-    
-    // Add screen reader announcements
     this.setupScreenReaderAnnouncements();
   }
-  
-  /**
-   * Setup focus trap for keyboard navigation
-   */
+
   setupFocusTrap() {
     this.elements.dropdown.addEventListener('keydown', (e) => {
       if (!this.state.isOpen) return;
-      
-      const items = this.getMenuItems();
+
+      const items        = this.getMenuItems();
       const currentIndex = items.indexOf(document.activeElement);
-      
+
       switch (e.key) {
-        case 'ArrowDown':
-          e.preventDefault();
-          this.focusNextItem(currentIndex, items);
-          break;
-        case 'ArrowUp':
-          e.preventDefault();
-          this.focusPreviousItem(currentIndex, items);
-          break;
-        case 'Home':
-          e.preventDefault();
-          items[0]?.focus();
-          break;
-        case 'End':
-          e.preventDefault();
-          items[items.length - 1]?.focus();
-          break;
+        case 'ArrowDown': e.preventDefault(); this.focusNextItem(currentIndex, items);     break;
+        case 'ArrowUp':   e.preventDefault(); this.focusPreviousItem(currentIndex, items); break;
+        case 'Home':      e.preventDefault(); items[0]?.focus();                           break;
+        case 'End':       e.preventDefault(); items[items.length - 1]?.focus();            break;
         case 'Tab':
           if (!e.shiftKey && document.activeElement === items[items.length - 1]) {
-            e.preventDefault();
-            items[0]?.focus();
+            e.preventDefault(); items[0]?.focus();
           } else if (e.shiftKey && document.activeElement === items[0]) {
-            e.preventDefault();
-            items[items.length - 1]?.focus();
+            e.preventDefault(); items[items.length - 1]?.focus();
           }
           break;
       }
     });
   }
-  
-  /**
-   * Setup screen reader announcements
-   */
+
   setupScreenReaderAnnouncements() {
-    // Create live region for announcements
     const liveRegion = document.createElement('div');
     liveRegion.className = 'sr-only';
     liveRegion.setAttribute('aria-live', 'polite');
@@ -443,125 +495,65 @@ renderMenuItem(config, positionIndex) {
     liveRegion.id = 'dropdown-announcer';
     document.body.appendChild(liveRegion);
   }
-  
-  /**
-   * Announce to screen readers
-   */
-  announce(message) {
-    const announcer = document.getElementById('dropdown-announcer');
-    if (announcer) {
-      announcer.textContent = message;
-      setTimeout(() => {
-        announcer.textContent = '';
-      }, 1000);
-    }
-  }
-  
-  /**
-   * Get all menu items
-   */
-  getMenuItems() {
-    return Array.from(this.elements.dropdown.querySelectorAll('.dropdown-item'));
-  }
-  
-  /**
-   * Toggle dropdown open/close
-   */
+
+  // ---------------------------------------------------------------------------
+  // OPEN / CLOSE
+  // ---------------------------------------------------------------------------
+
   toggleDropdown(e) {
     e?.stopPropagation();
     e?.preventDefault();
-    
-    if (this.state.isOpen) {
-      this.closeDropdown();
-    } else {
-      this.openDropdown();
-    }
+    this.state.isOpen ? this.closeDropdown() : this.openDropdown();
   }
-  
-  /**
-   * Open dropdown with animation
-   */
+
   openDropdown() {
     if (this.state.isOpen) return;
-    
+
     this.performance.openTime = performance.now();
-    
-    // Update state
     this.state.isOpen = true;
-    
-    // Update ARIA attributes
+
     this.elements.button.setAttribute('aria-expanded', 'true');
     this.elements.dropdown.setAttribute('aria-hidden', 'false');
-    
-    // Update button icon
     this.updateButtonIcon('open');
-    
-    // Show dropdown
     this.elements.dropdown.classList.add('show');
-    
-    // Show backdrop
+
     if (this.elements.backdrop) {
       this.elements.backdrop.classList.add('show');
       this.elements.backdrop.setAttribute('aria-hidden', 'false');
     }
-    
-    // Focus first menu item
+
     setTimeout(() => {
-      const items = this.getMenuItems();
-      if (items.length > 0) {
-        items[0].focus();
-      }
+      this.getMenuItems()[0]?.focus();
     }, this.options.animationDuration);
-    
-    // Announce to screen readers
+
     this.announce('Menu opened');
-    
-    // Dispatch custom event
     this.dispatchEvent('dropdown:open');
   }
-  
-  /**
-   * Close dropdown with animation
-   */
+
   closeDropdown() {
     if (!this.state.isOpen) return;
-    
+
     this.performance.closeTime = performance.now();
-    
-    // Update state
     this.state.isOpen = false;
-    
-    // Update ARIA attributes
+
     this.elements.button.setAttribute('aria-expanded', 'false');
     this.elements.dropdown.setAttribute('aria-hidden', 'true');
-    
-    // Update button icon
     this.updateButtonIcon('closed');
-    
-    // Hide dropdown
     this.elements.dropdown.classList.remove('show');
-    
-    // Hide backdrop
+
     if (this.elements.backdrop) {
       this.elements.backdrop.classList.remove('show');
       this.elements.backdrop.setAttribute('aria-hidden', 'true');
     }
-    
-    // Return focus to button
+
     setTimeout(() => {
       this.elements.button.focus();
     }, this.options.animationDuration);
-    
-    // Announce to screen readers
+
     this.announce('Menu closed');
-    
-    // Dispatch custom event
     this.dispatchEvent('dropdown:close');
   }
-  
-  /**
-   * Update button icon based on state
-   */
+
   updateButtonIcon(state) {
     const icon = this.elements.button.querySelector('.dropdown-btn-icon i');
     if (icon) {
@@ -569,1237 +561,862 @@ renderMenuItem(config, positionIndex) {
     }
   }
 
-  /**
- * Add custom action handler
- */
-addCustomAction(action, handler) {
-  if (!this.customActions) {
-    this.customActions = new Map();
+  getMenuItems() {
+    return Array.from(this.elements.dropdown.querySelectorAll('.dropdown-item'));
   }
-  
-  this.customActions.set(action, handler);
-  
-  // Update existing menu item if it exists
-  const existingItem = this.elements.dropdown.querySelector(`[data-action="${action}"]`);
-  if (existingItem) {
-    existingItem.addEventListener('click', (e) => {
-      e.stopPropagation();
-      handler(e);
-    });
-  }
-  
-  this.options.logger.debug(`Custom action added: ${action}`);
-}
 
-/**
- * Execute menu item action
- * @param action
- * @param element {HTMLElement}
- */
-executeAction(action, element) {
-  // Check for custom action first
-  if (this.customActions && this.customActions.has(action)) {
-    try {
-      this.customActions.get(action)(element);
-      return;
-    } catch (error) {
-      this.options.logger.error(`Custom action failed: ${action}`, error);
+  announce(message) {
+    const announcer = document.getElementById('dropdown-announcer');
+    if (announcer) {
+      announcer.textContent = message;
+      setTimeout(() => { announcer.textContent = ''; }, 1000);
     }
   }
-  
-  // Handle built-in actions
-  const actions = {
-    theme: () => this.handleThemeAction(element),
-    logout: () => this.handleLogoutAction(),
-    settings: () => this.handleSettingsAction(),
-    help: () => this.handleHelpAction(),
-    share: () => this.handleShareAction(),
-    'image-settings': () => this.handleImageSettingsAction(),
-    'confetti-settings': () => this.handleConfettiSettingsAction(),
-    about: () => this.handleAboutAction(),
-    refresh: () => this.handleRefreshAction(),
-    export: () => this.handleExportAction(),
-    import: () => this.handleImportAction()
-  };
-  
-  if (actions[action]) {
-    actions[action]();
-  } else {
-    this.options.logger.warn(`Unknown action: ${action}`);
-  }
-}
 
-/**
- * Handle image settings action
- */
-handleImageSettingsAction() {
-  this.dispatchEvent('dropdown:action', { 
-    action: 'image-settings',
-    data: { timestamp: Date.now() }
-  });
-}
+  // ---------------------------------------------------------------------------
+  // CLICK / RIPPLE
+  // ---------------------------------------------------------------------------
 
-/**
- * Handle confetti settings action
- */
-handleConfettiSettingsAction() {
-  this.dispatchEvent('dropdown:action', { 
-    action: 'confetti-settings',
-    data: { timestamp: Date.now() }
-  });
-}
-
-/**
- * Handle about action
- */
-handleAboutAction() {
-  this.dispatchEvent('dropdown:action', { 
-    action: 'about',
-    data: { timestamp: Date.now() }
-  });
-}
-
-/**
- * Handle refresh action
- */
-handleRefreshAction() {
-  this.dispatchEvent('dropdown:action', { 
-    action: 'refresh',
-    data: { timestamp: Date.now() }
-  });
-}
-
-/**
- * Handle export action
- */
-handleExportAction() {
-  this.dispatchEvent('dropdown:action', { 
-    action: 'export',
-    data: { timestamp: Date.now() }
-  });
-}
-
-/**
- * Handle import action
- */
-handleImportAction() {
-  this.dispatchEvent('dropdown:action', { 
-    action: 'import',
-    data: { timestamp: Date.now() }
-  });
-}
-  
-  /**
-   * Handle menu item click
-   */
   handleMenuItemClick(e, item) {
     e.stopPropagation();
-    
-    // Add click animation
     this.animateClick(e);
-    
-    // Execute action
     this.executeAction(item.action, e.target);
-    
-    // Close dropdown (unless action prevents it)
-    if (item.closeOnClick !== false) {
-      this.closeDropdown();
-    }
+
+    // Respect autoClose: only close automatically when the option is enabled.
+    // Individual items can still opt out via closeOnClick: false.
+    const shouldClose = this.options.autoClose && item.closeOnClick !== false;
+    if (shouldClose) this.closeDropdown();
   }
-  
+
   /**
-   * Animate click with ripple effect
+   * Ripple click animation.
+   * Only the position/size are dynamic and must stay as inline styles.
    */
   animateClick(e) {
-    const element = e.target;
     if (!this.options.enableRippleEffect) return;
-    
-    const ripple = document.createElement('span');
+
+    const element = e.currentTarget ?? e.target;
+    const rect    = element.getBoundingClientRect();
+    const size    = Math.max(rect.width, rect.height);
+    const x       = e.clientX - rect.left  - size / 2;
+    const y       = e.clientY - rect.top   - size / 2;
+
+    const ripple  = document.createElement('span');
     ripple.className = 'ripple';
-    
-    const rect = element.getBoundingClientRect();
-    const size = Math.max(rect.width, rect.height);
-    const x = e.clientX - rect.left - size / 2;
-    const y = e.clientY - rect.top - size / 2;
-    
-    ripple.style.cssText = `
-      width: ${size}px;
-      height: ${size}px;
-      left: ${x}px;
-      top: ${y}px;
-      background: rgba(255, 255, 255, 0.3);
-    `;
-    
+    ripple.style.width  = `${size}px`;
+    ripple.style.height = `${size}px`;
+    ripple.style.left   = `${x}px`;
+    ripple.style.top    = `${y}px`;
+
     element.appendChild(ripple);
-    
-    setTimeout(() => {
-      ripple.remove();
-    }, 600);
+    setTimeout(() => ripple.remove(), 600);
   }
-  
-  /**
-   * Handle theme toggle action
-   * @param {Element} element
-   */
-  handleThemeAction(element) {
-    // Check if we have a ThemeManager instance
+
+  // ---------------------------------------------------------------------------
+  // ACTIONS
+  // ---------------------------------------------------------------------------
+
+  addCustomAction(action, handler) {
+    if (!this.customActions) this.customActions = new Map();
+    this.customActions.set(action, handler);
+    this.options.logger.debug(`Custom action added: ${action}`);
+  }
+
+  executeAction(action, element) {
+    if (this.customActions?.has(action)) {
+      try {
+        this.customActions.get(action)(element);
+        return;
+      } catch (error) {
+        this.options.logger.error(`Custom action failed: ${action}`, error);
+      }
+    }
+
+    const actions = {
+      theme:               () => this.handleThemeAction(element),
+      logout:              () => this.handleLogoutAction(),
+      settings:            () => this.handleSettingsAction(),
+      help:                () => this.handleHelpAction(),
+      share:               () => this.handleShareAction(),
+      'image-settings':    () => this.handleImageSettingsAction(),
+      'confetti-settings': () => this.handleConfettiSettingsAction(),
+      about:               () => this.handleAboutAction(),
+      refresh:             () => this.handleRefreshAction(),
+      export:              () => this.handleExportAction(),
+      import:              () => this.handleImportAction(),
+    };
+
+    if (actions[action]) {
+      actions[action]();
+    } else {
+      this.options.logger.warn(`Unknown action: ${action}`);
+    }
+  }
+
+  handleImageSettingsAction()    { this.dispatchEvent('dropdown:action', { action: 'image-settings',    data: { timestamp: Date.now() } }); }
+  handleConfettiSettingsAction() { this.dispatchEvent('dropdown:action', { action: 'confetti-settings', data: { timestamp: Date.now() } }); }
+  handleAboutAction()            { this.dispatchEvent('dropdown:action', { action: 'about',             data: { timestamp: Date.now() } }); }
+  handleRefreshAction()          { this.dispatchEvent('dropdown:action', { action: 'refresh',           data: { timestamp: Date.now() } }); }
+  handleExportAction()           { this.dispatchEvent('dropdown:action', { action: 'export',            data: { timestamp: Date.now() } }); }
+  handleImportAction()           { this.dispatchEvent('dropdown:action', { action: 'import',            data: { timestamp: Date.now() } }); }
+
+  // ---------------------------------------------------------------------------
+  // THEME
+  // ---------------------------------------------------------------------------
+
+  handleThemeAction() {
     if (this.options.themeManager) {
       this.options.themeManager.toggle();
     } else {
-      // Fallback: Toggle theme manually
       this.toggleTheme();
     }
-    
-    // Update theme button label
     this.updateThemeButtonLabel();
   }
-  
-  /**
-   * Toggle theme (fallback)
-   */
+
   toggleTheme() {
-    const currentTheme = document.documentElement.getAttribute('data-theme') || 'light';
-    const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
-    
-    // Update document
+    const current  = document.documentElement.getAttribute('data-theme') || 'light';
+    const newTheme = current === 'dark' ? 'light' : 'dark';
     document.documentElement.setAttribute('data-theme', newTheme);
     localStorage.setItem('theme', newTheme);
-    
-    // Dispatch event
     this.dispatchEvent('theme:change', { theme: newTheme });
-    
-    // Update state
     this.state.currentTheme = newTheme;
   }
-  
-  /**
-   * Update theme button label
-   */
+
   updateThemeButtonLabel() {
     const themeItem = this.elements.dropdown.querySelector('[data-action="theme"]');
     if (!themeItem) return;
-    
+
     const label = themeItem.querySelector('.dropdown-item-label');
-    const icon = themeItem.querySelector('.dropdown-item-icon i');
-    
+    const icon  = themeItem.querySelector('.dropdown-item-icon i');
+
     if (label && icon) {
-      if (this.state.currentTheme === 'dark') {
-        label.textContent = 'Light Mode';
-        icon.className = 'fas fa-sun';
-      } else {
-        label.textContent = 'Dark Mode';
-        icon.className = 'fas fa-moon';
-      }
+      const isDark        = this.state.currentTheme === 'dark';
+      label.textContent   = isDark ? 'Light Mode' : 'Dark Mode';
+      icon.className      = isDark ? 'fas fa-sun' : 'fas fa-moon';
     }
   }
-  
-  /**
-   * Handle logout action
-   */
-  handleLogoutAction() {
-    // Show confirmation
-    const confirmed = window.confirm('Are you sure you want to logout?');
-    if (!confirmed) return;
-    
-    // Dispatch event for app to handle
-    this.dispatchEvent('user:logout');
-    
-    // Show toast
-    this.showToast('Logging out...', 'info');
-  }
-  
-  /**
-   * Handle settings action
-   */
-  handleSettingsAction() {
-    this.dispatchEvent('settings:open');
-    this.showToast('Opening settings...', 'info');
-  }
-  
-  /**
-   * Handle help action
-   */
-  handleHelpAction() {
-    this.dispatchEvent('help:open');
-    this.showToast('Opening help...', 'info');
-  }
-  
-  /**
-   * Handle share action
-   */
-  handleShareAction() {
-    this.dispatchEvent('share:open');
-    
-    // Use Web Share API if available
-    if (navigator.share) {
-      navigator.share({
-        title: document.title,
-        text: 'Check out this amazing graduation app!',
-        url: window.location.href
-      }).catch(this.options.logger.error);
-    } else {
-      // Fallback to clipboard
-      this.copyToClipboard(window.location.href);
-      this.showToast('Link copied to clipboard!', 'success');
-    }
-  }
-  
-  /**
-   * Copy text to clipboard
-   */
-  copyToClipboard(text) {
-    navigator.clipboard.writeText(text)
-      .then(() => this.options.logger.log('Copied to clipboard:', text))
-      .catch(err => this.options.logger.error('Copy failed:', err));
-  }
-  
-  /**
-   * Handle click outside dropdown
-   */
-  handleClickOutside(e) {
-    if (!this.state.isOpen) return;
-    
-    const isClickInside = this.elements.container.contains(e.target) || 
-                         (this.elements.backdrop && this.elements.backdrop.contains(e.target));
-    
-    if (!isClickInside) {
-      this.closeDropdown();
-    }
-  }
-  
-  /**
-   * Handle keyboard navigation
-   */
-  handleKeyDown(e) {
-    if (!this.state.isOpen) return;
-    
-    const items = this.getMenuItems();
-    const currentIndex = items.indexOf(document.activeElement);
-    
-    switch (e.key) {
-      case 'ArrowDown':
-        e.preventDefault();
-        this.focusNextItem(currentIndex, items);
-        break;
-      case 'ArrowUp':
-        e.preventDefault();
-        this.focusPreviousItem(currentIndex, items);
-        break;
-    }
-  }
-  
-  /**
-   * Focus next menu item
-   */
-  focusNextItem(currentIndex, items) {
-    const nextIndex = currentIndex < items.length - 1 ? currentIndex + 1 : 0;
-    items[nextIndex]?.focus();
-  }
-  
-  /**
-   * Focus previous menu item
-   */
-  focusPreviousItem(currentIndex, items) {
-    const prevIndex = currentIndex > 0 ? currentIndex - 1 : items.length - 1;
-    items[prevIndex]?.focus();
-  }
-  
-  /**
-   * Handle resize events
-   */
-  handleResize() {
-    const wasMobile = this.state.isMobile;
-    this.state.isMobile = this.checkIfMobile();
-    
-    // Adjust for mobile if state changed
-    if (wasMobile !== this.state.isMobile) {
-      this.adjustForMobile();
-    }
-  }
-  
-  /**
-   * Adjust dropdown for mobile
-   */
-  adjustForMobile() {
-    if (this.state.isMobile) {
-      // Make dropdown full-width on mobile
-      this.elements.dropdown.style.width = 'calc(100vw - 40px)';
-      this.elements.dropdown.style.maxWidth = 'calc(100vw - 40px)';
-      this.elements.dropdown.style.left = '20px';
-      this.elements.dropdown.style.right = '20px';
-    } else {
-      // Reset styles for desktop
-      this.elements.dropdown.style.width = '';
-      this.elements.dropdown.style.maxWidth = '';
-      this.elements.dropdown.style.left = '';
-      this.elements.dropdown.style.right = '';
-    }
-  }
-  
-  /**
-   * Handle theme change
-   */
+
   handleThemeChange(theme) {
     this.state.currentTheme = theme;
     this.updateThemeButtonLabel();
     this.dispatchEvent('dropdown:theme-change', { theme });
   }
-  
-  /**
-   * Update theme state
-   */
+
   updateThemeState() {
-      this.state.currentTheme = localStorage.getItem('theme') ||
-        (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+    this.state.currentTheme =
+      localStorage.getItem('theme') ||
+      (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
     this.updateThemeButtonLabel();
   }
-  
-/**
- * Show enhanced toast notification with glass-morphism effects
- */
-showToast(message, type = 'info', options = {}) {
-    // Remove existing toasts if needed
-    if (options.singleInstance) {
-        const existingToasts = document.querySelectorAll('.dropdown-toast');
-        existingToasts.forEach(toast => toast.remove());
+
+  // ---------------------------------------------------------------------------
+  // LOGOUT
+  // ---------------------------------------------------------------------------
+
+  handleLogoutAction() {
+    if (!window.confirm('Are you sure you want to logout?')) return;
+    this.dispatchEvent('user:logout');
+    this.showToast('Logging out...', 'info');
+  }
+
+  // ---------------------------------------------------------------------------
+  // SETTINGS MODAL
+  // ---------------------------------------------------------------------------
+
+  handleSettingsAction() {
+    this.dispatchEvent('settings', { action: 'open' });
+
+    const existing = document.getElementById('dropdown-settings-modal');
+    if (existing) { existing.remove(); return; }
+
+    const overlay = document.createElement('div');
+    overlay.id = 'dropdown-settings-modal';
+    overlay.className = 'dm-overlay';
+    overlay.setAttribute('role', 'dialog');
+    overlay.setAttribute('aria-modal', 'true');
+    overlay.setAttribute('aria-label', 'Settings');
+
+    const settings = [
+      { key: 'autoClose',          label: 'Auto-close on item click', hint: 'Close the menu after selecting an item', type: 'toggle' },
+      { key: 'showBackdrop',       label: 'Show backdrop overlay',    hint: 'Dim the page behind the open menu',     type: 'toggle' },
+      { key: 'enableKeyboardNav',  label: 'Keyboard navigation',      hint: 'Arrow keys, Tab, Home/End support',     type: 'toggle' },
+      { key: 'enableRippleEffect', label: 'Ripple click effect',      hint: 'Ink ripple on button interactions',     type: 'toggle' },
+      {
+        key: 'animationDuration', label: 'Animation speed',
+        hint: 'Duration of open/close transitions',
+        type: 'range', min: 0, max: 600, step: 50
+      },
+      {
+        key: 'position', label: 'Menu position',
+        hint: 'Corner where the floating button appears',
+        type: 'select',
+        options: ['bottom-right', 'bottom-left', 'top-right', 'top-left', 'center-right', 'center-left']
+      },
+    ];
+
+    let savedSettings = {};
+    try {
+      const raw = localStorage.getItem('GraduationAppSettings');
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        savedSettings = parsed?.DropdownManager?.Settings || parsed?.Settings || parsed || {};
+      }
+    } catch (err) {
+      this.options.logger.error('Failed to parse GraduationAppSettings from localStorage', err);
+      savedSettings = {};
     }
-    
-    // Create toast container
+
+    const rows = settings.map(s => {
+      const hintHTML = s.hint ? `<span class="dm-setting-row__hint">${s.hint}</span>` : '';
+      const value = Object.prototype.hasOwnProperty.call(savedSettings, s.key)
+        ? savedSettings[s.key]
+        : this.options[s.key];
+
+      if (s.type === 'toggle') {
+        const checked = value ? 'checked' : '';
+        return `
+          <label class="dm-setting-row">
+            <span class="dm-setting-row__label">
+              <span class="dm-setting-row__name">${s.label}</span>
+              ${hintHTML}
+            </span>
+            <span class="dm-setting-row__control">
+              <span class="dm-toggle">
+                <input class="dm-toggle__input" type="checkbox" data-key="${s.key}" ${checked}>
+                <span class="dm-toggle__track"></span>
+              </span>
+            </span>
+          </label>`;
+      }
+
+      if (s.type === 'range') {
+        const display = typeof value === 'number' ? value : this.options[s.key];
+        return `
+          <div class="dm-setting-row dm-setting-row--range">
+            <div class="dm-setting-row__top">
+              <span class="dm-setting-row__label">
+                <span class="dm-setting-row__name">${s.label}</span>
+                ${hintHTML}
+              </span>
+              <span class="dm-range-value" id="dm-val-${s.key}">${display}ms</span>
+            </div>
+            <input class="dm-range" type="range" data-key="${s.key}"
+              min="${s.min}" max="${s.max}" step="${s.step}" value="${display}">
+          </div>`;
+      }
+
+      if (s.type === 'select') {
+        const opts = s.options.map(o =>
+          `<option value="${o}" ${value === o ? 'selected' : ''}>${o}</option>`
+        ).join('');
+        return `
+          <label class="dm-setting-row">
+            <span class="dm-setting-row__label">
+              <span class="dm-setting-row__name">${s.label}</span>
+              ${hintHTML}
+            </span>
+            <span class="dm-setting-row__control">
+              <select class="dm-select" data-key="${s.key}">${opts}</select>
+            </span>
+          </label>`;
+      }
+
+      return '';
+    }).join('');
+
+    overlay.innerHTML = `
+      <div class="dm-modal" role="document">
+        <div class="dm-modal__header">
+          <h2 class="dm-modal__title">
+            <span class="dm-modal__title-icon">⚙️</span>
+            Settings
+          </h2>
+          <button id="dm-settings-close" class="dm-modal__close" aria-label="Close settings">×</button>
+        </div>
+
+        <div class="dm-modal__body">
+          <div class="dm-settings-list" id="dm-settings-rows">
+            ${rows}
+          </div>
+        </div>
+
+        <div class="dm-modal__footer">
+          <button id="dm-settings-reset" class="dm-btn dm-btn--ghost">Reset defaults</button>
+          <button id="dm-settings-save"  class="dm-btn dm-btn--primary">Save</button>
+        </div>
+      </div>
+    `;
+
+    document.body.appendChild(overlay);
+
+    const close = () => overlay.remove();
+
+    overlay.querySelector('#dm-settings-close').addEventListener('click', close);
+    overlay.addEventListener('click', e => { if (e.target === overlay) close(); });
+
+    overlay.querySelectorAll('input[type="range"]').forEach(input => {
+      input.addEventListener('input', () => {
+        const label = overlay.querySelector(`#dm-val-${input.dataset.key}`);
+        if (label) label.textContent = `${input.value}ms`;
+      });
+    });
+
+    overlay.querySelector('#dm-settings-save').addEventListener('click', () => {
+      const pending = {};
+
+      overlay.querySelectorAll('[data-key]').forEach(el => {
+        const key = el.dataset.key;
+        if (el.type === 'checkbox')   pending[key] = el.checked;
+        else if (el.type === 'range') pending[key] = Number(el.value);
+        else                          pending[key] = el.value;
+      });
+
+      // Track which options are actually changing so we can handle side-effects
+      const autoCloseChanged        = 'autoClose'         in pending && pending.autoClose         !== this.options.autoClose;
+      const showBackdropChanged     = 'showBackdrop'      in pending && pending.showBackdrop      !== this.options.showBackdrop;
+      const enableKeyboardNavChanged= 'enableKeyboardNav' in pending && pending.enableKeyboardNav !== this.options.enableKeyboardNav;
+      const enableRippleChanged     = 'enableRippleEffect' in pending && pending.enableRippleEffect !== this.options.enableRippleEffect;
+
+      // Commit all new values at once
+      Object.assign(this.options, pending);
+
+      // --- Side-effects for each option that needs runtime DOM/listener sync ---
+
+      if ('position' in pending) {
+        this.setPosition();
+      }
+
+      if (autoCloseChanged) {
+        this.syncAutoCloseListeners();
+      }
+
+      if (showBackdropChanged) {
+        this.syncBackdrop();
+      }
+
+      if (enableKeyboardNavChanged) {
+        this.syncKeyboardNavListener();
+      }
+
+      if (enableRippleChanged) {
+        this.elements.button.classList.toggle('ripple-effect', this.options.enableRippleEffect);
+      }
+
+      this.dispatchEvent('settings', { action: 'save', settings: pending });
+      close();
+    });
+
+    overlay.querySelector('#dm-settings-reset').addEventListener('click', () => {
+      this.showToast('Settings reset to defaults. Reload to apply.', 'info');
+      this.dispatchEvent('settings', { action: 'reset', settings: {} });
+      close();
+    });
+
+    this.options.logger.info('Settings modal opened');
+  }
+
+  // ---------------------------------------------------------------------------
+  // HELP MODAL
+  // ---------------------------------------------------------------------------
+
+handleHelpAction() {
+    this.dispatchEvent('help:open');
+
+    const existing = document.getElementById('dropdown-help-modal');
+    if (existing) { existing.remove(); return; }
+
+    const overlay = document.createElement('div');
+    overlay.id = 'dropdown-help-modal';
+    overlay.className = 'dm-overlay';
+    overlay.setAttribute('role', 'dialog');
+    overlay.setAttribute('aria-modal', 'true');
+    overlay.setAttribute('aria-label', 'Help & Support');
+
+    // Enhanced FAQ with icons and more relevant answers
+    const faqs = [
+      {
+        q: '🎨 How do I change the theme?',
+        a: 'Click the "Toggle Theme" option in the menu to switch instantly between light and dark mode. Your preference is saved automatically.'
+      },
+      {
+        q: '⚙️ Can I customize the menu?',
+        a: 'Yes! Use <code>dropdown.addMenuItem(config)</code> or <code>dropdown.addCustomAction(action, handler)</code> in your JavaScript to add custom actions.'
+      },
+      {
+        q: '🔄 How do I reorder menu items?',
+        a: 'Export your current configuration, edit the JSON array order, then import it back via the "Import Data" option.'
+      },
+      {
+        q: '💾 How do I backup my settings?',
+        a: 'Use the "Export Data" option in the menu to download a complete JSON backup. Re-import anytime to restore.'
+      },
+      {
+        q: '📱 Is the app mobile friendly?',
+        a: 'Absolutely. The interface adapts to any screen size, and touch gestures are fully supported.'
+      }
+    ].map(({ q, a }) => `
+      <details class="dm-faq-item">
+        <summary>
+          <span class="faq-question">${q}</span>
+          <span class="dm-faq-item__chevron">›</span>
+        </summary>
+        <div class="dm-faq-item__answer">${a}</div>
+      </details>`
+    ).join('');
+
+    // Enhanced shortcuts with icons and clearer grouping
+    const shortcuts = [
+      { keys: ['Esc'], desc: 'Close any open modal / dropdown' },
+      { keys: ['↑', '↓'], desc: 'Navigate through menu items' },
+      { keys: ['Home', 'End'], desc: 'Jump to first / last menu item' },
+      { keys: ['Tab'], desc: 'Cycle through focusable elements' },
+      { keys: ['Enter', 'Space'], desc: 'Activate focused item' },
+      { keys: ['Ctrl/Cmd + ⇧ + D'], desc: 'Open dropdown menu (keyboard shortcut)' },
+      { keys: ['F5'], desc: 'Refresh the app' }
+    ].map(({ keys, desc }) => `
+      <tr>
+        <td>${keys.map(k => `<kbd class="dm-kbd">${k}</kbd>`).join(' ')}</td>
+        <td>${desc}</td>
+      </tr>`
+    ).join('');
+
+    // Enhanced About section with stats, tech stack, and credits
+    const aboutContent = `
+      <div class="dm-about__hero">
+        <span class="dm-about__icon">🎓</span>
+        <h3 class="dm-about__title">Graduation App v2.0</h3>
+        <p class="dm-about__badge">2026 Edition</p>
+      </div>
+      <p class="dm-about__body">
+        A beautifully crafted celebration platform for graduates of 2025 —
+        Combine Mathematics & Computer Science Department.
+      </p>
+      <div class="dm-about__stats">
+        <div class="stat">
+          <span class="stat-value">✨ 4+</span>
+          <span class="stat-label">Animation Effects</span>
+        </div>
+        <div class="stat">
+          <span class="stat-value">🎨 7+</span>
+          <span class="stat-label">Color Palettes</span>
+        </div>
+        <div class="stat">
+          <span class="stat-value">⚡ 60fps</span>
+          <span class="stat-label">Smooth Performance</span>
+        </div>
+      </div>
+      <div class="dm-about__tech">
+        <span>Powered by</span>
+        <span class="tech-badge">Swiper.js</span>
+        <span class="tech-badge">Canvas API</span>
+        <span class="tech-badge">Web Share API</span>
+      </div>
+      <div class="dm-about__footer">
+        <span>❤️ Made for graduates everywhere</span>
+        <span>© ${new Date().getFullYear()} Graduation App</span>
+      </div>
+    `;
+
+    overlay.innerHTML = `
+      <div class="dm-modal dm-modal--help" role="document">
+        <div class="dm-modal__header">
+          <h2 class="dm-modal__title">
+            <span class="dm-modal__title-icon">✨</span>
+            Help & Support
+          </h2>
+          <button id="dm-help-close" class="dm-modal__close" aria-label="Close help">×</button>
+        </div>
+
+        <div class="dm-tabs" role="tablist">
+          <button class="dm-tab is-active" data-tab="0" role="tab" aria-selected="true"  aria-controls="dm-panel-0">FAQ</button>
+          <button class="dm-tab"           data-tab="1" role="tab" aria-selected="false" aria-controls="dm-panel-1">Shortcuts</button>
+          <button class="dm-tab"           data-tab="2" role="tab" aria-selected="false" aria-controls="dm-panel-2">About</button>
+        </div>
+
+        <div class="dm-modal__body">
+          <div class="dm-panel is-active" id="dm-panel-0" role="tabpanel">
+            <div class="faq-container">${faqs}</div>
+          </div>
+
+          <div class="dm-panel" id="dm-panel-1" role="tabpanel">
+            <table class="dm-shortcuts-table">
+              <thead>
+                <tr><th>Shortcut</th><th>Action</th></tr>
+              </thead>
+              <tbody>${shortcuts}</tbody>
+            </table>
+          </div>
+
+          <div class="dm-panel" id="dm-panel-2" role="tabpanel">
+            ${aboutContent}
+          </div>
+        </div>
+      </div>
+    `;
+
+    document.body.appendChild(overlay);
+
+    // --- Close logic with animation ---
+    const close = () => {
+      overlay.classList.add('is-closing');
+      const modal = overlay.querySelector('.dm-modal');
+      if (modal) modal.classList.add('is-closing');
+      setTimeout(() => overlay.remove(), 300);
+    };
+    overlay.querySelector('#dm-help-close').addEventListener('click', close);
+    overlay.addEventListener('click', e => { if (e.target === overlay) close(); });
+
+    // --- Tab switching with smooth class toggling ---
+    overlay.querySelectorAll('.dm-tab').forEach(tab => {
+      tab.addEventListener('click', () => {
+        const idx = Number(tab.dataset.tab);
+        // Update tab active state
+        overlay.querySelectorAll('.dm-tab').forEach((t, i) => {
+          const isActive = i === idx;
+          t.classList.toggle('is-active', isActive);
+          t.setAttribute('aria-selected', isActive ? 'true' : 'false');
+        });
+        // Update panel visibility with a tiny fade effect (CSS handles)
+        overlay.querySelectorAll('.dm-panel').forEach((panel, i) => {
+          panel.classList.toggle('is-active', i === idx);
+        });
+      });
+    });
+
+    // Optional: auto-focus first interactive element
+    overlay.querySelector('.dm-tab')?.focus();
+
+    this.options.logger.info('Help modal opened (enhanced)');
+  }
+
+  // ---------------------------------------------------------------------------
+  // SHARE
+  // ---------------------------------------------------------------------------
+
+  handleShareAction() {
+    this.dispatchEvent('share:open');
+
+    if (navigator.share) {
+      navigator.share({
+        title: document.title,
+        text: 'Check out this amazing app!',
+        url: window.location.href
+      }).catch(err => this.options.logger.error(err));
+    } else {
+      this.copyToClipboard(window.location.href);
+      this.showToast('Link copied to clipboard!', 'success');
+    }
+  }
+
+  copyToClipboard(text) {
+    navigator.clipboard.writeText(text)
+      .then(() => this.options.logger.log('Copied to clipboard:', text))
+      .catch(err => this.options.logger.error('Copy failed:', err));
+  }
+
+  // ---------------------------------------------------------------------------
+  // KEYBOARD / RESIZE HANDLERS
+  // ---------------------------------------------------------------------------
+
+  handleClickOutside(e) {
+    if (!this.state.isOpen) return;
+    if (!this.options.autoClose) return;
+
+    const isInside = this.elements.container.contains(e.target) ||
+                     this.elements.backdrop?.contains(e.target);
+
+    if (!isInside) this.closeDropdown();
+  }
+
+  handleKeyDown(e) {
+    if (!this.state.isOpen) return;
+
+    const items        = this.getMenuItems();
+    const currentIndex = items.indexOf(document.activeElement);
+
+    if (e.key === 'ArrowDown') { e.preventDefault(); this.focusNextItem(currentIndex, items); }
+    if (e.key === 'ArrowUp')   { e.preventDefault(); this.focusPreviousItem(currentIndex, items); }
+  }
+
+  focusNextItem(currentIndex, items) {
+    items[currentIndex < items.length - 1 ? currentIndex + 1 : 0]?.focus();
+  }
+
+  focusPreviousItem(currentIndex, items) {
+    items[currentIndex > 0 ? currentIndex - 1 : items.length - 1]?.focus();
+  }
+
+  handleResize() {
+    const wasMobile     = this.state.isMobile;
+    this.state.isMobile = this.checkIfMobile();
+    if (wasMobile !== this.state.isMobile) this.adjustForMobile();
+  }
+
+  adjustForMobile() {
+    this.elements.dropdown.classList.toggle('dropdown-menu--mobile', this.state.isMobile);
+  }
+
+  // ---------------------------------------------------------------------------
+  // TOAST SYSTEM
+  // ---------------------------------------------------------------------------
+
+  showToast(message, type = 'info', options = {}) {
+    if (options.singleInstance) {
+      document.querySelectorAll('.dropdown-toast').forEach(t => t.remove());
+    }
+
+    const duration = options.duration ?? 5000;
+
     const toast = document.createElement('div');
     toast.className = `dropdown-toast dropdown-toast-${type}`;
     toast.setAttribute('role', 'alert');
     toast.setAttribute('aria-live', 'polite');
     toast.setAttribute('aria-atomic', 'true');
-    
-    // Get icon based on type
-    const icon = this.getToastIcon(type);
-    const color = this.getToastColor(type);
-    const duration = options.duration || 5000;
-    
-    // Create toast with glass-morphism design
+
+    toast.style.setProperty('--toast-duration', `${duration}ms`);
+
     toast.innerHTML = `
-        <div class="toast-glass-bg" style="
-            position: absolute;
-            inset: 0;
-            background: ${color};
-            border-radius: 16px;
-            opacity: 0.9;
-        "></div>
-        
-        <div class="toast-glass-effect" style="
-            position: absolute;
-            inset: 0;
-            background: rgba(255, 255, 255, 0.1);
-            backdrop-filter: blur(20px);
-            -webkit-backdrop-filter: blur(20px);
-            border-radius: 16px;
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            box-shadow: 
-                0 8px 32px rgba(0, 0, 0, 0.1),
-                inset 0 1px 0 rgba(255, 255, 255, 0.15);
-        "></div>
-        
-        <div class="toast-content" style="
-            position: relative;
-            z-index: 2;
-            display: flex;
-            align-items: center;
-            gap: 16px;
-            padding: 20px 24px;
-        ">
-            <div class="toast-icon" style="
-                flex-shrink: 0;
-                width: 44px;
-                height: 44px;
-                background: rgba(255, 255, 255, 0.15);
-                border-radius: 12px;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                font-size: 22px;
-                animation: iconPop 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
-                backdrop-filter: blur(10px);
-                border: 1px solid rgba(255, 255, 255, 0.2);
-            ">
-                ${icon}
-            </div>
-            
-            <div class="toast-message" style="flex: 1;">
-                <div class="toast-title" style="
-                    font-weight: 600;
-                    font-size: 16px;
-                    margin-bottom: 4px;
-                    color: white;
-                    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
-                ">
-                    ${this.getToastTitle(type)}
-                </div>
-                <div class="toast-text" style="
-                    font-size: 14px;
-                    color: rgba(255, 255, 255, 0.9);
-                    line-height: 1.4;
-                ">
-                    ${message}
-                </div>
-            </div>
-            
-            <button class="toast-close" aria-label="Close notification" style="
-                flex-shrink: 0;
-                width: 32px;
-                height: 32px;
-                border-radius: 50%;
-                background: rgba(255, 255, 255, 0.1);
-                border: 1px solid rgba(255, 255, 255, 0.2);
-                color: white;
-                cursor: pointer;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                font-size: 14px;
-                transition: all 0.2s ease;
-                backdrop-filter: blur(10px);
-            ">
-                <span style="display: block; transform: rotate(45deg); transition: transform 0.3s ease;">+</span>
-            </button>
+      <div class="toast-glass-bg"></div>
+      <div class="toast-glass-effect"></div>
+
+      <div class="toast-content">
+        <div class="toast-icon">${this.getToastIcon(type)}</div>
+
+        <div class="toast-message">
+          <div class="toast-title">${this.getToastTitle(type)}</div>
+          <div class="toast-text">${message}</div>
         </div>
-        
-        <div class="toast-progress" style="
-            position: absolute;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            height: 3px;
-            background: rgba(255, 255, 255, 0.3);
-            border-radius: 0 0 16px 16px;
-            overflow: hidden;
-        ">
-            <div class="toast-progress-bar" style="
-                height: 100%;
-                background: rgba(255, 255, 255, 0.9);
-                width: 100%;
-                transform-origin: left;
-                animation: toastProgress ${duration}ms linear forwards;
-                box-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
-            "></div>
-        </div>
-        
-        <!-- Decorative glow -->
-        <div class="toast-glow" style="
-            position: absolute;
-            inset: -10px;
-            background: ${color};
-            border-radius: 26px;
-            filter: blur(15px);
-            opacity: 0.3;
-            z-index: -1;
-            animation: glowPulse 2s ease-in-out infinite;
-        "></div>
+
+        <button class="toast-close" aria-label="Close notification">
+          <span>+</span>
+        </button>
+      </div>
+
+      <div class="toast-progress">
+        <div class="toast-progress-bar"></div>
+      </div>
+
+      <div class="toast-glow"></div>
     `;
-    
-    // Style toast container
-    toast.style.cssText = `
-        position: fixed;
-        bottom: 30px;
-        right: 30px;
-        width: 380px;
-        max-width: calc(100vw - 60px);
-        z-index: 10001;
-        opacity: 0;
-        transform: translateY(20px) scale(0.95);
-        animation: toastEntrance 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
-        pointer-events: none;
-    `;
-    
-    // Add to document
+
     document.body.appendChild(toast);
-    
-    // Add CSS animations if not already present
-    this.addToastStyles();
-    
-    // Show toast with pointer events
-    setTimeout(() => {
-        toast.style.pointerEvents = 'auto';
-    }, 600);
-    
-    // Setup close functionality
-    const closeBtn = toast.querySelector('.toast-close');
+
+    setTimeout(() => { toast.style.pointerEvents = 'auto'; }, 600);
+
     const progressBar = toast.querySelector('.toast-progress-bar');
-    
+
     const closeToast = () => {
-        toast.style.animation = 'toastExit 0.5s cubic-bezier(0.4, 0, 0.2, 1) forwards';
-        if (progressBar) {
-            progressBar.style.animation = 'none';
-        }
-        
-        setTimeout(() => {
-            if (toast.parentNode) {
-                toast.parentNode.removeChild(toast);
-            }
-        }, 500);
+      toast.style.animation = 'toastExit 0.5s cubic-bezier(0.4, 0, 0.2, 1) forwards';
+      if (progressBar) progressBar.style.animation = 'none';
+      setTimeout(() => toast.parentNode?.removeChild(toast), 500);
     };
-    
-    closeBtn.addEventListener('click', closeToast);
-    
-    // Auto-remove after duration
+
+    toast.querySelector('.toast-close').addEventListener('click', closeToast);
+    toast.addEventListener('click', e => {
+      if (!e.target.closest('.toast-close')) closeToast();
+    });
+
     let timeoutId = setTimeout(closeToast, duration);
-    
-    // Pause on hover
+
     toast.addEventListener('mouseenter', () => {
-        if (progressBar) {
-            progressBar.style.animationPlayState = 'paused';
-        }
-        clearTimeout(timeoutId);
+      if (progressBar) progressBar.style.animationPlayState = 'paused';
+      clearTimeout(timeoutId);
     });
-    
+
     toast.addEventListener('mouseleave', () => {
-        if (progressBar) {
-            progressBar.style.animationPlayState = 'running';
-        }
-        const remainingTime = progressBar ? 
-            (progressBar.offsetWidth / progressBar.parentElement.offsetWidth) * duration : 
-            duration;
-        timeoutId = setTimeout(closeToast, remainingTime);
+      if (progressBar) progressBar.style.animationPlayState = 'running';
+      const ratio  = progressBar
+        ? progressBar.offsetWidth / progressBar.parentElement.offsetWidth
+        : 1;
+      timeoutId = setTimeout(closeToast, ratio * duration);
     });
-    
-    // Add keyboard support
-    const handleKeyDown = (e) => {
-        if (e.key === 'Escape') {
-            closeToast();
-        }
-    };
-    
-    closeBtn.addEventListener('focus', () => {
-        document.addEventListener('keydown', handleKeyDown);
-    });
-    
-    closeBtn.addEventListener('blur', () => {
-        document.removeEventListener('keydown', handleKeyDown);
-    });
-    
-    // Add click to close (except on close button)
-    toast.addEventListener('click', (e) => {
-        if (!e.target.closest('.toast-close')) {
-            closeToast();
-        }
-    });
-    
-    // Chainable API
-    return {
-        close: closeToast,
-        update: (newMessage, newType) => {
-            if (newMessage) {
-                const textElement = toast.querySelector('.toast-text');
-                if (textElement) textElement.textContent = newMessage;
-            }
-            if (newType) {
-                const color = this.getToastColor(newType);
-                const icon = this.getToastIcon(newType);
-                const title = this.getToastTitle(newType);
-                
-                const iconElement = toast.querySelector('.toast-icon');
-                const titleElement = toast.querySelector('.toast-title');
-                const bgElement = toast.querySelector('.toast-glass-bg');
-                const glowElement = toast.querySelector('.toast-glow');
-                
-                if (iconElement) iconElement.innerHTML = icon;
-                if (titleElement) titleElement.textContent = title;
-                if (bgElement) bgElement.style.background = color;
-                if (glowElement) glowElement.style.background = color;
-                
-                // Animate update
-                iconElement.style.animation = 'iconPop 0.6s cubic-bezier(0.34, 1.56, 0.64, 1)';
-            }
-        }
-    };
-}
 
-/**
- * Get toast color with opacity
- */
-getToastColor(type) {
-    const colors = {
-        success: 'rgba(76, 175, 80, 0.95)',
-        error: 'rgba(244, 67, 54, 0.95)',
-        warning: 'rgba(255, 152, 0, 0.95)',
-        info: 'rgba(33, 150, 243, 0.95)',
-        dark: 'rgba(33, 33, 33, 0.95)',
-        light: 'rgba(255, 255, 255, 0.95)'
-    };
-    return colors[type] || colors.info;
-}
+    const handleEsc = (e) => { if (e.key === 'Escape') closeToast(); };
+    const closeBtn  = toast.querySelector('.toast-close');
+    closeBtn.addEventListener('focus', () => document.addEventListener('keydown', handleEsc));
+    closeBtn.addEventListener('blur',  () => document.removeEventListener('keydown', handleEsc));
 
-/**
- * Get toast icon
- */
-getToastIcon(type) {
-    const icons = {
-        success: '✅',
-        error: '❌',
-        warning: '⚠️',
-        info: 'ℹ️',
-        dark: '🌙',
-        light: '☀️'
+    const instance = {
+      close: closeToast,
+      update: (newMessage, newType) => {
+        if (newMessage) {
+          const el = toast.querySelector('.toast-text');
+          if (el) el.textContent = newMessage;
+        }
+        if (newType) {
+          ['success', 'error', 'warning', 'info', 'dark', 'light'].forEach(t => {
+            toast.classList.toggle(`dropdown-toast-${t}`, t === newType);
+          });
+          const iconEl  = toast.querySelector('.toast-icon');
+          const titleEl = toast.querySelector('.toast-title');
+          if (iconEl)  { iconEl.innerHTML  = this.getToastIcon(newType);  iconEl.style.animation = 'iconPop 0.6s cubic-bezier(0.34,1.56,0.64,1)'; }
+          if (titleEl) titleEl.textContent = this.getToastTitle(newType);
+        }
+      },
     };
-    return icons[type] || icons.info;
-}
 
-/**
- * Get toast title
- */
-getToastTitle(type) {
-    const titles = {
-        success: 'Success',
-        error: 'Error',
-        warning: 'Warning',
-        info: 'Info',
-        dark: 'Dark Mode',
-        light: 'Light Mode'
-    };
-    return titles[type] || 'Notification';
-}
-
-/**
- * Add toast CSS styles
- */
-addToastStyles() {
-    if (document.querySelector('#toast-styles')) return;
-    
-    const style = document.createElement('style');
-    style.id = 'toast-styles';
-    style.textContent = `
-        @keyframes toastEntrance {
-            0% {
-                opacity: 0;
-                transform: translateY(20px) scale(0.95);
-            }
-            100% {
-                opacity: 1;
-                transform: translateY(0) scale(1);
-            }
-        }
-        
-        @keyframes toastExit {
-            0% {
-                opacity: 1;
-                transform: translateY(0) scale(1);
-            }
-            100% {
-                opacity: 0;
-                transform: translateY(-20px) scale(0.95);
-            }
-        }
-        
-        @keyframes iconPop {
-            0% {
-                transform: scale(0) rotate(-180deg);
-                opacity: 0;
-            }
-            70% {
-                transform: scale(1.2) rotate(10deg);
-                opacity: 1;
-            }
-            100% {
-                transform: scale(1) rotate(0);
-            }
-        }
-        
-        @keyframes toastProgress {
-            from {
-                transform: scaleX(1);
-            }
-            to {
-                transform: scaleX(0);
-            }
-        }
-        
-        @keyframes glowPulse {
-            0%, 100% {
-                opacity: 0.2;
-                transform: scale(1);
-            }
-            50% {
-                opacity: 0.4;
-                transform: scale(1.02);
-            }
-        }
-        
-        @keyframes shake {
-            0%, 100% { transform: translateX(0); }
-            10%, 30%, 50%, 70%, 90% { transform: translateX(-2px); }
-            20%, 40%, 60%, 80% { transform: translateX(2px); }
-        }
-        
-        @keyframes float {
-            0%, 100% { transform: translateY(0); }
-            50% { transform: translateY(-5px); }
-        }
-        
-        /* Hover effects */
-        .dropdown-toast:hover .toast-icon {
-            animation: float 2s ease-in-out infinite;
-        }
-        
-        .toast-close:hover {
-            background: rgba(255, 255, 255, 0.2) !important;
-            transform: rotate(90deg);
-        }
-        
-        .toast-close:hover span {
-            transform: rotate(135deg) !important;
-        }
-        
-        /* Error toast special animation */
-        .dropdown-toast-error:hover .toast-icon {
-            animation: shake 0.5s ease-in-out;
-        }
-        
-        /* Stacking for multiple toasts */
-        .dropdown-toast:nth-child(1) { 
-            bottom: 30px !important; 
-        }
-        .dropdown-toast:nth-child(2) { 
-            bottom: calc(30px + 100px) !important; 
-        }
-        .dropdown-toast:nth-child(3) { 
-            bottom: calc(30px + 200px) !important; 
-        }
-        
-        /* Mobile responsiveness */
-        @media (max-width: 768px) {
-            .dropdown-toast {
-                right: 15px !important;
-                left: 15px !important;
-                width: auto !important;
-                max-width: none !important;
-            }
-            
-            .toast-content {
-                padding: 16px 20px !important;
-            }
-            
-            .toast-icon {
-                width: 36px !important;
-                height: 36px !important;
-                font-size: 18px !important;
-            }
-        }
-        
-        /* Dark theme adjustments */
-        @media (prefers-color-scheme: dark) {
-            .dropdown-toast-light .toast-glass-effect {
-                background: rgba(0, 0, 0, 0.2) !important;
-                border-color: rgba(0, 0, 0, 0.3) !important;
-            }
-        }
-        
-        /* Print styles */
-        @media print {
-            .dropdown-toast {
-                display: none !important;
-            }
-        }
-    `;
-    
-    document.head.appendChild(style);
-}
-
-/**
- * Advanced toast API with queue management
- */
-showAdvancedToast(message, type = 'info', options = {}) {
-    const defaultOptions = {
-        duration: 5000,
-        position: 'bottom-right', // 'top-right', 'top-left', 'bottom-left', 'bottom-center', 'top-center'
-        icon: null, // Custom icon override
-        title: null, // Custom title override
-        actions: [], // Array of { label, action, color }
-        dismissible: true,
-        progress: true,
-        sound: false, // Play sound
-        vibration: false, // Vibrate on mobile
-        queue: true, // Add to queue if many toasts
-        maxToasts: 3, // Maximum visible toasts
-        ...options
-    };
-    
-    // Manage toast queue
-    if (defaultOptions.queue) {
-        const existingToasts = document.querySelectorAll('.dropdown-toast').length;
-        if (existingToasts >= defaultOptions.maxToasts) {
-            // Queue logic - store for later or auto-dismiss oldest
-            const oldestToast = document.querySelector('.dropdown-toast');
-            if (oldestToast && oldestToast._toastInstance) {
-                oldestToast._toastInstance.close();
-            }
-        }
-    }
-    
-    // Create toast with enhanced options
-    const toastInstance = this.showToast(message, type, defaultOptions);
-    
-    // Add custom icon if provided
-    if (defaultOptions.icon) {
-        const iconElement = document.querySelector('.dropdown-toast:last-child .toast-icon');
-        if (iconElement) iconElement.innerHTML = defaultOptions.icon;
-    }
-    
-    // Add custom title if provided
-    if (defaultOptions.title) {
-        const titleElement = document.querySelector('.dropdown-toast:last-child .toast-title');
-        if (titleElement) titleElement.textContent = defaultOptions.title;
-    }
-    
-    // Add action buttons if provided
-    if (defaultOptions.actions.length > 0) {
-        const toast = document.querySelector('.dropdown-toast:last-child .toast-content');
-        if (toast) {
-            const actionsContainer = document.createElement('div');
-            actionsContainer.className = 'toast-actions';
-            actionsContainer.style.cssText = `
-                display: flex;
-                gap: 8px;
-                margin-top: 12px;
-            `;
-            
-            defaultOptions.actions.forEach(action => {
-                const button = document.createElement('button');
-                button.textContent = action.label;
-                button.style.cssText = `
-                    padding: 6px 12px;
-                    background: ${action.color || 'rgba(255, 255, 255, 0.2)'};
-                    border: 1px solid rgba(255, 255, 255, 0.3);
-                    color: white;
-                    border-radius: 6px;
-                    font-size: 12px;
-                    cursor: pointer;
-                    transition: all 0.2s ease;
-                    backdrop-filter: blur(10px);
-                `;
-                
-                button.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    action.action();
-                    toastInstance.close();
-                });
-                
-                button.addEventListener('mouseenter', () => {
-                    button.style.transform = 'translateY(-1px)';
-                    button.style.boxShadow = '0 4px 12px rgba(0,0,0,0.2)';
-                });
-                
-                button.addEventListener('mouseleave', () => {
-                    button.style.transform = '';
-                    button.style.boxShadow = '';
-                });
-                
-                actionsContainer.appendChild(button);
-            });
-            
-            toast.appendChild(actionsContainer);
-        }
-    }
-    
-    // Play sound if enabled
-    if (defaultOptions.sound) {
-        this.playToastSound(type);
-    }
-    
-    // Vibrate if enabled and supported
-    if (defaultOptions.vibration && 'vibrate' in navigator) {
-        const patterns = {
-            success: [100, 50, 100],
-            error: [200, 100, 200],
-            warning: [150, 75, 150],
-            info: [100]
-        };
-        navigator.vibrate(patterns[type] || patterns.info);
-    }
-    
-    // Store instance for reference
-    const toastElement = document.querySelector('.dropdown-toast:last-child');
-    if (toastElement) {
-        toastElement._toastInstance = toastInstance;
-    }
-    
-    return toastInstance;
-}
-
-/**
- * Play toast sound based on type
- */
-playToastSound(type) {
-    const sounds = {
-        success: 'https://assets.mixkit.co/sfx/preview/mixkit-winning-chimes-2015.mp3',
-        error: 'https://assets.mixkit.co/sfx/preview/mixkit-warning-alarm-buzzer-960.mp3',
-        warning: 'https://assets.mixkit.co/sfx/preview/mixkit-warning-alarm-buzzer-960.mp3',
-        info: 'https://assets.mixkit.co/sfx/preview/mixkit-magic-sparkles-300.mp3'
-    };
-    
-    if (sounds[type]) {
-        const audio = new Audio(sounds[type]);
-        audio.volume = 0.3;
-        audio.play().catch(e => this.options.logger.log('Audio playback failed:', e));
-    }
-}
-  
-  /**
-   * Dispatch custom event
-   */
-  dispatchEvent(eventName, detail = {}) {
-    const event = new CustomEvent(eventName, { 
-      detail,
-      bubbles: true,
-      cancelable: true 
-    });
-    
-    document.dispatchEvent(event);
+    toast._toastInstance = instance;
+    return instance;
   }
-  
-  /**
-   * Get dropdown state
-   */
+
+  showAdvancedToast(message, type = 'info', options = {}) {
+    const defaultOptions = {
+      duration:    5000,
+      position:    'bottom-right',
+      icon:        null,
+      title:       null,
+      actions:     [],
+      dismissible: true,
+      progress:    true,
+      sound:       false,
+      vibration:   false,
+      queue:       true,
+      maxToasts:   3,
+      ...options
+    };
+
+    if (defaultOptions.queue) {
+      const existing = document.querySelectorAll('.dropdown-toast');
+      if (existing.length >= defaultOptions.maxToasts) {
+        existing[0]?._toastInstance?.close();
+      }
+    }
+
+    const toastInstance = this.showToast(message, type, defaultOptions);
+    const toastEl       = document.querySelector('.dropdown-toast:last-child');
+    if (!toastEl) return toastInstance;
+
+    if (defaultOptions.icon) {
+      const iconEl = toastEl.querySelector('.toast-icon');
+      if (iconEl) iconEl.innerHTML = defaultOptions.icon;
+    }
+    if (defaultOptions.title) {
+      const titleEl = toastEl.querySelector('.toast-title');
+      if (titleEl) titleEl.textContent = defaultOptions.title;
+    }
+
+    if (defaultOptions.actions.length > 0) {
+      const contentEl = toastEl.querySelector('.toast-content');
+      if (contentEl) {
+        const actionsContainer = document.createElement('div');
+        actionsContainer.className = 'toast-actions';
+
+        defaultOptions.actions.forEach(action => {
+          const btn = document.createElement('button');
+          btn.className   = 'toast-action-btn';
+          btn.textContent = action.label;
+
+          if (action.color) btn.style.background = action.color;
+
+          btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            action.action();
+            toastInstance.close();
+          });
+
+          actionsContainer.appendChild(btn);
+        });
+
+        contentEl.appendChild(actionsContainer);
+      }
+    }
+
+    if (defaultOptions.sound) this.playToastSound(type);
+
+    if (defaultOptions.vibration && 'vibrate' in navigator) {
+      const patterns = {
+        success: [100, 50, 100],
+        error:   [200, 100, 200],
+        warning: [150, 75, 150],
+        info:    [100]
+      };
+      navigator.vibrate(patterns[type] ?? patterns.info);
+    }
+
+    toastEl._toastInstance = toastInstance;
+    return toastInstance;
+  }
+
+  getToastIcon(type) {
+    return { success: '✅', error: '❌', warning: '⚠️', info: 'ℹ️', dark: '🌙', light: '☀️' }[type] ?? 'ℹ️';
+  }
+
+  getToastTitle(type) {
+    return { success: 'Success', error: 'Error', warning: 'Warning', info: 'Info', dark: 'Dark Mode', light: 'Light Mode' }[type] ?? 'Notification';
+  }
+
+  playToastSound(type) {
+    const sounds = {
+      success: 'https://assets.mixkit.co/sfx/preview/mixkit-winning-chimes-2015.mp3',
+      error:   'https://assets.mixkit.co/sfx/preview/mixkit-warning-alarm-buzzer-960.mp3',
+      warning: 'https://assets.mixkit.co/sfx/preview/mixkit-warning-alarm-buzzer-960.mp3',
+      info:    'https://assets.mixkit.co/sfx/preview/mixkit-magic-sparkles-300.mp3'
+    };
+    if (sounds[type]) {
+      const audio = new Audio(sounds[type]);
+      audio.volume = 0.3;
+      audio.play().catch(e => this.options.logger.log('Audio playback failed:', e));
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // UTILITIES
+  // ---------------------------------------------------------------------------
+
+  dispatchEvent(eventName, detail = {}) {
+    document.dispatchEvent(new CustomEvent(eventName, {
+      detail, bubbles: true, cancelable: true
+    }));
+  }
+
   getState() {
     return {
-      isOpen: this.state.isOpen,
-      isMobile: this.state.isMobile,
+      isOpen:       this.state.isOpen,
+      isMobile:     this.state.isMobile,
       currentTheme: this.state.currentTheme,
-      performance: { ...this.performance }
+      performance:  { ...this.performance }
     };
   }
-  
-  /**
-   * Update dropdown options
-   */
+
   updateOptions(newOptions) {
+    const autoCloseChanged        = 'autoClose'        in newOptions && newOptions.autoClose        !== this.options.autoClose;
+    const showBackdropChanged     = 'showBackdrop'     in newOptions && newOptions.showBackdrop     !== this.options.showBackdrop;
+    const enableKeyboardNavChanged= 'enableKeyboardNav' in newOptions && newOptions.enableKeyboardNav !== this.options.enableKeyboardNav;
+
     Object.assign(this.options, newOptions);
-    
-    // Recreate if needed
-    if (newOptions.menuItems || newOptions.position) {
-      this.recreateDropdown();
-    }
-  }
-  
-  /**
-   * Recreate dropdown
-   */
-recreateDropdown() {
-  if (!this.elements.dropdown) return;
-  
-  // Store current scroll position if needed
-  const wasOpen = this.state.isOpen;
-  
-  // Close dropdown if open
-  if (wasOpen) {
-    this.closeDropdown();
-  }
-  
-  // Remove old dropdown
-  this.elements.dropdown.remove();
-  
-  // Create new dropdown
-  this.createDropdown();
-  
-  // Re-open if it was open
-  if (wasOpen) {
-    setTimeout(() => {
-      this.openDropdown();
-    }, 10);
-  }
-}
 
-/**
- * Remove menu item by action
- */
-updateMenuItemIndices() {
-  const items = Array.from(this.elements.dropdown.querySelectorAll('.dropdown-item'));
-  items.forEach((item, index) => {
-    item.setAttribute('data-index', index);
-  });
-}
+    if (newOptions.menuItems || newOptions.position) this.recreateDropdown();
+    if (autoCloseChanged)         this.syncAutoCloseListeners();
+    if (showBackdropChanged)      this.syncBackdrop();
+    if (enableKeyboardNavChanged) this.syncKeyboardNavListener();
+  }
 
-/**
- * Remove menu item by action
- */
-removeMenuItem(action) {
-  // Remove from options
-  const itemIndex = this.options.menuItems.findIndex(item => item.action === action);
-  if (itemIndex > -1) {
-    this.options.menuItems.splice(itemIndex, 1);
+  recreateDropdown() {
+    if (!this.elements.dropdown) return;
+    const wasOpen = this.state.isOpen;
+    if (wasOpen) this.closeDropdown();
+    this.elements.dropdown.remove();
+    this.createDropdown();
+    if (wasOpen) setTimeout(() => this.openDropdown(), 10);
   }
-  
-  // Remove from DOM
-  const item = this.elements.dropdown.querySelector(`[data-action="${action}"]`);
-  if (item) {
-    item.remove();
-    this.updateMenuItemIndices();
-    this.options.logger.debug(`Menu item removed: ${action}`);
-    return true;
-  }
-  
-  return false;
-}
 
-/**
- * Update existing menu item
- */
-updateMenuItem(action, updates) {
-  // Update in options
-  const itemIndex = this.options.menuItems.findIndex(item => item.action === action);
-  if (itemIndex > -1) {
-    this.options.menuItems[itemIndex] = { ...this.options.menuItems[itemIndex], ...updates };
-  }
-  
-  // Update in DOM
-  const item = this.elements.dropdown.querySelector(`[data-action="${action}"]`);
-  if (item) {
-    if (updates.label) {
-      const label = item.querySelector('.dropdown-item-label');
-      if (label) {
-        label.textContent = updates.label;
-      }
-    }
-    
-    if (updates.icon) {
-      const icon = item.querySelector('.dropdown-item-icon i');
-      if (icon) {
-        icon.className = updates.icon;
-      }
-    }
-    
-    if (updates.className !== undefined) {
-      // Remove existing classes except dropdown-item
-      item.className = 'dropdown-item';
-      if (updates.className) {
-        item.classList.add(updates.className);
-      }
-    }
-    
-    this.options.logger.debug(`Menu item updated: ${action}`);
-    return true;
-  }
-  
-  return false;
-}
-
-  
-  /**
-   * Cleanup resources
-   */
   destroy() {
-    // Remove event listeners
-    this.elements.button.removeEventListener('click', this.toggleDropdown);
-    document.removeEventListener('click', this.handleClickOutside);
+    this.elements.button?.removeEventListener('click', this.toggleDropdown);
+    document.removeEventListener('click',      this.handleClickOutside);
     document.removeEventListener('touchstart', this.handleClickOutside);
-    document.removeEventListener('keydown', this.handleKeyDown);
-    window.removeEventListener('resize', this.handleResize);
-    
-    // Remove elements from DOM
-    if (this.elements.container) {
-      this.elements.container.remove();
-    }
-    
+    document.removeEventListener('keydown',    this.handleKeyDown);
+    window.removeEventListener('resize',       this.handleResize);
+
     if (this.elements.backdrop) {
-      this.elements.backdrop.remove();
+      this.elements.backdrop.removeEventListener('click', this.handleClickOutside);
     }
-    
-    // Clear references
+
+    this.elements.container?.remove();
+    this.elements.backdrop?.remove();
+
     this.elements = {};
-    this.state = {};
-    
+    this.state    = {};
+
     this.options.logger.info('DropdownManager destroyed');
   }
 }
-
-// Add CSS animations
-const dropdownStyles = document.createElement('style');
-dropdownStyles.textContent = `
-  /* Dropdown animations */
-  @keyframes dropdownFadeIn {
-    from {
-      opacity: 0;
-      transform: translateY(-10px) scale(0.95);
-    }
-    to {
-      opacity: 1;
-      transform: translateY(0) scale(1);
-    }
-  }
-  
-  @keyframes dropdownFadeOut {
-    from {
-      opacity: 1;
-      transform: translateY(0) scale(1);
-    }
-    to {
-      opacity: 0;
-      transform: translateY(-10px) scale(0.95);
-    }
-  }
-  
-  @keyframes backdropFadeIn {
-    from { opacity: 0; }
-    to { opacity: 1; }
-  }
-  
-  @keyframes backdropFadeOut {
-    from { opacity: 1; }
-    to { opacity: 0; }
-  }
-  
-  @keyframes toastSlideIn {
-    from {
-      transform: translateX(100%);
-      opacity: 0;
-    }
-    to {
-      transform: translateX(0);
-      opacity: 1;
-    }
-  }
-  
-  @keyframes toastSlideOut {
-    from {
-      transform: translateX(0);
-      opacity: 1;
-    }
-    to {
-      transform: translateX(100%);
-      opacity: 0;
-    }
-  }
-  
-  @keyframes ripple {
-    to {
-      transform: scale(4);
-      opacity: 0;
-    }
-  }
-  
-  /* Ripple effect */
-  .ripple-effect {
-    position: relative;
-    overflow: hidden;
-  }
-  
-  .ripple {
-    position: absolute;
-    border-radius: 50%;
-    transform: scale(0);
-    animation: ripple 0.6s linear;
-    pointer-events: none;
-  }
-  
-  /* Screen reader only */
-  .sr-only {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    padding: 0;
-    margin: -1px;
-    overflow: hidden;
-    clip: rect(0, 0, 0, 0);
-    white-space: nowrap;
-    border: 0;
-  }
-`;
-document.head.appendChild(dropdownStyles);

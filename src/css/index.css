@@ -1,3 +1,4 @@
+@import "./dropDownManager.css";
 /* ===== CSS Variables ===== */
 :root {
 --primary: #8E2DE2;
@@ -2846,6 +2847,8 @@ position: relative;
                 0 10px 30px rgba(102, 126, 234, 0.3),
                 inset 0 1px 0 rgba(255, 255, 255, 0.3);
               transition: all 0.3s ease;
+                        -webkit-text-fill-color: initial;
+          background-clip: text;
               overflow: hidden;
       }
       .logo-shine{
