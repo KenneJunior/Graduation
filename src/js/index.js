@@ -901,6 +901,9 @@ class ConfettiSystem {
     // Clean up if no particles
     if (this.particleCount === 0) {
       this.stopAnimation();
+       document.dispatchEvent(new CustomEvent('confetti:finished', {
+        detail: { totalCreated: this.performanceStats.totalParticlesCreated }
+    }));
       confettiLogger.debug("All particles expired, animation stopped");
     }
   }
@@ -1255,6 +1258,7 @@ class ImageLoader {
           keyboardNavigation: true,
           loopSlides: true,
           stopOnLastSlide: false,
+          onlyWithPerson: [],
             ...options
         };
 
@@ -1299,8 +1303,7 @@ class ImageLoader {
             await this.loadMediaData();
 
             if (!this.mediaData?.media?.length) {
-                imageLogger.warn("No media found for slideshow");
-                this.showNoMediaMessage();
+                imageLogger.warn("No media found for slideshow");;
                 return;
             }
 
@@ -2070,7 +2073,11 @@ applyTransitionEffect() {
                 throw new Error("No media data available");
             }
             const auth = getCurrentUserInfo()
-                this.mediaData.media = filterMediaByUser(this.mediaData.media, auth, {excludeCodes:['L']});
+                this.config?.onlyWithPerson.push(auth.code)
+                this.mediaData.media = filterMediaByUser(this.mediaData.media, auth, {
+                  onlyWithPerson: this.config?.onlyWithPerson || [],
+                  excludeCodes:['L']
+                });
 
             imageLogger.debug("Media data loaded", {
                 count: this.mediaData.media.length
@@ -4380,7 +4387,7 @@ try {
       await this.initializeModules();
 
       // Setup dropdown and theme
-      this.initDropdownManager();
+      await this.initDropdownManager();
 
       // Setup event listeners
       this.setupEventListeners();
@@ -4507,13 +4514,26 @@ try {
   /**
    * Initialize DropdownManager with ThemeManager
    */
-  initDropdownManager() {
+ async initDropdownManager() {
     appLogger.time("DropdownManager initialization");
 
     try {
       // Create ThemeManager instance
-      this.themeManager = new ThemeManager();
-      this.themeManager.init();
+
+  // Initialize ThemeManager with dynamic detection
+  this.themeManager = new ThemeManager({
+    storageKey: 'myapp-theme',
+    selector: 'body',
+    buttonSelector: '[data-action="theme"]', // Target the theme button in dropdown
+    iconSelector: '.dropdown-item-icon i',
+    textSelector: '.dropdown-item-label',
+    systemPreference: true,
+    enableTransitions: true,
+    useEventDelegation: true  // Enable dynamic button detection
+  });
+
+  this.themeManager.init();
+
       if (this.state.preferences.theme === 'auto') {
   this.state.preferences.theme = this.themeManager.getCurrentTheme();
 }
@@ -5347,6 +5367,43 @@ openImageSettings() {
   const loader = this.modules.imageLoader;
   const config = loader.config;
 
+   const currentUser = getCurrentUserInfo();
+  const currentUserCode = currentUser?.code || null;
+
+  const allPeople = {
+    M: "Mcckelly",
+    J: "Junior",
+    K: "Mama Kech",
+    T: "Terence",
+    CC: "Chris La Belle",
+    C4: "C4",
+    CM: "Takeoff",
+    G: "Goto",
+    LG: "Grace",
+    W: "Wales",
+    MN: "Marie"
+  };
+
+  const availablePeople = Object.entries(allPeople).filter(([code]) => code !== currentUserCode);
+
+    const selectedPersons = config.onlyWithPerson || [];
+
+      const personCheckboxes = availablePeople.map(([code, name]) => `
+    <label class="dm-setting-row person-checkbox" style="cursor: pointer;">
+      <span class="dm-setting-row__label">
+        <span class="dm-setting-row__name">${name}</span>
+        <span class="dm-setting-row__hint">Code: ${code}</span>
+      </span>
+      <span class="dm-setting-row__control">
+        <span class="dm-toggle">
+          <input class="dm-toggle__input person-select" type="checkbox" value="${code}"
+                 ${selectedPersons.includes(code) ? 'checked' : ''}>
+          <span class="dm-toggle__track"></span>
+        </span>
+      </span>
+    </label>
+  `).join('');
+
   // Create backdrop (reuse dm-overlay)
   const backdrop = document.createElement('div');
   backdrop.className = 'dm-overlay';
@@ -5424,6 +5481,24 @@ openImageSettings() {
             </select>
           </span>
         </label>
+
+        <div class="settings-section" style="margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--dm-border);">
+          <div class="settings-section-title" style="margin-bottom: 12px;">
+            <span class="section-icon">👥</span>
+            Filter by Person
+          </div>
+          <p style="font-size: 0.75rem; color: var(--dm-text-muted); margin-bottom: 12px;">
+            Select which people's images you want to see. Leave all unchecked to show everyone (except yourself).
+          </p>
+          <div id="person-filter-list" style="max-height: 200px; overflow-y: auto;">
+            ${personCheckboxes}
+          </div>
+          <div style="margin-top: 12px;">
+            <button type="button" id="select-all-persons" class="dm-btn dm-btn--ghost" style="padding: 4px 12px; font-size: 0.75rem;">Select All</button>
+            <button type="button" id="clear-all-persons" class="dm-btn dm-btn--ghost" style="padding: 4px 12px; font-size: 0.75rem; margin-left: 8px;">Clear All</button>
+          </div>
+        </div>
+
 
         <!-- Toggle controls -->
         <label class="dm-setting-row">
@@ -5529,6 +5604,9 @@ openImageSettings() {
   const loopSlidesCheck = dialog.querySelector('#img-loop-slides');
   const stopLastSlideCheck = dialog.querySelector('#img-stop-last-slide');
   const showThumbnailsCheck = dialog.querySelector('#img-show-thumbnails');
+  const personCheckboxesList = dialog.querySelectorAll('.person-select');
+  const selectAllBtn = dialog.querySelector('#select-all-persons');
+  const clearAllBtn = dialog.querySelector('#clear-all-persons');
 
   // Update live displays
   speedSlider.addEventListener('input', () => {
@@ -5540,6 +5618,17 @@ openImageSettings() {
   preloadSlider.addEventListener('input', () => {
     preloadValue.textContent = preloadSlider.value;
   });
+
+  if (selectAllBtn) {
+    selectAllBtn.addEventListener('click', () => {
+      personCheckboxesList.forEach(cb => cb.checked = true);
+    });
+  }
+  if (clearAllBtn) {
+    clearAllBtn.addEventListener('click', () => {
+      personCheckboxesList.forEach(cb => cb.checked = false);
+    });
+  }
 
   // Close handlers
   const closeDialog = () => {
@@ -5554,6 +5643,9 @@ openImageSettings() {
   // Save handler
   const saveBtn = dialog.querySelector('#img-settings-save');
   saveBtn.addEventListener('click', () => {
+        const selectedPersonCodes = Array.from(personCheckboxesList)
+      .filter(cb => cb.checked)
+      .map(cb => cb.value);
     const newConfig = {
       rotationDelay: parseInt(speedSlider.value, 10),
       transitionDuration: parseInt(transitionSlider.value, 10),
@@ -5564,12 +5656,16 @@ openImageSettings() {
       keyboardNavigation: keyboardNavCheck.checked,
       loopSlides: loopSlidesCheck.checked,
       stopOnLastSlide: stopLastSlideCheck.checked,
-      showThumbnails: showThumbnailsCheck.checked
+      showThumbnails: showThumbnailsCheck.checked,
+      onlyWithPerson: selectedPersonCodes
+
     };
 
     // Apply to loader
     loader.updateConfig(newConfig);
-
+    if(selectedPersonCodes.length > 0) {
+      loader.loadMediaData();
+    }
     // Apply thumbnails visibility
     const thumbContainer = loader.htmlElements.thumbnailNav;
     if (thumbContainer) {
@@ -5599,8 +5695,8 @@ openImageSettings() {
  * Open confetti settings dialog with comprehensive configuration
  */
 openConfettiSettings() {
-    if (!this.modules.confetti) {
-        this.showToast('Confetti system not available', 'error');
+    if (getDeviceType() === 'mobile') {
+        this.showToast('Confetti system not available on Mobile Device', 'info');
         return;
     }
 
@@ -6009,9 +6105,16 @@ openConfettiSettings() {
         const originalConfig = { ...this.modules.confetti.config };
         this.modules.confetti.updateConfig(previewConfig);
 
+
         // Trigger preview confetti
         this.modules.confetti.triggerConfetti(50);
+        dialog.style.display = 'none';
+        backdrop.style.display = 'none';
+        document.addEventListener('confetti:finished', () => {
 
+            dialog.style.display = ' ';
+            backdrop.style.opacity = ' ';
+        }, );
         // Restore original config after preview (but keep dialog values)
         setTimeout(() => {
             this.modules.confetti.updateConfig(originalConfig);
@@ -6966,7 +7069,6 @@ applyFullReplace(categoryId, newData) {
       if (this.modules.imageLoader) {
         // Replace config entirely
         Object.assign(this.modules.imageLoader.config, newData);
-        this.modules.imageLoader.saveSettingsToStorage?.();
         // Reapply to swiper
         if (this.modules.imageLoader.swiper) {
           if (newData.rotationDelay) this.modules.imageLoader.setRotationSpeed(newData.rotationDelay);
@@ -7097,29 +7199,8 @@ setupKeyboardShortcuts() {
  */
 updateMenuItems() {
   if (!this.dropdownManager) return;
-
-  // Update theme button label
-  const themeItem = this.dropdownManager.elements?.dropdown?.querySelector('[data-action="theme"]');
-  if (themeItem) {
-    const label = themeItem.querySelector('.dropdown-item-label');
-    const currentTheme = this.themeManager?.getCurrentTheme() || 'light';
-
-    this.themeManager.manaullyUpdateBtnLabel();
-    if (label) {
-      label.textContent = currentTheme === 'dark' ? 'Light Mode' : 'Dark Mode';
-    }
-  }
-
-  // Show/hide export/import based on authentication
-  const exportItem = this.dropdownManager.elements?.dropdown?.querySelector('[data-action="export"]');
-  const importItem = this.dropdownManager.elements?.dropdown?.querySelector('[data-action="import"]');
-
-  if (exportItem) {
-    exportItem.style.display = this.state.userAuthenticated ? 'flex' : 'none';
-  }
-  if (importItem) {
-    importItem.style.display = this.state.userAuthenticated ? 'flex' : 'none';
-  }
+    this.state.preferences.theme = this.themeManager?.getCurrentTheme() ;
+    this.savePreferences();
 }
 
   showMediaLoading(){
@@ -7356,7 +7437,7 @@ updateMenuItems() {
     window.addEventListener('dropdown:open', this.handleDropdownEvent);
     document.addEventListener('settings', this.handleSetting);
     window.addEventListener("resize", this.eventHandlers.resize);
-    window.addEventListener('themechanged', () => {
+    document.addEventListener('theme:changed', () => {
       this.updateMenuItems();
     });
     appLogger.debug("Window resize listener attached");

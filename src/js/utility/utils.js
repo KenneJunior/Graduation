@@ -67,7 +67,23 @@ export async function loadMediaData() {
  *
  * @param {Array} media - Media array from JSON
  * @param {Object} authResult - Authentication result from password check
- * @param {Object} options - Filtering options
+ * @param {{
+ * includeVideos: boolean,       // Whether to include videos in results
+ * includeImages: boolean,       // Whether to include images in results
+ * sortBy: string,              // 'date', 'relevance', 'random', 'personsCount'
+ * sortOrder: string,           // 'asc', 'desc'
+ * shuffle: boolean,            // Whether to shuffle results after sorting
+ * limit: number,              // Limit number of results returned
+ * returnAllOnError: boolean,    // Whether to return all media if there's an error with authResult
+ * groupByPerson: boolean,       // Whether to group results by person combinations
+ * excludeSolo: boolean,        // Whether to exclude solo photos (with only one person)
+ * onlyWithPerson: string|null, // If set, only include media that has this person code
+ * minPersons: number,          // Minimum number of persons in media to include
+ * maxPersons: number|null,       // Maximum number of persons in media to include
+ * enhanceMetadata: boolean,     // Whether to add enhanced metadata (relevanceScore, personCount, etc.)
+ * generateThumbnails: boolean,  // Whether to generate thumbnail URLs for media items
+ * debug: boolean                // Whether to enable debug logging for the filtering process
+ * }}
  * @returns {Array} Filtered and processed media array
  */
 export function filterMediaByUser(media, authResult, options = {}) {
@@ -142,16 +158,21 @@ export function filterMediaByUser(media, authResult, options = {}) {
     return false;
   });
 
-  // PHASE 3: Only include items with a specific person
-  if (config.onlyWithPerson) {
-    filteredMedia = filteredMedia.filter(item => {
-      if (!Array.isArray(item.persons)) return false;
-      return item.persons.some(person => {
-        const personCode = typeof person === 'string' ? person : (person && person.code);
-        return personCode === config.onlyWithPerson;
-      });
+// PHASE 3: Only include items with specific person(s)
+if (config.onlyWithPerson) {
+  // Convert to array if it's just a string to support both formats
+  const searchCodes = Array.isArray(config.onlyWithPerson)
+    ? config.onlyWithPerson
+    : [config.onlyWithPerson];
+
+  filteredMedia = filteredMedia.filter(item => {
+    if (!Array.isArray(item.persons)) return false;
+    return item.persons.some(person => {
+      const personCode = typeof person === 'string' ? person : (person && person.code);
+      return searchCodes.includes(personCode);
     });
-  }
+  });
+}
 
   //  PHASE 3.5: Exclude items that contain any of the specified codes
   if (config.excludeCodes && config.excludeCodes.length > 0) {

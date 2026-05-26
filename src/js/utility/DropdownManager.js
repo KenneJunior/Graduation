@@ -1,7 +1,7 @@
 import logger from "./logger.js";
 
 /**
- * DROPDOWN MANAGER - Enhanced floating dropdown menu with theme integration.
+ * DROPDOWN MANAGER - Enhanced floating dropdown menu with external theme integration.
  * @class DropdownManager
  */
 export default class DropdownManager {
@@ -12,7 +12,7 @@ export default class DropdownManager {
       autoClose: true,
       logger: logger.withContext({ name: "DropdownManager" }),
       animationDuration: 300,
-      themeManager: null,
+      themeManager: null,  // External ThemeManager instance
       enableKeyboardNav: true,
       enableRippleEffect: true,
       menuItems: [
@@ -74,6 +74,7 @@ export default class DropdownManager {
     this.handleClickOutside = this.handleClickOutside.bind(this);
     this.handleKeyDown      = this.handleKeyDown.bind(this);
     this.handleResize       = this.handleResize.bind(this);
+    this.handleThemeChange  = this.handleThemeChange.bind(this);
 
     this.init();
   }
@@ -218,15 +219,13 @@ export default class DropdownManager {
     this.elements.backdrop = document.createElement('div');
     this.elements.backdrop.className = 'dropdown-backdrop';
     this.elements.backdrop.setAttribute('aria-hidden', 'true');
-    // Clicking the backdrop should respect autoClose the same way an
-    // outside click does — the handler already checks this.options.autoClose.
     this.elements.backdrop.addEventListener('click', this.handleClickOutside);
     document.body.appendChild(this.elements.backdrop);
   }
 
   /**
    * Destroy and optionally recreate the backdrop based on the current
-   * showBackdrop option.  Call this whenever showBackdrop changes at runtime.
+   * showBackdrop option.
    */
   syncBackdrop() {
     if (this.options.showBackdrop) {
@@ -247,8 +246,8 @@ export default class DropdownManager {
   // ---------------------------------------------------------------------------
 
   /**
-   * Add a custom menu item. Inserts before Logout if present.
-   * @param {Object} config  Menu item config object.
+   * Add a custom menu item.
+   * @param {Object} config Menu item config object.
    * @returns {boolean}
    */
   addMenuItem(config) {
@@ -383,7 +382,7 @@ export default class DropdownManager {
   // ---------------------------------------------------------------------------
 
   /**
-   * Apply the chosen position to the container via CSS data-attribute.
+   * Apply the chosen position to the container.
    */
   setPosition() {
     const positionMap = {
@@ -418,7 +417,7 @@ export default class DropdownManager {
 
     window.addEventListener('resize', this.handleResize);
 
-    // Global Escape handler — always active regardless of autoClose/keyboard nav
+    // Global Escape handler
     document.addEventListener('keydown', (e) => {
       if (e.key === 'Escape' && this.state.isOpen) this.closeDropdown();
     });
@@ -452,12 +451,114 @@ export default class DropdownManager {
     }
   }
 
+  // ---------------------------------------------------------------------------
+  // THEME INTEGRATION
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Setup theme integration with external ThemeManager
+   */
   setupThemeIntegration() {
-    document.addEventListener('theme:change', (e) => {
-      this.handleThemeChange(e.detail?.theme);
-    });
+    // Listen to theme changes from ThemeManager
+    document.addEventListener('theme:changed', this.handleThemeChange);
+    document.addEventListener('graduationapp:themeChanged', this.handleThemeChange);
+
     this.updateThemeState();
   }
+
+  /**
+   * Handle theme action - delegate to ThemeManager
+   */
+  handleThemeAction() {
+    if (this.options.themeManager && typeof this.options.themeManager.toggle === 'function') {
+      this.options.themeManager.toggle();
+    } else {
+      // Fallback: try to find or create ThemeManager instance
+      this.fallbackThemeToggle();
+    }
+    this.updateThemeButtonLabel();
+  }
+
+  /**
+   * Fallback theme toggle if no ThemeManager provided
+   */
+  fallbackThemeToggle() {
+    const current = document.documentElement.getAttribute('data-theme') ||
+                    document.body.getAttribute('data-theme') ||
+                    'light';
+    const newTheme = current === 'dark' ? 'light' : 'dark';
+
+    document.documentElement.setAttribute('data-theme', newTheme);
+    document.body.setAttribute('data-theme', newTheme);
+    localStorage.setItem('myapp-theme', newTheme);
+
+    // Dispatch events for consistency
+    const event = new CustomEvent('theme:changed', {
+      detail: { theme: newTheme, oldTheme: current },
+      bubbles: true
+    });
+    document.dispatchEvent(event);
+
+    this.state.currentTheme = newTheme;
+    this.options.logger.info('Theme toggled via fallback', { theme: newTheme });
+  }
+
+  /**
+   * Update theme button label based on current theme
+   */
+  updateThemeButtonLabel() {
+    const themeItem = this.elements.dropdown?.querySelector('[data-action="theme"]');
+    if (!themeItem) return;
+
+    const label = themeItem.querySelector('.dropdown-item-label');
+    const icon = themeItem.querySelector('.dropdown-item-icon i');
+
+    if (label && icon) {
+      const isDark = this.state.currentTheme === 'dark';
+      label.textContent = isDark ? 'Light Mode' : 'Dark Mode';
+      icon.className = isDark ? 'fas fa-sun' : 'fas fa-moon';
+    }
+  }
+
+  /**
+   * Handle theme change from external ThemeManager
+   * @param {CustomEvent} event - Theme change event
+   */
+  handleThemeChange(event) {
+    const theme = event?.detail?.theme;
+    if (!theme) return;
+
+    this.state.currentTheme = theme;
+    this.updateThemeButtonLabel();
+
+    // Dispatch dropdown-specific theme event
+    this.dispatchEvent('dropdown:theme-change', { theme });
+    this.options.logger.debug('Theme changed in DropdownManager', { theme });
+  }
+
+  /**
+   * Update theme state from ThemeManager or localStorage
+   */
+  updateThemeState() {
+    // Try to get theme from ThemeManager first
+    if (this.options.themeManager && typeof this.options.themeManager.getCurrentTheme === 'function') {
+      const theme = this.options.themeManager.getCurrentTheme();
+      if (theme) {
+        this.state.currentTheme = theme;
+        this.updateThemeButtonLabel();
+        return;
+      }
+    }
+
+    // Fallback to localStorage or system preference
+    this.state.currentTheme = localStorage.getItem('myapp-theme') ||
+      (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+    this.updateThemeButtonLabel();
+  }
+
+  // ---------------------------------------------------------------------------
+  // ACCESSIBILITY
+  // ---------------------------------------------------------------------------
 
   setupAccessibility() {
     this.setupFocusTrap();
@@ -569,7 +670,9 @@ export default class DropdownManager {
     const announcer = document.getElementById('dropdown-announcer');
     if (announcer) {
       announcer.textContent = message;
-      setTimeout(() => { announcer.textContent = ''; }, 1000);
+      setTimeout(() => {
+        announcer.textContent = '';
+      }, 1000);
     }
   }
 
@@ -596,17 +699,17 @@ export default class DropdownManager {
     if (!this.options.enableRippleEffect) return;
 
     const element = e.currentTarget ?? e.target;
-    const rect    = element.getBoundingClientRect();
-    const size    = Math.max(rect.width, rect.height);
-    const x       = e.clientX - rect.left  - size / 2;
-    const y       = e.clientY - rect.top   - size / 2;
+    const rect = element.getBoundingClientRect();
+    const size = Math.max(rect.width, rect.height);
+    const x = e.clientX - rect.left - size / 2;
+    const y = e.clientY - rect.top - size / 2;
 
-    const ripple  = document.createElement('span');
+    const ripple = document.createElement('span');
     ripple.className = 'ripple';
-    ripple.style.width  = `${size}px`;
+    ripple.style.width = `${size}px`;
     ripple.style.height = `${size}px`;
-    ripple.style.left   = `${x}px`;
-    ripple.style.top    = `${y}px`;
+    ripple.style.left = `${x}px`;
+    ripple.style.top = `${y}px`;
 
     element.appendChild(ripple);
     setTimeout(() => ripple.remove(), 600);
@@ -653,60 +756,28 @@ export default class DropdownManager {
     }
   }
 
-  handleImageSettingsAction()    { this.dispatchEvent('dropdown:action', { action: 'image-settings',    data: { timestamp: Date.now() } }); }
-  handleConfettiSettingsAction() { this.dispatchEvent('dropdown:action', { action: 'confetti-settings', data: { timestamp: Date.now() } }); }
-  handleAboutAction()            { this.dispatchEvent('dropdown:action', { action: 'about',             data: { timestamp: Date.now() } }); }
-  handleRefreshAction()          { this.dispatchEvent('dropdown:action', { action: 'refresh',           data: { timestamp: Date.now() } }); }
-  handleExportAction()           { this.dispatchEvent('dropdown:action', { action: 'export',            data: { timestamp: Date.now() } }); }
-  handleImportAction()           { this.dispatchEvent('dropdown:action', { action: 'import',            data: { timestamp: Date.now() } }); }
-
-  // ---------------------------------------------------------------------------
-  // THEME
-  // ---------------------------------------------------------------------------
-
-  handleThemeAction() {
-    if (this.options.themeManager) {
-      this.options.themeManager.toggle();
-    } else {
-      this.toggleTheme();
-    }
-    this.updateThemeButtonLabel();
+  handleImageSettingsAction() {
+    this.dispatchEvent('dropdown:action', { action: 'image-settings', data: { timestamp: Date.now() } });
   }
 
-  toggleTheme() {
-    const current  = document.documentElement.getAttribute('data-theme') || 'light';
-    const newTheme = current === 'dark' ? 'light' : 'dark';
-    document.documentElement.setAttribute('data-theme', newTheme);
-    localStorage.setItem('theme', newTheme);
-    this.dispatchEvent('theme:change', { theme: newTheme });
-    this.state.currentTheme = newTheme;
+  handleConfettiSettingsAction() {
+    this.dispatchEvent('dropdown:action', { action: 'confetti-settings', data: { timestamp: Date.now() } });
   }
 
-  updateThemeButtonLabel() {
-    const themeItem = this.elements.dropdown.querySelector('[data-action="theme"]');
-    if (!themeItem) return;
-
-    const label = themeItem.querySelector('.dropdown-item-label');
-    const icon  = themeItem.querySelector('.dropdown-item-icon i');
-
-    if (label && icon) {
-      const isDark        = this.state.currentTheme === 'dark';
-      label.textContent   = isDark ? 'Light Mode' : 'Dark Mode';
-      icon.className      = isDark ? 'fas fa-sun' : 'fas fa-moon';
-    }
+  handleAboutAction() {
+    this.dispatchEvent('dropdown:action', { action: 'about', data: { timestamp: Date.now() } });
   }
 
-  handleThemeChange(theme) {
-    this.state.currentTheme = theme;
-    this.updateThemeButtonLabel();
-    this.dispatchEvent('dropdown:theme-change', { theme });
+  handleRefreshAction() {
+    this.dispatchEvent('dropdown:action', { action: 'refresh', data: { timestamp: Date.now() } });
   }
 
-  updateThemeState() {
-    this.state.currentTheme =
-      localStorage.getItem('theme') ||
-      (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
-    this.updateThemeButtonLabel();
+  handleExportAction() {
+    this.dispatchEvent('dropdown:action', { action: 'export', data: { timestamp: Date.now() } });
+  }
+
+  handleImportAction() {
+    this.dispatchEvent('dropdown:action', { action: 'import', data: { timestamp: Date.now() } });
   }
 
   // ---------------------------------------------------------------------------
@@ -727,7 +798,10 @@ export default class DropdownManager {
     this.dispatchEvent('settings', { action: 'open' });
 
     const existing = document.getElementById('dropdown-settings-modal');
-    if (existing) { existing.remove(); return; }
+    if (existing) {
+      existing.remove();
+      return;
+    }
 
     const overlay = document.createElement('div');
     overlay.id = 'dropdown-settings-modal';
@@ -763,7 +837,6 @@ export default class DropdownManager {
       }
     } catch (err) {
       this.options.logger.error('Failed to parse GraduationAppSettings from localStorage', err);
-      savedSettings = {};
     }
 
     const rows = settings.map(s => {
@@ -842,7 +915,7 @@ export default class DropdownManager {
 
         <div class="dm-modal__footer">
           <button id="dm-settings-reset" class="dm-btn dm-btn--ghost">Reset defaults</button>
-          <button id="dm-settings-save"  class="dm-btn dm-btn--primary">Save</button>
+          <button id="dm-settings-save" class="dm-btn dm-btn--primary">Save</button>
         </div>
       </div>
     `;
@@ -852,7 +925,9 @@ export default class DropdownManager {
     const close = () => overlay.remove();
 
     overlay.querySelector('#dm-settings-close').addEventListener('click', close);
-    overlay.addEventListener('click', e => { if (e.target === overlay) close(); });
+    overlay.addEventListener('click', e => {
+      if (e.target === overlay) close();
+    });
 
     overlay.querySelectorAll('input[type="range"]').forEach(input => {
       input.addEventListener('input', () => {
@@ -877,27 +952,12 @@ export default class DropdownManager {
       const enableKeyboardNavChanged= 'enableKeyboardNav' in pending && pending.enableKeyboardNav !== this.options.enableKeyboardNav;
       const enableRippleChanged     = 'enableRippleEffect' in pending && pending.enableRippleEffect !== this.options.enableRippleEffect;
 
-      // Commit all new values at once
       Object.assign(this.options, pending);
 
-      // --- Side-effects for each option that needs runtime DOM/listener sync ---
-
-      if ('position' in pending) {
-        this.setPosition();
-      }
-
-      if (autoCloseChanged) {
-        this.syncAutoCloseListeners();
-      }
-
-      if (showBackdropChanged) {
-        this.syncBackdrop();
-      }
-
-      if (enableKeyboardNavChanged) {
-        this.syncKeyboardNavListener();
-      }
-
+      if ('position' in pending) this.setPosition();
+      if (autoCloseChanged) this.syncAutoCloseListeners();
+      if (showBackdropChanged) this.syncBackdrop();
+      if (enableKeyboardNavChanged) this.syncKeyboardNavListener();
       if (enableRippleChanged) {
         this.elements.button.classList.toggle('ripple-effect', this.options.enableRippleEffect);
       }
@@ -919,11 +979,14 @@ export default class DropdownManager {
   // HELP MODAL
   // ---------------------------------------------------------------------------
 
-handleHelpAction() {
+  handleHelpAction() {
     this.dispatchEvent('help:open');
 
     const existing = document.getElementById('dropdown-help-modal');
-    if (existing) { existing.remove(); return; }
+    if (existing) {
+      existing.remove();
+      return;
+    }
 
     const overlay = document.createElement('div');
     overlay.id = 'dropdown-help-modal';
@@ -932,7 +995,6 @@ handleHelpAction() {
     overlay.setAttribute('aria-modal', 'true');
     overlay.setAttribute('aria-label', 'Help & Support');
 
-    // Enhanced FAQ with icons and more relevant answers
     const faqs = [
       {
         q: '🎨 How do I change the theme?',
@@ -964,7 +1026,6 @@ handleHelpAction() {
       </details>`
     ).join('');
 
-    // Enhanced shortcuts with icons and clearer grouping
     const shortcuts = [
       { keys: ['Esc'], desc: 'Close any open modal / dropdown' },
       { keys: ['↑', '↓'], desc: 'Navigate through menu items' },
@@ -980,7 +1041,6 @@ handleHelpAction() {
       </tr>`
     ).join('');
 
-    // Enhanced About section with stats, tech stack, and credits
     const aboutContent = `
       <div class="dm-about__hero">
         <span class="dm-about__icon">🎓</span>
@@ -988,7 +1048,7 @@ handleHelpAction() {
         <p class="dm-about__badge">2026 Edition</p>
       </div>
       <p class="dm-about__body">
-        A beautifully crafted celebration platform for graduates of 2025 —
+        A beautifully crafted celebration platform for graduates —
         Combine Mathematics & Computer Science Department.
       </p>
       <div class="dm-about__stats">
@@ -1028,9 +1088,9 @@ handleHelpAction() {
         </div>
 
         <div class="dm-tabs" role="tablist">
-          <button class="dm-tab is-active" data-tab="0" role="tab" aria-selected="true"  aria-controls="dm-panel-0">FAQ</button>
-          <button class="dm-tab"           data-tab="1" role="tab" aria-selected="false" aria-controls="dm-panel-1">Shortcuts</button>
-          <button class="dm-tab"           data-tab="2" role="tab" aria-selected="false" aria-controls="dm-panel-2">About</button>
+          <button class="dm-tab is-active" data-tab="0" role="tab" aria-selected="true" aria-controls="dm-panel-0">FAQ</button>
+          <button class="dm-tab" data-tab="1" role="tab" aria-selected="false" aria-controls="dm-panel-1">Shortcuts</button>
+          <button class="dm-tab" data-tab="2" role="tab" aria-selected="false" aria-controls="dm-panel-2">About</button>
         </div>
 
         <div class="dm-modal__body">
@@ -1056,34 +1116,32 @@ handleHelpAction() {
 
     document.body.appendChild(overlay);
 
-    // --- Close logic with animation ---
     const close = () => {
       overlay.classList.add('is-closing');
       const modal = overlay.querySelector('.dm-modal');
       if (modal) modal.classList.add('is-closing');
       setTimeout(() => overlay.remove(), 300);
     };
-    overlay.querySelector('#dm-help-close').addEventListener('click', close);
-    overlay.addEventListener('click', e => { if (e.target === overlay) close(); });
 
-    // --- Tab switching with smooth class toggling ---
+    overlay.querySelector('#dm-help-close').addEventListener('click', close);
+    overlay.addEventListener('click', e => {
+      if (e.target === overlay) close();
+    });
+
     overlay.querySelectorAll('.dm-tab').forEach(tab => {
       tab.addEventListener('click', () => {
         const idx = Number(tab.dataset.tab);
-        // Update tab active state
         overlay.querySelectorAll('.dm-tab').forEach((t, i) => {
           const isActive = i === idx;
           t.classList.toggle('is-active', isActive);
           t.setAttribute('aria-selected', isActive ? 'true' : 'false');
         });
-        // Update panel visibility with a tiny fade effect (CSS handles)
         overlay.querySelectorAll('.dm-panel').forEach((panel, i) => {
           panel.classList.toggle('is-active', i === idx);
         });
       });
     });
 
-    // Optional: auto-focus first interactive element
     overlay.querySelector('.dm-tab')?.focus();
 
     this.options.logger.info('Help modal opened (enhanced)');
@@ -1123,7 +1181,7 @@ handleHelpAction() {
     if (!this.options.autoClose) return;
 
     const isInside = this.elements.container.contains(e.target) ||
-                     this.elements.backdrop?.contains(e.target);
+      this.elements.backdrop?.contains(e.target);
 
     if (!isInside) this.closeDropdown();
   }
@@ -1131,11 +1189,17 @@ handleHelpAction() {
   handleKeyDown(e) {
     if (!this.state.isOpen) return;
 
-    const items        = this.getMenuItems();
+    const items = this.getMenuItems();
     const currentIndex = items.indexOf(document.activeElement);
 
-    if (e.key === 'ArrowDown') { e.preventDefault(); this.focusNextItem(currentIndex, items); }
-    if (e.key === 'ArrowUp')   { e.preventDefault(); this.focusPreviousItem(currentIndex, items); }
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      this.focusNextItem(currentIndex, items);
+    }
+    if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      this.focusPreviousItem(currentIndex, items);
+    }
   }
 
   focusNextItem(currentIndex, items) {
@@ -1147,7 +1211,7 @@ handleHelpAction() {
   }
 
   handleResize() {
-    const wasMobile     = this.state.isMobile;
+    const wasMobile = this.state.isMobile;
     this.state.isMobile = this.checkIfMobile();
     if (wasMobile !== this.state.isMobile) this.adjustForMobile();
   }
@@ -1201,7 +1265,9 @@ handleHelpAction() {
 
     document.body.appendChild(toast);
 
-    setTimeout(() => { toast.style.pointerEvents = 'auto'; }, 600);
+    setTimeout(() => {
+      toast.style.pointerEvents = 'auto';
+    }, 600);
 
     const progressBar = toast.querySelector('.toast-progress-bar');
 
@@ -1225,16 +1291,18 @@ handleHelpAction() {
 
     toast.addEventListener('mouseleave', () => {
       if (progressBar) progressBar.style.animationPlayState = 'running';
-      const ratio  = progressBar
+      const ratio = progressBar
         ? progressBar.offsetWidth / progressBar.parentElement.offsetWidth
         : 1;
       timeoutId = setTimeout(closeToast, ratio * duration);
     });
 
-    const handleEsc = (e) => { if (e.key === 'Escape') closeToast(); };
-    const closeBtn  = toast.querySelector('.toast-close');
+    const handleEsc = (e) => {
+      if (e.key === 'Escape') closeToast();
+    };
+    const closeBtn = toast.querySelector('.toast-close');
     closeBtn.addEventListener('focus', () => document.addEventListener('keydown', handleEsc));
-    closeBtn.addEventListener('blur',  () => document.removeEventListener('keydown', handleEsc));
+    closeBtn.addEventListener('blur', () => document.removeEventListener('keydown', handleEsc));
 
     const instance = {
       close: closeToast,
@@ -1247,9 +1315,12 @@ handleHelpAction() {
           ['success', 'error', 'warning', 'info', 'dark', 'light'].forEach(t => {
             toast.classList.toggle(`dropdown-toast-${t}`, t === newType);
           });
-          const iconEl  = toast.querySelector('.toast-icon');
+          const iconEl = toast.querySelector('.toast-icon');
           const titleEl = toast.querySelector('.toast-title');
-          if (iconEl)  { iconEl.innerHTML  = this.getToastIcon(newType);  iconEl.style.animation = 'iconPop 0.6s cubic-bezier(0.34,1.56,0.64,1)'; }
+          if (iconEl) {
+            iconEl.innerHTML = this.getToastIcon(newType);
+            iconEl.style.animation = 'iconPop 0.6s cubic-bezier(0.34,1.56,0.64,1)';
+          }
           if (titleEl) titleEl.textContent = this.getToastTitle(newType);
         }
       },
@@ -1261,17 +1332,17 @@ handleHelpAction() {
 
   showAdvancedToast(message, type = 'info', options = {}) {
     const defaultOptions = {
-      duration:    5000,
-      position:    'bottom-right',
-      icon:        null,
-      title:       null,
-      actions:     [],
+      duration: 5000,
+      position: 'bottom-right',
+      icon: null,
+      title: null,
+      actions: [],
       dismissible: true,
-      progress:    true,
-      sound:       false,
-      vibration:   false,
-      queue:       true,
-      maxToasts:   3,
+      progress: true,
+      sound: false,
+      vibration: false,
+      queue: true,
+      maxToasts: 3,
       ...options
     };
 
@@ -1283,7 +1354,7 @@ handleHelpAction() {
     }
 
     const toastInstance = this.showToast(message, type, defaultOptions);
-    const toastEl       = document.querySelector('.dropdown-toast:last-child');
+    const toastEl = document.querySelector('.dropdown-toast:last-child');
     if (!toastEl) return toastInstance;
 
     if (defaultOptions.icon) {
@@ -1303,7 +1374,7 @@ handleHelpAction() {
 
         defaultOptions.actions.forEach(action => {
           const btn = document.createElement('button');
-          btn.className   = 'toast-action-btn';
+          btn.className = 'toast-action-btn';
           btn.textContent = action.label;
 
           if (action.color) btn.style.background = action.color;
@@ -1326,9 +1397,9 @@ handleHelpAction() {
     if (defaultOptions.vibration && 'vibrate' in navigator) {
       const patterns = {
         success: [100, 50, 100],
-        error:   [200, 100, 200],
+        error: [200, 100, 200],
         warning: [150, 75, 150],
-        info:    [100]
+        info: [100]
       };
       navigator.vibrate(patterns[type] ?? patterns.info);
     }
@@ -1338,19 +1409,21 @@ handleHelpAction() {
   }
 
   getToastIcon(type) {
-    return { success: '✅', error: '❌', warning: '⚠️', info: 'ℹ️', dark: '🌙', light: '☀️' }[type] ?? 'ℹ️';
+    const icons = { success: '✅', error: '❌', warning: '⚠️', info: 'ℹ️', dark: '🌙', light: '☀️' };
+    return icons[type] ?? 'ℹ️';
   }
 
   getToastTitle(type) {
-    return { success: 'Success', error: 'Error', warning: 'Warning', info: 'Info', dark: 'Dark Mode', light: 'Light Mode' }[type] ?? 'Notification';
+    const titles = { success: 'Success', error: 'Error', warning: 'Warning', info: 'Info', dark: 'Dark Mode', light: 'Light Mode' };
+    return titles[type] ?? 'Notification';
   }
 
   playToastSound(type) {
     const sounds = {
       success: 'https://assets.mixkit.co/sfx/preview/mixkit-winning-chimes-2015.mp3',
-      error:   'https://assets.mixkit.co/sfx/preview/mixkit-warning-alarm-buzzer-960.mp3',
+      error: 'https://assets.mixkit.co/sfx/preview/mixkit-warning-alarm-buzzer-960.mp3',
       warning: 'https://assets.mixkit.co/sfx/preview/mixkit-warning-alarm-buzzer-960.mp3',
-      info:    'https://assets.mixkit.co/sfx/preview/mixkit-magic-sparkles-300.mp3'
+      info: 'https://assets.mixkit.co/sfx/preview/mixkit-magic-sparkles-300.mp3'
     };
     if (sounds[type]) {
       const audio = new Audio(sounds[type]);
@@ -1365,16 +1438,18 @@ handleHelpAction() {
 
   dispatchEvent(eventName, detail = {}) {
     document.dispatchEvent(new CustomEvent(eventName, {
-      detail, bubbles: true, cancelable: true
+      detail,
+      bubbles: true,
+      cancelable: true
     }));
   }
 
   getState() {
     return {
-      isOpen:       this.state.isOpen,
-      isMobile:     this.state.isMobile,
+      isOpen: this.state.isOpen,
+      isMobile: this.state.isMobile,
       currentTheme: this.state.currentTheme,
-      performance:  { ...this.performance }
+      performance: { ...this.performance }
     };
   }
 
@@ -1402,10 +1477,12 @@ handleHelpAction() {
 
   destroy() {
     this.elements.button?.removeEventListener('click', this.toggleDropdown);
-    document.removeEventListener('click',      this.handleClickOutside);
+    document.removeEventListener('click', this.handleClickOutside);
     document.removeEventListener('touchstart', this.handleClickOutside);
-    document.removeEventListener('keydown',    this.handleKeyDown);
-    window.removeEventListener('resize',       this.handleResize);
+    document.removeEventListener('keydown', this.handleKeyDown);
+    window.removeEventListener('resize', this.handleResize);
+    document.removeEventListener('theme:changed', this.handleThemeChange);
+    document.removeEventListener('graduationapp:themeChanged', this.handleThemeChange);
 
     if (this.elements.backdrop) {
       this.elements.backdrop.removeEventListener('click', this.handleClickOutside);
@@ -1415,7 +1492,7 @@ handleHelpAction() {
     this.elements.backdrop?.remove();
 
     this.elements = {};
-    this.state    = {};
+    this.state = {};
 
     this.options.logger.info('DropdownManager destroyed');
   }

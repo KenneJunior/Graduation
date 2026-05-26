@@ -658,7 +658,7 @@ class Logger {
       background: ${config.bg};
       color: ${config.color};
       box-shadow: ${config.glow}, 0 2px 4px rgba(0, 0, 0, 0.1);
-      
+
       &::before {
         content: '';
         position: absolute;
@@ -669,7 +669,7 @@ class Logger {
         background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent);
         transition: left 0.5s ease-in-out;
       }
-      
+
       &:hover::before {
         left: 100%;
       }
@@ -955,8 +955,15 @@ class Logger {
         this._log(LOG_LEVELS.WARN, args, context);
         return loggerWithContext;
       },
-      error: (...args) => {
-        this._log(LOG_LEVELS.ERROR, args, context);
+      error: (arg,err) => {
+        const args = {};
+        args.message = arg;
+        if (err instanceof Error) {
+          args.error = err.message;
+        } else {
+          args.error = String(err);
+        }
+        this._log(LOG_LEVELS.ERROR, [args], context);
         return loggerWithContext;
       },
 

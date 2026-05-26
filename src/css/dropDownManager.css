@@ -1767,6 +1767,21 @@
   background: var(--dm-accent);
   border-radius: 4px;
 }
+
+#person-filter-list {
+  scrollbar-width: thin;
+}
+#person-filter-list::-webkit-scrollbar {
+  width: 5px;
+}
+#person-filter-list::-webkit-scrollbar-track {
+  background: var(--dm-surface-inset);
+  border-radius: 4px;
+}
+#person-filter-list::-webkit-scrollbar-thumb {
+  background: var(--dm-accent);
+  border-radius: 4px;
+}
 /* -----------------------------------------------------------------------------
    11. PRINT – HIDE EPHEMERAL UI
    ----------------------------------------------------------------------------- */
