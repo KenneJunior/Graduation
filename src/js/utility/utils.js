@@ -1,5 +1,13 @@
 // Utility: Fetch manifest and get app name
 import logger from "./logger";
+
+/**
+ * Retrieves the application name from the web app manifest.
+ * Looks for a `<link rel="manifest">` tag, fetches the JSON, and returns
+ * the `name` or `short_name` property.
+ *
+ * @returns {Promise<string|null>} The app name, or `null` if not found or on error.
+ */
 export async function getAppName() {
   // Find manifest link
   const manifestLink = document.querySelector('link[rel="manifest"]');
@@ -14,7 +22,13 @@ export async function getAppName() {
   }
 }
 
-export function  showMediaLoading(loadingContainer) {
+/**
+ * Displays a media loading container.
+ * Adds CSS classes and sets ARIA attributes to indicate loading state.
+ *
+ * @param {HTMLElement} loadingContainer - The loading container element.
+ */
+export function showMediaLoading(loadingContainer) {
     // Show loading container with proper classes
     if (loadingContainer) {
         loadingContainer.classList.add("is-visible", "is-loading");
@@ -23,6 +37,12 @@ export function  showMediaLoading(loadingContainer) {
     }
 }
 
+/**
+ * Hides a media loading container after a short delay.
+ * Removes CSS classes and updates ARIA attributes for accessibility.
+ *
+ * @param {HTMLElement} loadingContainer - The loading container element.
+ */
 export function hideMediaLoading(loadingContainer) {
     // Hide loading container and reset attributes
     setTimeout(() => {
@@ -35,8 +55,10 @@ export function hideMediaLoading(loadingContainer) {
 }
 
 /**
- * Utility: Load media data from gallery-data.json
- * @returns {Promise<Object>} Parsed media data
+ * Loads media data from `/gallery-data.json`.
+ *
+ * @returns {Promise<Object>} The parsed JSON object, expected to contain a `media` array.
+ * @throws {Error} If the fetch fails or the response is not OK.
  */
 export async function loadMediaData() {
     logger.time("Media data loading");
@@ -62,29 +84,48 @@ export async function loadMediaData() {
       throw error;
     }
   }
+
 /**
- * ADVANCED MEDIA FILTER - Filters media based on logged-in user with advanced features
+ * ADVANCED MEDIA FILTER - Filters media based on logged-in user with advanced features.
  *
- * @param {Array} media - Media array from JSON
- * @param {Object} authResult - Authentication result from password check
- * @param {{
- * includeVideos: boolean,       // Whether to include videos in results
- * includeImages: boolean,       // Whether to include images in results
- * sortBy: string,              // 'date', 'relevance', 'random', 'personsCount'
- * sortOrder: string,           // 'asc', 'desc'
- * shuffle: boolean,            // Whether to shuffle results after sorting
- * limit: number,              // Limit number of results returned
- * returnAllOnError: boolean,    // Whether to return all media if there's an error with authResult
- * groupByPerson: boolean,       // Whether to group results by person combinations
- * excludeSolo: boolean,        // Whether to exclude solo photos (with only one person)
- * onlyWithPerson: string|null, // If set, only include media that has this person code
- * minPersons: number,          // Minimum number of persons in media to include
- * maxPersons: number|null,       // Maximum number of persons in media to include
- * enhanceMetadata: boolean,     // Whether to add enhanced metadata (relevanceScore, personCount, etc.)
- * generateThumbnails: boolean,  // Whether to generate thumbnail URLs for media items
- * debug: boolean                // Whether to enable debug logging for the filtering process
- * }}
- * @returns {Array} Filtered and processed media array
+ * @param {Object[]} media - Array of media objects (from gallery-data.json).
+ *   Each object is expected to have at least `src`, `persons`, and optionally
+ *   `type`, `data-type`, `date`, `alt`, `thumb`, `srcset`.
+ * @param {Object} authResult - Authentication result object containing:
+ *   @param {number} [authResult.accessLevel] - Access level; >50 grants general access.
+ *   @param {string} [authResult.code] - User's personal code.
+ *   @param {string} [authResult.name] - User's display name.
+ * @param {Object} [options={}] - Filtering and processing options.
+ * @param {boolean} [options.includeVideos=true] - Include video media.
+ * @param {boolean} [options.includeImages=true] - Include image media.
+ * @param {'date'|'relevance'|'random'|'personsCount'} [options.sortBy='date'] - Sort criterion.
+ * @param {'asc'|'desc'} [options.sortOrder='desc'] - Sort order.
+ * @param {boolean} [options.shuffle=false] - Shuffle results (overrides sorting).
+ * @param {number|null} [options.limit=null] - Maximum number of results.
+ * @param {boolean} [options.returnAllOnError=false] - Return all media if authResult is invalid.
+ * @param {boolean} [options.groupByPerson=false] - Group results by person combinations.
+ * @param {boolean} [options.excludeSolo=false] - Exclude media with ≤1 person.
+ * @param {string|string[]|null} [options.onlyWithPerson=null] - If set, only media containing any of these person codes will be included.
+ * @param {string[]} [options.excludeCodes=[]] - Array of person codes; media containing any will be excluded.
+ * @param {string[]} [options.includeOnlyCodes=[]] - Media must contain at least one of these codes and **no** other persons.
+ * @param {number} [options.minPersons=1] - Minimum number of persons in the media.
+ * @param {number|null} [options.maxPersons=null] - Maximum number of persons in the media.
+ * @param {boolean} [options.enhanceMetadata=true] - Add computed properties (id, relevanceScore, etc.).
+ * @param {boolean} [options.generateThumbnails=true] - Generate thumbnail URLs if missing.
+ * @param {boolean} [options.debug=false] - Enable debug logging.
+ *
+ * @returns {Object[]} The filtered and optionally enhanced media array.
+ *   Each object (when `enhanceMetadata` is true) will additionally contain:
+ *   - `id` : string – Unique identifier.
+ *   - `relevanceScore` : number – 100 for general access, 90 if user code matched, else 10.
+ *   - `personCount` : number – Number of persons in the media.
+ *   - `thumb` : string – Thumbnail URL (if generated).
+ *   - `alt` : string – Generated alt text (if missing originally).
+ *   - `srcset` : string – Responsive image srcset (if generated).
+ *   - `sortDate` : string – Date used for sorting.
+ *   - `sortPersons` : number – Person count used for sorting.
+ *
+ * @throws {Error} If required parameters are missing or invalid.
  */
 export function filterMediaByUser(media, authResult, options = {}) {
   // Default options
@@ -100,7 +141,7 @@ export function filterMediaByUser(media, authResult, options = {}) {
     excludeSolo: false,
     onlyWithPerson: null,    // Filter to only include media with specific person code
     excludeCodes: [],        // NEW: array of person codes to exclude entirely
-    includeOnlyCodes: [],        // NEW: array of person codes to only inlcude (media should have just one of these codes to be inlcuded )
+    includeOnlyCodes: [],        // NEW: array of person codes to only include (media should have just one of these codes to be included)
     minPersons: 1,
     maxPersons: null,
     enhanceMetadata: true,
@@ -159,8 +200,7 @@ export function filterMediaByUser(media, authResult, options = {}) {
   });
 
 // PHASE 3: Only include items with specific person(s)
-if (config.onlyWithPerson) {
-  // Convert to array if it's just a string to support both formats
+if (config.onlyWithPerson && (Array.isArray(config.onlyWithPerson) ? config.onlyWithPerson.length > 0 : !!config.onlyWithPerson)) {
   const searchCodes = Array.isArray(config.onlyWithPerson)
     ? config.onlyWithPerson
     : [config.onlyWithPerson];
@@ -186,7 +226,7 @@ if (config.onlyWithPerson) {
     });
   }
 
-  //  PHASE 3.6: only include items that contain just one of the specified codes (ie if the media has code A and B but we only want to include media with code A, then this media will be excluded because it has code B as well - this is useful for creating a "solo" collection for each person)
+  //  PHASE 3.6: only include items that contain just one of the specified codes
     if (config.includeOnlyCodes && config.includeOnlyCodes.length > 0) {
         filteredMedia = filteredMedia.filter(item => {
             if (!Array.isArray(item.persons)) return false;
@@ -198,7 +238,6 @@ if (config.onlyWithPerson) {
         });
 
     }
-
 
   // PHASE 4: Group size filtering
   filteredMedia = filteredMedia.filter(item => {
@@ -299,9 +338,11 @@ if (config.onlyWithPerson) {
 // HELPER FUNCTIONS
 
 /**
- * Generate thumbnail URL from main image URL
- * @param {string} src - Original image source URL
- * @returns {string} Thumbnail URL
+ * Generate thumbnail URL from main image URL.
+ * Checks WebP support and appends `-thumb` or `.webp`.
+ *
+ * @param {string} src - Original image source URL.
+ * @returns {string} Thumbnail URL.
  */
 function generateThumbnailUrl(src) {
   if (!src) return '';
@@ -324,9 +365,11 @@ function generateThumbnailUrl(src) {
 }
 
 /**
- * Generate responsive srcset for images
- * @param {string} src - Original image source URL
- * @returns {string} Srcset attribute value
+ * Generate responsive srcset for images.
+ * Creates size variants at common breakpoints.
+ *
+ * @param {string} src - Original image source URL.
+ * @returns {string} Srcset attribute value (e.g., "path-320w.jpg 320w, path-640w.jpg 640w").
  */
 function generateResponsiveSrcset(src) {
   if (!src) return '';
@@ -341,11 +384,13 @@ function generateResponsiveSrcset(src) {
 }
 
 /**
- * Generate alt text for images based on persons
- * @param {Object} mediaItem - Media item object
- * @param {string} userCode - Logged-in user's code
- * @param {string} userName - Logged-in user's name
- * @returns {Object} Media item with updated alt text
+ * Generate alt text for images based on the persons in the media.
+ * Modifies the `mediaItem` object directly and returns it.
+ *
+ * @param {Object} mediaItem - The media item to enhance.
+ * @param {string} userCode - Logged-in user's code.
+ * @param {string} userName - Logged-in user's name.
+ * @returns {Object} The same media item with an `alt` property.
  */
 function generateAltText(mediaItem, userCode, userName) {
   if (!Array.isArray(mediaItem.persons) || mediaItem.persons.length === 0) {
@@ -379,7 +424,16 @@ function generateAltText(mediaItem, userCode, userName) {
 }
 
 /**
- * Group media by person combinations
+ * Group media items by the combination of persons (excluding the current user).
+ *
+ * @param {Object[]} media - Array of media items.
+ * @param {string} userCode - Current user's code to exclude from group keys.
+ * @returns {Object[]} Array of group objects, each containing:
+ *   - `id` : string - Group identifier.
+ *   - `persons` : Object[] - Person details (code, name).
+ *   - `items` : Object[] - Media items belonging to this group.
+ *   - `count` : number - Number of items in the group.
+ *   - `preview` : string - Thumbnail or src of the first item.
  */
 function groupMediaByPerson(media, userCode) {
   const groups = {};
@@ -431,7 +485,17 @@ function groupMediaByPerson(media, userCode) {
 }
 
 /**
- * Get media statistics for user
+ * Get media statistics for a user.
+ *
+ * @param {Object[]} media - Full media array.
+ * @param {Object} authResult - Authentication result (see {@link filterMediaByUser}).
+ * @returns {Object} Statistics object:
+ *   - `total` : number - Total media items.
+ *   - `accessible` : number - Number of items accessible to the user.
+ *   - `percentage` : number - Accessible percentage.
+ *   - `byType` : Object<string, number> - Count per media type.
+ *   - `byPersonCount` : Object<number, number> - Count per person count.
+ *   - `byPerson` : Object<string, {count: number, name: string}> - Count per person code.
  */
 export function getMediaStatistics(media, authResult) {
   const filtered = filterMediaByUser(media, authResult, {
@@ -482,7 +546,22 @@ export function getMediaStatistics(media, authResult) {
 }
 
 /**
- * Create personalized media feed with recommendations
+ * Create a personalized media feed with collections and recommendations.
+ *
+ * @param {Object[]} media - Full media array.
+ * @param {Object} authResult - Authentication result (see {@link filterMediaByUser}).
+ * @returns {Object} Feed object:
+ *   - `userInfo` : {code: string, name: string} - User info.
+ *   - `collections` : Object - Named collections (e.g., `solo`, `groups`, `featured`), each with:
+ *       - `title` : string
+ *       - `description` : string
+ *       - `items` : Object[] - Filtered media items.
+ *       - `count` : number
+ *   - `recommendations` : Object[] - Array of recommendation objects:
+ *       - `basedOn` : string - Person code the recommendation is based on.
+ *       - `items` : Object[] - Suggested media items.
+ *   - `statistics` : Object - Result from {@link getMediaStatistics}.
+ *   - `totalMemories` : number - Total accessible media items.
  */
 export function createPersonalizedMediaFeed(media, authResult) {
   const { code, name } = authResult;
@@ -586,8 +665,11 @@ export function createPersonalizedMediaFeed(media, authResult) {
 }
 
 /**
- * Utility: Get current user info from localStorage
- * @returns {{code, name, isGraduand, accessLevel}|null}
+ * Utility: Get current user info from localStorage.
+ * Expects `GraduationAppPassword` key; if absent, redirects to `/login`.
+ *
+ * @returns {{code: string, name: string, isGraduand: boolean, accessLevel: number}|null}
+ *          The parsed user info, or `null` if parsing fails.
  */
 export function getCurrentUserInfo() {
     const authData = localStorage.getItem('GraduationAppPassword');
@@ -606,1132 +688,637 @@ export function getCurrentUserInfo() {
 
 }
 /**
- * ADVANCED INTELLIGENT MESSAGE GENERATOR
- * Creates human-like messages with context, sentiment, and personality
+ * ADVANCED AI PHOTO MESSAGE GENERATOR
+ * Creates human-like, context-aware messages with personality, sentiment, and style.
+ * Merges and enhances the previous intelligentMessage and generatePhotoMessage capabilities.
  */
 
-// Context patterns for different scenarios
+// --------------- CORE DATA & PATTERNS ---------------
+
 const contextPatterns = {
-    // Based on number of people
-    solo: {
-        intro: ["This moment", "Looking back", "This memory", "Remembering"],
-        middle: ["was so special", "means so much", "brings back feelings", "still feels vivid"],
-        ending: ["to me", "even now", "after all this time", "always and forever"]
-    },
-
-    duo: {
-        intro: ["You and me", "The two of us", "Our special bond", "Together"],
-        middle: ["created magic", "shared something special", "had unforgettable times", "made memories"],
-        ending: ["that last forever", "that I'll always treasure", "that define friendship", "that matter most"]
-    },
-
-    smallGroup: {
-        intro: ["Our little group", "The squad", "These amazing people", "My favorite humans"],
-        middle: ["knew how to have fun", "made every moment count", "created pure joy", "shared the best laughs"],
-        ending: ["and I miss it", "what a time", "those were the days", "forever in my heart"]
-    },
-
-    largeGroup: {
-        intro: ["This incredible gathering", "When everyone came together", "The whole crew", "Every amazing person here"],
-        middle: ["created something magical", "made history together", "shared unforgettable moments", "built memories"],
-        ending: ["that define an era", "that we'll talk about forever", "that show true connection", "that matter"]
-    }
+  solo: {
+    intro: ["This moment", "Looking back", "This memory", "Remembering"],
+    middle: ["was so special", "means so much", "brings back feelings", "still feels vivid"],
+    ending: ["to me", "even now", "after all this time", "always and forever"]
+  },
+  duo: {
+    intro: ["You and me", "The two of us", "Our special bond", "Together"],
+    middle: ["created magic", "shared something special", "had unforgettable times", "made memories"],
+    ending: ["that last forever", "that I'll always treasure", "that define friendship", "that matter most"]
+  },
+  smallGroup: {
+    intro: ["Our little group", "The squad", "These amazing people", "My favorite humans"],
+    middle: ["knew how to have fun", "made every moment count", "created pure joy", "shared the best laughs"],
+    ending: ["and I miss it", "what a time", "those were the days", "forever in my heart"]
+  },
+  largeGroup: {
+    intro: ["This incredible gathering", "When everyone came together", "The whole crew", "Every amazing person here"],
+    middle: ["created something magical", "made history together", "shared unforgettable moments", "built memories"],
+    ending: ["that define an era", "that we'll talk about forever", "that show true connection", "that matter"]
+  }
 };
 
-// Emotion dictionary
-const emotions = {
-    happy: ["joyful", "ecstatic", "delighted", "overjoyed", "blissful", "elated"],
-    nostalgic: ["sentimental", "wistful", "bittersweet", "melancholy", "yearning", "reminiscent"],
-    loving: ["affectionate", "fond", "devoted", "caring", "tender", "warm"],
-    proud: ["accomplished", "triumphant", "victorious", "achieving", "successful", "fulfilled"],
-    grateful: ["thankful", "appreciative", "blessed", "fortunate", "privileged", "indebted"]
+const emotionDictionary = {
+  happy: ["joyful", "ecstatic", "delighted", "overjoyed", "blissful", "elated"],
+  nostalgic: ["sentimental", "wistful", "bittersweet", "melancholy", "yearning", "reminiscent"],
+  loving: ["affectionate", "fond", "devoted", "caring", "tender", "warm"],
+  proud: ["accomplished", "triumphant", "victorious", "achieving", "successful", "fulfilled"],
+  grateful: ["thankful", "appreciative", "blessed", "fortunate", "privileged", "indebted"]
 };
 
-// Message frameworks
 const messageFrameworks = {
-    reflection: [
-        "{intro}, {middle} {ending}.",
-        "{intro}. {middle} {ending}.",
-        "{intro} {middle}. {ending}!"
-    ],
-
-    celebration: [
-        "Cheers to {names}! {middle} 🥂",
-        "Celebrating {names} and {middle} 🎉",
-        "{names} deserve all the {emotion}! {middle}!"
-    ],
-
-    missing: [
-        "Missing {names} and our {middle} days 💭",
-        "Wish {names} were here to {middle} again",
-        "Thinking of {names} and how we used to {middle} 💖"
-    ],
-
-    appreciation: [
-        "So grateful for {names} and our {middle} moments 🙏",
-        "Thankful for {names} who {middle} with me",
-        "Appreciating {names} for the {middle} memories ❤️"
-    ]
+  reflection: [
+    "{intro}, {middle} {ending}.",
+    "{intro}. {middle} {ending}.",
+    "{intro} {middle}. {ending}!"
+  ],
+  celebration: [
+    "Cheers to {names}! {middle} 🥂",
+    "Celebrating {names} and {middle} 🎉",
+    "{names} deserve all the {emotion}! {middle}!"
+  ],
+  missing: [
+    "Missing {names} and our {middle} days 💭",
+    "Wish {names} were here to {middle} again",
+    "Thinking of {names} and how we used to {middle} 💖"
+  ],
+  appreciation: [
+    "So grateful for {names} and our {middle} moments 🙏",
+    "Thankful for {names} who {middle} with me",
+    "Appreciating {names} for the {middle} memories ❤️"
+  ]
 };
 
-/**
- * Enhanced message generator with AI-like intelligence
- */
-export function generateIntelligentMessage(mediaItem, currentUser, options = {}) {
-    const config = {
-        sentiment: 'auto', // 'auto', 'positive', 'nostalgic', 'celebratory'
-        complexity: 'medium', // 'simple', 'medium', 'complex'
-        includeNames: true,
-        useFullNames: true,
-        includeCurrentUser: true,
-        addLocationHint: false,
-        addTimeContext: true,
-        ...options
-    };
+// Personality styles for tonal variation
+const personalities = {
+  casual: {
+    tone: 'friendly',
+    adjectives: ['amazing', 'great', 'fun', 'awesome', 'memorable'],
+    verbs: ['remember', 'cherish', 'miss', 'love', 'enjoy']
+  },
+  formal: {
+    tone: 'respectful',
+    adjectives: ['significant', 'memorable', 'notable', 'precious', 'valuable'],
+    verbs: ['recall', 'appreciate', 'value', 'treasure', 'commemorate']
+  },
+  funny: {
+    tone: 'humorous',
+    adjectives: ['hilarious', 'epic', 'legendary', 'ridiculous', 'priceless'],
+    verbs: ['crack up', 'laugh about', 'can\'t forget', 'still giggle about']
+  },
+  romantic: {
+    tone: 'affectionate',
+    adjectives: ['beautiful', 'magical', 'heartwarming', 'special', 'cherished'],
+    verbs: ['treasure', 'hold dear', 'adore', 'love', 'embrace']
+  },
+  nostalgic: {
+    tone: 'sentimental',
+    adjectives: ['nostalgic', 'timeless', 'classic', 'unforgettable', 'golden'],
+    verbs: ['reminisce', 'look back on', 'remember fondly', 'miss', 'cherish']
+  }
+};
 
-    const persons = Array.isArray(mediaItem.persons) ? mediaItem.persons : [];
-    const userCode = currentUser?.code;
-    const userName = currentUser?.name;
+const emojis = {
+  casual: ['😊', '✨', '🌟', '💫', '🎉', '🤗', '👏', '🙌', '🎈'],
+  formal: ['🎓', '📸', '🏛️', '👔', '📚'],
+  funny: ['😂', '🤣', '😆', '🤪', '😜', '🎭', '🤹', '🎪'],
+  romantic: ['💕', '❤️', '🥰', '😍', '💖', '🌹', '💐', '✨'],
+  nostalgic: ['🕰️', '📜', '🎞️', '📷', '💭', '🌅', '🌇']
+};
 
-    // ANALYZE THE PHOTO CONTEXT
-    const analysis = analyzePhotoContext(persons, userCode, mediaItem);
+const defaultHashtags = {
+  general: ['Memories', 'Throwback', 'GoodTimes', 'Friends', 'Family'],
+  style: {
+    casual: ['FunTimes', 'GreatMemories', 'AwesomePeople'],
+    formal: ['SignificantMoments', 'PreciousMemories', 'NotableOccasions'],
+    funny: ['EpicTimes', 'LaughingSoHard', 'Unforgettable'],
+    romantic: ['BeautifulMoments', 'Heartwarming', 'CherishedMemories'],
+    nostalgic: ['Nostalgic', 'Flashback', 'TimelessMoments']
+  }
+};
 
-    // DETERMINE MESSAGE TYPE
-    const messageType = determineMessageType(analysis, config.sentiment);
+// --------------- UTILITY FUNCTIONS ---------------
 
-    // BUILD THE MESSAGE
-    const message = buildMessage(analysis, messageType, config);
-
-    // ENHANCE WITH EMOJIS AND HASHTAGS
-    return enhanceMessage(message, analysis, config);
+function selectRandom(arr) {
+  return arr[Math.floor(Math.random() * arr.length)];
 }
 
-/**
- * Analyze photo context
- */
-function analyzePhotoContext(persons, userCode, mediaItem) {
-    const totalPeople = persons.length;
-    const userInPhoto = persons.some(p => {
-        const code = typeof p === 'string' ? p : p.code;
-        return code === userCode;
-    });
+function getNamesString(persons, userInPhoto, userName, useFullNames) {
+  if (persons.length === 0) return userName || 'me';
 
-    const otherPersons = persons.filter(p => {
-        const code = typeof p === 'string' ? p : p.code;
-        return code !== userCode;
-    });
+  const names = persons.map(p =>
+      typeof p === 'string'
+          ? (useFullNames ? p : p.charAt(0))
+          : (useFullNames ? (p.name || p.code) : p.code)
+  );
 
-    // Calculate relationship depth
-    let relationshipDepth = 'casual';
-    if (totalPeople === 1 && userInPhoto) relationshipDepth = 'personal';
-    if (totalPeople === 2) relationshipDepth = 'close';
-    if (totalPeople >= 5) relationshipDepth = 'community';
-
-    // Determine likely emotion
-    const possibleEmotions = [];
-    if (userInPhoto) possibleEmotions.push('proud', 'happy');
-    if (otherPersons.length > 0) possibleEmotions.push('loving', 'grateful');
-    if (totalPeople >= 3) possibleEmotions.push('nostalgic');
-
-    return {
-        totalPeople,
-        userInPhoto,
-        otherPersons,
-        relationshipDepth,
-        possibleEmotions,
-        mediaItem
-    };
+  if (names.length === 1) return names[0];
+  if (names.length === 2) return `${names[0]} and ${names[1]}`;
+  const last = names.pop();
+  return `${names.join(', ')}, and ${last}`;
 }
 
-/**
- * Determine message type based on analysis
- */
-function determineMessageType(analysis, configuredSentiment) {
-    if (configuredSentiment !== 'auto') {
-        return configuredSentiment;
-    }
-
-    const { totalPeople, userInPhoto, relationshipDepth } = analysis;
-
-    if (totalPeople === 1 && userInPhoto) {
-        return 'reflection';
-    }
-
-    if (totalPeople === 2) {
-        return userInPhoto ? 'celebration' : 'appreciation';
-    }
-
-    if (totalPeople >= 3 && totalPeople <= 5) {
-        return 'celebration';
-    }
-
-    if (totalPeople > 5) {
-        return 'nostalgic';
-    }
-
-    return 'appreciation';
+function getRandomEmoji(style, totalPeople, userInPhoto) {
+  if (style && emojis[style]) {
+    return selectRandom(emojis[style]);
+  }
+  // Default fallback based on context
+  if (totalPeople === 1) return userInPhoto ? '✨' : '🌟';
+  if (totalPeople === 2) return userInPhoto ? '💖' : '👥';
+  if (totalPeople <= 5) return '👨‍👩‍👧‍👦';
+  return '🎉';
 }
 
-/**
- * @param {Object} mediaItem
- * @param {{code: string, name: string}} currentUser
- * @param {Object} options
- * @return {{message: string, template: *, scenario: string, style: string, persons: (string|*)[], userInPhoto: boolean, hashtags: *[], metadata: {length: *, charactersUsed: *, maxLength: number, language: string, generatedAt: string}}}
- */
-export function generatePhotoMessage(mediaItem, currentUser , options = {}) {
-    // Default options
-    const config = {
-        style: 'casual', // 'casual', 'formal', 'funny', 'romantic', 'nostalgic'
-        includeEmojis: true,
-        maxLength: 280,
-        includeHashtags: true,
-        includePhotoContext: true,
-        language: 'en', // 'en', 'fr', 'es', etc.
-        customTemplate: null,
-        debug: false,
-        ...options
-    };
+function generateHashtags(persons, totalPeople, userInPhoto, style) {
+  const tags = [];
 
-    // Extract persons from media item
-    const persons = Array.isArray(mediaItem.persons) ? mediaItem.persons : [];
+  // Person hashtags (if code is short)
+  persons.forEach(p => {
+    const code = typeof p === 'string' ? p : p.code;
+    if (code && code.length <= 4) tags.push(`Person${code}`);
+  });
 
-    // Extract current user info
-    const userCode = currentUser?.code || null;
-    const userName = currentUser?.name || null;
+  // Size tag
+  if (totalPeople === 1) tags.push('Solo');
+  else if (totalPeople === 2) tags.push('Duo');
+  else if (totalPeople <= 5) tags.push('Squad');
+  else tags.push('GroupPhoto');
 
-    // Classify persons
-    const otherPersons = persons.filter(person => {
-        const personCode = typeof person === 'string' ? person : person.code;
-        return personCode !== userCode;
-    });
+  // Sentiment tag
+  if (userInPhoto) tags.push('MyMemory');
+  else tags.push('Friends');
 
-    const userInPhoto = persons.some(person => {
-        const personCode = typeof person === 'string' ? person : person.code;
-        return personCode === userCode;
-    });
+  // Style specific
+  if (style && defaultHashtags.style[style]) {
+    tags.push(...defaultHashtags.style[style].slice(0, 2));
+  }
 
-    // Count
-    const totalPersons = persons.length;
-    const otherCount = otherPersons.length;
+  // General
+  tags.push(...defaultHashtags.general.slice(0, 2));
 
-    if (config.debug) {
-        console.debug('Message Generation:', {
-            mediaItem: mediaItem.alt,
-            persons,
-            userInPhoto,
-            userCode,
-            userName,
-            totalPersons,
-            otherCount
-        });
-    }
-
-    // PERSONALITY PROFILES (for different styles)
-    const personalities = {
-        casual: {
-            tone: 'friendly',
-            pronouns: ['I', 'we', 'you'],
-            adjectives: ['amazing', 'great', 'fun', 'awesome', 'memorable'],
-            verbs: ['remember', 'cherish', 'miss', 'love', 'enjoy']
-        },
-        formal: {
-            tone: 'respectful',
-            pronouns: ['one', 'we', 'individuals'],
-            adjectives: ['significant', 'memorable', 'notable', 'precious', 'valuable'],
-            verbs: ['recall', 'appreciate', 'value', 'treasure', 'commemorate']
-        },
-        funny: {
-            tone: 'humorous',
-            pronouns: ['we', 'you guys', 'y\'all'],
-            adjectives: ['hilarious', 'epic', 'legendary', 'ridiculous', 'priceless'],
-            verbs: ['crack up', 'laugh about', 'can\'t forget', 'still giggle about']
-        },
-        romantic: {
-            tone: 'affectionate',
-            pronouns: ['we', 'our', 'us'],
-            adjectives: ['beautiful', 'magical', 'heartwarming', 'special', 'cherished'],
-            verbs: ['treasure', 'hold dear', 'adore', 'love', 'embrace']
-        },
-        nostalgic: {
-            tone: 'sentimental',
-            pronouns: ['I', 'we', 'us'],
-            adjectives: ['nostalgic', 'timeless', 'classic', 'unforgettable', 'golden'],
-            verbs: ['reminisce', 'look back on', 'remember fondly', 'miss', 'cherish']
-        }
-    };
-
-    // EMOJI LIBRARY
-    const emojis = {
-        casual: ['😊', '✨', '🌟', '💫', '🎉', '🤗', '👏', '🙌', '🎈'],
-        formal: ['🎓', '📸', '🏛️', '👔', '📚'],
-        funny: ['😂', '🤣', '😆', '🤪', '😜', '🎭', '🤹', '🎪'],
-        romantic: ['💕', '❤️', '🥰', '😍', '💖', '🌹', '💐', '✨'],
-        nostalgic: ['🕰️', '📜', '🎞️', '📷', '💭', '🌅', '🌇']
-    };
-
-    // HASHTAG TEMPLATES
-    const hashtags = {
-        general: ['Memories', 'Throwback', 'GoodTimes', 'Friends', 'Family'],
-        style: {
-            casual: ['FunTimes', 'GreatMemories', 'AwesomePeople'],
-            formal: ['SignificantMoments', 'PreciousMemories', 'NotableOccasions'],
-            funny: ['EpicTimes', 'LaughingSoHard', 'Unforgettable'],
-            romantic: ['BeautifulMoments', 'Heartwarming', 'CherishedMemories'],
-            nostalgic: ['Nostalgic', 'Flashback', 'TimelessMoments']
-        }
-    };
-
-    // TEMPLATES FOR DIFFERENT SCENARIOS
-    const templates = {
-        // User alone in photo
-        soloUser: [
-            "Looking back at this moment with fond memories. {adj} times indeed!",
-            "This brings back so many memories! What an {adj} journey it has been.",
-            "Remembering this special moment. Truly {adj} to look back on.",
-            "A {adj} memory that I will always {verb}. So grateful for this moment."
-        ],
-
-        // User with others
-        userWithOthers: [
-            "What {adj} times with {names}! {emoji} Miss you all!",
-            "Remember when {names} and I {verb} this? {adj} memories! {emoji}",
-            "So many {adj} memories with {names}! Can't wait to make more!",
-            "Thinking of the {adj} times with {names}. Truly unforgettable! {emoji}"
-        ],
-
-        // User not in photo (others only)
-        othersOnly: [
-            "What a {adj} photo of {names}! {emoji} Beautiful memories!",
-            "Look at {names} here! Such {adj} moments captured forever.",
-            "This {adj} memory with {names} is priceless! {emoji}",
-            "{names} looking {adj} as always! {emoji} Great times together!"
-        ],
-
-        // Group photos (3+ people)
-        group: [
-            "The {adj} squad! {names} {emoji} What an amazing group!",
-            "Unforgettable times with these amazing people: {names} {emoji}",
-            "Looking back at this {adj} moment with everyone. {names} {emoji}",
-            "The {adj} crew! {names} {emoji} Memories that last a lifetime!"
-        ],
-
-        // Couple photos (2 people)
-        couple: [
-            "What a {adj} moment with {names}! {emoji} Beautiful times together.",
-            "{names} - two peas in a pod! {adj} memories! {emoji}",
-            "Special bond with {names} captured here. {adj} moments! {emoji}",
-            "Thinking of {names} and this {adj} memory we share. {emoji}"
-        ]
-    };
-
-    // SELECT TEMPLATE BASED ON SCENARIO
-    let scenario;
-    let template;
-
-    if (userInPhoto) {
-        if (totalPersons === 1) {
-            scenario = 'soloUser';
-        } else if (totalPersons === 2) {
-            scenario = 'couple';
-        } else if (totalPersons >= 3) {
-            scenario = 'group';
-        } else {
-            scenario = 'userWithOthers';
-        }
-    } else {
-        if (otherCount === 1) {
-            scenario = 'othersOnly';
-        } else if (otherCount === 2) {
-            scenario = 'couple';
-        } else if (otherCount >= 3) {
-            scenario = 'group';
-        } else {
-            scenario = 'othersOnly';
-        }
-    }
-
-    // Get personality for selected style
-    const personality = personalities[config.style] || personalities.casual;
-
-    // Select random template
-    const scenarioTemplates = templates[scenario];
-    const selectedTemplate = config.customTemplate ||
-        scenarioTemplates[Math.floor(Math.random() * scenarioTemplates.length)];
-
-    // GET NAMES STRING
-    function getNamesString() {
-        if (otherCount === 0) {
-            return userName || 'me';
-        }
-
-        const names = otherPersons.map(person => {
-            if (typeof person === 'string') {
-                return person;
-            }
-            return person.name || person.code;
-        });
-
-        if (names.length === 1) {
-            return names[0];
-        } else if (names.length === 2) {
-            return `${names[0]} and ${names[1]}`;
-        } else {
-            const last = names.pop();
-            return `${names.join(', ')}, and ${last}`;
-        }
-    }
-
-    // GET RANDOM ELEMENT
-    function getRandomElement(array) {
-        return array[Math.floor(Math.random() * array.length)];
-    }
-
-    // REPLACE PLACEHOLDERS
-    let message = selectedTemplate
-        .replace('{names}', getNamesString())
-        .replace('{adj}', getRandomElement(personality.adjectives))
-        .replace('{verb}', getRandomElement(personality.verbs));
-
-    // ADD EMOJI
-    if (config.includeEmojis) {
-        const emojiSet = emojis[config.style] || emojis.casual;
-        const emoji = getRandomElement(emojiSet);
-        if (!message.includes(emoji)) {
-            message += ` ${emoji}`;
-        }
-    }
-
-    // ADD PHOTO CONTEXT (if it's interesting)
-    if (config.includePhotoContext && mediaItem.alt && !mediaItem.alt.startsWith('Memory:')) {
-        const altWords = mediaItem.alt.split(' ').slice(0, 5).join(' ');
-        if (altWords.length < 30) {
-            message += ` ${altWords}`;
-        }
-    }
-
-    // TRUNCATE IF TOO LONG
-    if (message.length > config.maxLength) {
-        message = message.substring(0, config.maxLength - 3) + '...';
-    }
-
-    // ADD HASHTAGS
-    let finalMessage = message;
-    let generatedHashtags = [];
-
-    if (config.includeHashtags) {
-        // Add style-specific hashtags
-        const styleHashtags = hashtags.style[config.style] || hashtags.style.casual;
-        generatedHashtags.push(...styleHashtags.slice(0, 2));
-
-        // Add person-based hashtags (using codes)
-        persons.forEach(person => {
-            const personCode = typeof person === 'string' ? person : person.code;
-            if (personCode && personCode.length <= 4) {
-                generatedHashtags.push(`Person${personCode}`);
-            }
-        });
-
-        // Add general hashtags
-        generatedHashtags.push(...hashtags.general.slice(0, 2));
-
-        // Remove duplicates and limit
-        generatedHashtags = [...new Set(generatedHashtags)].slice(0, 5);
-
-        // Append hashtags
-        if (generatedHashtags.length > 0) {
-            const hashtagString = generatedHashtags.map(tag => `#${tag}`).join(' ');
-            if (finalMessage.length + hashtagString.length + 1 <= config.maxLength) {
-                finalMessage += ` ${hashtagString}`;
-            }
-        }
-    }
-
-    // Return structured result
-    return {
-        message: finalMessage,
-        template: selectedTemplate,
-        scenario,
-        style: config.style,
-        persons: otherPersons.map(p => typeof p === 'string' ? p : p.code),
-        userInPhoto,
-        hashtags: generatedHashtags,
-        metadata: {
-            length: finalMessage.length,
-            charactersUsed: finalMessage.length,
-            maxLength: config.maxLength,
-            language: config.language,
-            generatedAt: new Date().toISOString()
-        }
-    };
+  return [...new Set(tags)].slice(0, 5);
 }
 
-/**
- * PERSONALIZED SHARE MESSAGE - Create share message based on media and platform
- * @param {Object} mediaItem - Media item
- * @param {Object} currentUser - Current user
- * @param {String} platform - 'facebook', 'twitter', 'pinterest', 'whatsapp'
- * @returns {Object} Platform-specific share content
- */
-export function createShareMessage(mediaItem, currentUser = null, platform = 'twitter') {
-    // Platform-specific constraints
-    const platformConfig = {
-        twitter: {
-            maxLength: 280,
-            includeLink: true,
-            includeMedia: true,
-            hashtagLimit: 3
-        },
-        facebook: {
-            maxLength: 2000,
-            includeLink: true,
-            includeMedia: true,
-            hashtagLimit: 5
-        },
-        pinterest: {
-            maxLength: 500,
-            includeLink: true,
-            includeMedia: true,
-            descriptionFocus: true,
-            hashtagLimit: 5
-        },
-        whatsapp: {
-            maxLength: 1000,
-            includeLink: false,
-            includeMedia: false,
-            personalStyle: true,
-            hashtagLimit: 0
-        },
-        instagram: {
-            maxLength: 2200,
-            includeLink: false,
-            includeMedia: true,
-            hashtagLimit: 30
-        }
-    };
-
-    const config = platformConfig[platform] || platformConfig.twitter;
-
-    // Generate base message
-    const style = platform === 'whatsapp' ? 'casual' :
-        platform === 'pinterest' ? 'romantic' : 'funny';
-
-    const baseMessage = generatePhotoMessage(mediaItem, currentUser, {
-        style,
-        includeEmojis: true,
-        includeHashtags: config.hashtagLimit > 0,
-        maxLength: config.maxLength - 100 // Leave space for URL
-    });
-
-    // Build final message
-    let finalMessage = baseMessage.message;
-
-    // Add URL if needed
-    const currentUrl = window.location.href;
-    if (config.includeLink && currentUrl) {
-        finalMessage += ` ${currentUrl}`;
-    }
-
-    // Platform-specific adjustments
-    if (platform === 'pinterest' && mediaItem.alt) {
-        finalMessage = `${mediaItem.alt}. ${finalMessage}`;
-    }
-
-    if (platform === 'instagram') {
-        // Instagram likes lots of hashtags
-        const extraHashtags = ['PhotoOfTheDay', 'MemoryLane', 'ThrowbackThursday', 'FlashbackFriday'];
-        const hashtags = [...baseMessage.hashtags, ...extraHashtags].slice(0, config.hashtagLimit);
-        if (hashtags.length > 0) {
-            finalMessage += `\n\n${hashtags.map(tag => `#${tag}`).join(' ')}`;
-        }
-    }
-
-    // Truncate to platform limit
-    if (finalMessage.length > config.maxLength) {
-        finalMessage = finalMessage.substring(0, config.maxLength - 3) + '...';
-    }
-
-    return {
-        text: finalMessage,
-        url: config.includeLink ? currentUrl : null,
-        mediaUrl: config.includeMedia ? mediaItem.src : null,
-        platform,
-        metadata: baseMessage.metadata
-    };
-}
-/**
- * Build the message
- */
-function buildMessage(analysis, messageType, config) {
-    const { totalPeople, userInPhoto, otherPersons } = analysis;
-
-    // GET NAMES
-    const names = getFormattedNames(otherPersons, config.useFullNames);
-
-    // SELECT PATTERN BASED ON GROUP SIZE
-    let pattern;
-    if (totalPeople === 1) pattern = contextPatterns.solo;
-    else if (totalPeople === 2) pattern = contextPatterns.duo;
-    else if (totalPeople <= 5) pattern = contextPatterns.smallGroup;
-    else pattern = contextPatterns.largeGroup;
-
-    // SELECT FRAMEWORK
-    const fram_getCurrentMediaDataework = selectFramework(messageType, config.complexity);
-
-    // BUILD COMPONENTS
-    const components = {
-        intro: selectRandom(pattern.intro),
-        middle: selectRandom(pattern.middle),
-        ending: selectRandom(pattern.ending),
-        names: names,
-        emotion: selectRandom(analysis.possibleEmotions)
-    };
-
-    // APPLY TEMPLATE
-    let message = applyTemplate(framework, components);
-
-    // ADD USER CONTEXT
-    if (userInPhoto && config.includeCurrentUser) {
-        message = personalizeMessage(message, config);
-    }
-
-    // ADD TIME CONTEXT
-    if (config.addTimeContext) {
-        message = addTimeContext(message);
-    }
-
-    return message;
-}
-
-/**
- * Get formatted names
- */
-function getFormattedNames(persons, useFullNames) {
-    if (persons.length === 0) return '';
-
-    const names = persons.map(person => {
-        if (typeof person === 'string') {
-            return useFullNames ? person : person.substring(0, 1);
-        }
-        return useFullNames ? (person.name || person.code) : person.code;
-    });
-
-    if (names.length === 1) return names[0];
-    if (names.length === 2) return `${names[0]} and ${names[1]}`;
-
-    const last = names.pop();
-    return `${names.join(', ')}, and ${last}`;
-}
-
-/**
- * Select framework based on complexity
- */
-function selectFramework(messageType, complexity) {
-    const frameworks = messageFrameworks[messageType] || messageFrameworks.appreciation;
-
-    if (complexity === 'simple') {
-        return frameworks[0]; // Shortest
-    } else if (complexity === 'complex') {
-        return frameworks[frameworks.length - 1]; // Longest
-    } else {
-        return frameworks[Math.floor(frameworks.length / 2)]; // Medium
-    }
-}
-
-/**
- * Apply template with components
- */
-function applyTemplate(template, components) {
-    return template
-        .replace(/{(\w+)}/g, (match, key) => components[key] || match)
-        .replace(/\s+/g, ' ')
-        .trim();
-}
-
-/**
- * Personalize message for current user
- */
-function personalizeMessage(message, config) {
-    const userPronouns = {
-        male: ['he', 'him', 'his'],
-        female: ['she', 'her', 'hers'],
-        neutral: ['they', 'them', 'theirs']
-    };
-
-    // Add personal touch
-    const personalTouches = [
-        "I'll always remember this.",
-        "Me in my element.",
-        "This was such a me moment.",
-        "Feeling nostalgic about this.",
-        "This captures my essence perfectly."
-    ];
-
-    if (Math.random() > 0.7) { // 30% chance to add personal touch
-        return `${message} ${selectRandom(personalTouches)}`;
-    }
-
-    return message;
-}
-
-/**
- * Add time context
- */
 function addTimeContext(message) {
-    const timeReferences = [
-        "Back when life was simpler",
-        "In those golden days",
-        "During that amazing phase",
-        "At that perfect moment",
-        "When everything felt right"
-    ];
-
-    if (Math.random() > 0.6) { // 40% chance to add time context
-        return `${selectRandom(timeReferences)}, ${message.toLowerCase()}`;
-    }
-
-    return message;
+  const references = [
+    "Back when life was simpler",
+    "In those golden days",
+    "During that amazing phase",
+    "At that perfect moment",
+    "When everything felt right"
+  ];
+  if (Math.random() > 0.5) {
+    return `${selectRandom(references)}, ${message.toLowerCase()}`;
+  }
+  return message;
 }
 
-/**
- * Enhance message with emojis and hashtags
- */
+function personalizeMessage(message, userInPhoto) {
+  const touches = [
+    "I'll always remember this.",
+    "Me in my element.",
+    "This was such a me moment.",
+    "Feeling nostalgic about this.",
+    "This captures my essence perfectly."
+  ];
+  if (userInPhoto && Math.random() > 0.7) {
+    return `${message} ${selectRandom(touches)}`;
+  }
+  return message;
+}
+
+// --------------- ANALYSIS FUNCTIONS ---------------
+
+function analyzePhotoContext(persons, userCode, mediaItem) {
+  const totalPeople = persons.length;
+  const userInPhoto = persons.some(p => {
+    const code = typeof p === 'string' ? p : p.code;
+    return code === userCode;
+  });
+
+  const otherPersons = persons.filter(p => {
+    const code = typeof p === 'string' ? p : p.code;
+    return code !== userCode;
+  });
+
+  let relationshipDepth = 'casual';
+  if (totalPeople === 1 && userInPhoto) relationshipDepth = 'personal';
+  if (totalPeople === 2) relationshipDepth = 'close';
+  if (totalPeople >= 5) relationshipDepth = 'community';
+
+  const possibleEmotions = [];
+  if (userInPhoto) possibleEmotions.push('proud', 'happy');
+  if (otherPersons.length > 0) possibleEmotions.push('loving', 'grateful');
+  if (totalPeople >= 3) possibleEmotions.push('nostalgic');
+
+  return {
+    totalPeople,
+    userInPhoto,
+    otherPersons,
+    relationshipDepth,
+    possibleEmotions,
+    mediaItem
+  };
+}
+
+function determineMessageType(analysis, configuredSentiment) {
+  if (configuredSentiment !== 'auto') return configuredSentiment;
+
+  const { totalPeople, userInPhoto } = analysis;
+  if (totalPeople === 1 && userInPhoto) return 'reflection';
+  if (totalPeople === 2) return userInPhoto ? 'celebration' : 'appreciation';
+  if (totalPeople >= 3 && totalPeople <= 5) return 'celebration';
+  if (totalPeople > 5) return 'nostalgic';
+  return 'appreciation';
+}
+
+// --------------- CORE MESSAGE BUILDER ---------------
+
+function buildMessage(analysis, messageType, config) {
+  const { totalPeople, userInPhoto, otherPersons, possibleEmotions } = analysis;
+
+  // Select pattern based on group size
+  let pattern;
+  if (totalPeople === 1) pattern = contextPatterns.solo;
+  else if (totalPeople === 2) pattern = contextPatterns.duo;
+  else if (totalPeople <= 5) pattern = contextPatterns.smallGroup;
+  else pattern = contextPatterns.largeGroup;
+
+  // Select framework template
+  const frameworkTemplates = messageFrameworks[messageType] || messageFrameworks.appreciation;
+  const template = config.customTemplate || frameworkTemplates[Math.floor(frameworkTemplates.length / 2)];
+
+  // Build components with style/personality influence
+  const personality = personalities[config.style] || personalities.casual;
+  const components = {
+    intro: selectRandom(pattern.intro),
+    middle: selectRandom(pattern.middle),
+    ending: selectRandom(pattern.ending),
+    names: getNamesString(otherPersons, userInPhoto, config.currentUserName, config.useFullNames),
+    emotion: selectRandom(possibleEmotions.length ? possibleEmotions : ['happy']),
+    adj: selectRandom(personality.adjectives),
+    verb: selectRandom(personality.verbs)
+  };
+
+  let message = template.replace(/{(\w+)}/g, (_, key) => components[key] || `{${key}}`).replace(/\s+/g, ' ').trim();
+
+  // Add user context
+  if (userInPhoto && config.includeCurrentUser) {
+    message = personalizeMessage(message, userInPhoto);
+  }
+
+  // Add time context
+  if (config.addTimeContext) {
+    message = addTimeContext(message);
+  }
+
+  return message;
+}
+
+// --------------- ENHANCE FUNCTION ---------------
+
 function enhanceMessage(message, analysis, config) {
-    const { totalPeople, userInPhoto, otherPersons } = analysis;
+  const { totalPeople, userInPhoto, otherPersons } = analysis;
 
-    // ADD EMOJIS
-    const emoji = selectEmoji(totalPeople, userInPhoto);
-    let enhanced = `${message} ${emoji}`;
+  // Add emoji
+  if (config.includeEmojis !== false) {
+    const emoji = getRandomEmoji(config.style, totalPeople, userInPhoto);
+    if (!message.endsWith(emoji)) message += ` ${emoji}`;
+  }
 
-    // ADD HASHTAGS
-    if (config.includeNames) {
-        const hashtags = generateHashtags(otherPersons, totalPeople, userInPhoto);
-        enhanced += ` ${hashtags}`;
+  // Add hashtags
+  if (config.includeHashtags) {
+    const hashtagList = generateHashtags(otherPersons, totalPeople, userInPhoto, config.style);
+    const hashtagStr = hashtagList.map(t => `#${t}`).join(' ');
+    if (message.length + hashtagStr.length + 1 <= (config.maxLength || 280)) {
+      message += ` ${hashtagStr}`;
     }
+  }
 
-    // ADD LOCATION HINT (if available in metadata)
-    if (config.addLocationHint && analysis.mediaItem.location) {
-        enhanced += ` 📍 ${analysis.mediaItem.location}`;
-    }
+  // Add location hint
+  if (config.addLocationHint && analysis.mediaItem?.location) {
+    message += ` 📍 ${analysis.mediaItem.location}`;
+  }
 
-    return {
-        message: enhanced,
-        rawMessage: message,
-        analysis: {
-            totalPeople,
-            userInPhoto,
-            personCount: otherPersons.length,
-            sentiment: analysis.possibleEmotions[0]
-        },
-        metadata: {
-            generatedAt: new Date().toISOString(),
-            length: enhanced.length
-        }
-    };
+  // Truncate if needed
+  if (config.maxLength && message.length > config.maxLength) {
+    message = message.substring(0, config.maxLength - 3) + '...';
+  }
+
+  return message;
 }
 
-/**
- * Select appropriate emoji
- */
-function selectEmoji(totalPeople, userInPhoto) {
-    if (totalPeople === 1) {
-        return userInPhoto ? '✨' : '🌟';
-    } else if (totalPeople === 2) {
-        return userInPhoto ? '💖' : '👥';
-    } else if (totalPeople <= 5) {
-        return '👨‍👩‍👧‍👦';
-    } else {
-        return '🎉';
-    }
+// --------------- SPECIAL STYLES (STORY, DETAILED, SIMPLE) ---------------
+
+function generateStoryStyle(analysis, config) {
+  const { totalPeople, otherPersons, userInPhoto } = analysis;
+  const storyBases = {
+    solo: [
+      "In this moment, time stood still. A memory frozen forever, waiting to be revisited.",
+      "There's something about this photo that tells a story words never could.",
+      "This wasn't just a picture; it was a feeling, a moment, a memory etched in time."
+    ],
+    duo: [
+      "Two souls, one frame. A story of friendship that photographs can only begin to tell.",
+      "Some moments are too precious for words. This photo captures a bond that speaks volumes.",
+      "Together in this moment, creating a memory that would become part of their story forever."
+    ],
+    group: [
+      "Every person in this frame has a story, and together they created this beautiful chapter.",
+      "This wasn't just a gathering; it was where stories intersected and memories were born.",
+      "Look closely and you'll see not just faces, but stories waiting to be told."
+    ]
+  };
+  let storyType = totalPeople === 1 ? 'solo' : totalPeople === 2 ? 'duo' : 'group';
+  let story = selectRandom(storyBases[storyType]);
+
+  if (otherPersons.length > 0 && otherPersons.length <= 3) {
+    const names = getNamesString(otherPersons, userInPhoto, config.currentUserName, true);
+    story += ` Featuring ${names}.`;
+  }
+  return story;
 }
 
-/**
- * Generate relevant hashtags
- */
-function generateHashtags(persons, totalPeople, userInPhoto) {
-    const hashtags = [];
+function generateDetailedStyle(analysis, config) {
+  const { totalPeople, otherPersons, userInPhoto } = analysis;
+  let desc = "";
 
-    // Person hashtags
-    persons.forEach(person => {
-        const code = typeof person === 'string' ? person : person.code;
-        if (code && code.length <= 4) {
-            hashtags.push(`#Person${code}`);
-        }
-    });
-
-    // Size hashtags
-    if (totalPeople === 1) hashtags.push('#Solo');
-    else if (totalPeople === 2) hashtags.push('#Duo');
-    else if (totalPeople <= 5) hashtags.push('#Squad');
-    else hashtags.push('#GroupPhoto');
-
-    // Sentiment hashtags
+  if (totalPeople === 1) {
     if (userInPhoto) {
-        hashtags.push('#MyMemory', '#Personal');
+      desc = "A personal moment of reflection";
     } else {
-        hashtags.push('#Friends', '#BeautifulPeople');
+      const name = getNamesString(otherPersons, userInPhoto, config.currentUserName, true) || 'Someone';
+      desc = `${name} in a moment of quiet contemplation`;
     }
+  } else if (totalPeople === 2) {
+    desc = "Two friends sharing a special connection";
+  } else if (totalPeople <= 5) {
+    desc = `A close-knit group of ${totalPeople} friends`;
+  } else {
+    desc = `A vibrant gathering of ${totalPeople} amazing individuals`;
+  }
 
-    // General hashtags
-    hashtags.push('#Memories', '#Throwback', '#GoodTimes');
+  if (otherPersons.length > 0 && otherPersons.length <= 3) {
+    const names = getNamesString(otherPersons, userInPhoto, config.currentUserName, true);
+    desc += userInPhoto ? ` with ${names}` : ` featuring ${names}`;
+  }
 
-    // Limit to 5 hashtags
-    return hashtags.slice(0, 5).join(' ');
+  const emotions = ['joyful', 'memorable', 'heartwarming', 'unforgettable'];
+  desc += `. A truly ${selectRandom(emotions)} memory`;
+
+  const closings = [
+    "that will be cherished forever.",
+    "captured in this single frame.",
+    "that tells a beautiful story.",
+    "preserved for years to come."
+  ];
+  desc += ` ${selectRandom(closings)}`;
+  return desc;
 }
 
-/**
- * Utility: Select random element from array
- */
-function selectRandom(array) {
-    return array[Math.floor(Math.random() * array.length)];
+function generateSimpleStyle(analysis, config) {
+  const { totalPeople, otherPersons, userInPhoto } = analysis;
+  if (totalPeople === 0) return "A beautiful moment captured 📸";
+
+  if (userInPhoto && totalPeople === 1) return "That's me! Living in the moment 😊";
+
+  if (otherPersons.length === 1) {
+    const name = getNamesString(otherPersons, false, '', true);
+    return userInPhoto ? `Me with ${name} 👫` : `${name} looking great!`;
+  }
+  if (otherPersons.length === 2) {
+    const names = getNamesString(otherPersons, false, '', true);
+    return userInPhoto ? `Hanging with ${names} 👥` : `${names} together!`;
+  }
+  return `${totalPeople} amazing people in one frame! 🎉`;
 }
 
+// ========================================================
+// MAIN MERGED FUNCTION: generateAIPhotoMessage
+// ========================================================
+
 /**
- * STORYTELLER MODE - Creates narrative captions
+ * Generates an AI-like, context-aware message for a photo.
+ *
+ * @param {Object} mediaItem - Media object with `persons` array (and optional `location`, `alt`).
+ * @param {Object} currentUser - User object with `code` and optionally `name`.
+ * @param {Object} [options={}] - Generation options.
+ * @param {'auto'|'positive'|'nostalgic'|'celebratory'|'reflection'|'missing'|'appreciation'} [options.sentiment='auto'] - Primary sentiment.
+ * @param {'casual'|'formal'|'funny'|'romantic'|'nostalgic'|'story'|'detailed'|'simple'} [options.style='casual'] - Tone / style.
+ * @param {'simple'|'medium'|'complex'} [options.complexity='medium'] - Message complexity (ignored for story/detailed/simple styles).
+ * @param {boolean} [options.includeNames=true] - Include person names.
+ * @param {boolean} [options.useFullNames=true] - Use full names (vs. codes).
+ * @param {boolean} [options.includeCurrentUser=true] - Personalize for current user.
+ * @param {boolean} [options.addLocationHint=false] - Add location if available.
+ * @param {boolean} [options.addTimeContext=true] - Add time reference.
+ * @param {boolean} [options.includeEmojis=true] - Append emoji.
+ * @param {boolean} [options.includeHashtags=true] - Append hashtags.
+ * @param {number} [options.maxLength=280] - Maximum message length.
+ * @param {string} [options.customTemplate=null] - Override the template.
+ * @param {boolean} [options.debug=false] - Debug logging.
+ *
+ * @returns {Object} { message, rawMessage, analysis, metadata }
  */
-export function generateStoryCaption(mediaItem, currentUser) {
-    const persons = Array.isArray(mediaItem.persons) ? mediaItem.persons : [];
-    const userCode = currentUser?.code;
+export function generateAIPhotoMessage(mediaItem, currentUser, options = {}) {
+  const config = {
+    sentiment: 'auto',
+    style: 'casual',
+    complexity: 'medium',
+    includeNames: true,
+    useFullNames: true,
+    includeCurrentUser: true,
+    addLocationHint: false,
+    addTimeContext: true,
+    includeEmojis: true,
+    includeHashtags: true,
+    maxLength: 280,
+    customTemplate: null,
+    debug: false,
+    ...options
+  };
 
-    const stories = {
-        // Single person stories
-        solo: [
-            "In this moment, time stood still. A memory frozen forever, waiting to be revisited.",
-            "There's something about this photo that tells a story words never could.",
-            "This wasn't just a picture; it was a feeling, a moment, a memory etched in time."
-        ],
+  const persons = Array.isArray(mediaItem.persons) ? mediaItem.persons : [];
+  const userCode = currentUser?.code;
+  const userName = currentUser?.name;
+  config.currentUserName = userName; // for helper functions
 
-        // Two people stories
-        duo: [
-            "Two souls, one frame. A story of friendship that photographs can only begin to tell.",
-            "Some moments are too precious for words. This photo captures a bond that speaks volumes.",
-            "Together in this moment, creating a memory that would become part of their story forever."
-        ],
+  // Analyze photo context
+  const analysis = analyzePhotoContext(persons, userCode, mediaItem);
 
-        // Group stories
-        group: [
-            "Every person in this frame has a story, and together they created this beautiful chapter.",
-            "This wasn't just a gathering; it was where stories intersected and memories were born.",
-            "Look closely and you'll see not just faces, but stories waiting to be told."
-        ]
+  // For special styles that bypass the standard template pipeline
+  if (config.style === 'story') {
+    const raw = generateStoryStyle(analysis, config);
+    const enhanced = enhanceMessage(raw, analysis, config);
+    return {
+      message: enhanced,
+      rawMessage: raw,
+      analysis: {
+        totalPeople: analysis.totalPeople,
+        userInPhoto: analysis.userInPhoto,
+        personCount: analysis.otherPersons.length,
+        sentiment: 'nostalgic'
+      },
+      metadata: {
+        generatedAt: new Date().toISOString(),
+        length: enhanced.length,
+        style: 'story'
+      }
     };
+  }
 
-    const totalPeople = persons.length;
-    let storyType;
+  if (config.style === 'detailed') {
+    const raw = generateDetailedStyle(analysis, config);
+    const enhanced = enhanceMessage(raw, analysis, config);
+    return {
+      message: enhanced,
+      rawMessage: raw,
+      analysis: {
+        totalPeople: analysis.totalPeople,
+        userInPhoto: analysis.userInPhoto,
+        personCount: analysis.otherPersons.length,
+        sentiment: 'reflective'
+      },
+      metadata: {
+        generatedAt: new Date().toISOString(),
+        length: enhanced.length,
+        style: 'detailed'
+      }
+    };
+  }
 
-    if (totalPeople === 1) storyType = 'solo';
-    else if (totalPeople === 2) storyType = 'duo';
-    else storyType = 'group';
+  if (config.style === 'simple') {
+    const raw = generateSimpleStyle(analysis, config);
+    const enhanced = enhanceMessage(raw, analysis, config);
+    return {
+      message: enhanced,
+      rawMessage: raw,
+      analysis: {
+        totalPeople: analysis.totalPeople,
+        userInPhoto: analysis.userInPhoto,
+        personCount: analysis.otherPersons.length,
+        sentiment: 'casual'
+      },
+      metadata: {
+        generatedAt: new Date().toISOString(),
+        length: enhanced.length,
+        style: 'simple'
+      }
+    };
+  }
 
-    const baseStory = selectRandom(stories[storyType]);
+  // Standard pipeline for style: casual, formal, funny, romantic, nostalgic
+  const messageType = determineMessageType(analysis, config.sentiment);
+  const rawMessage = buildMessage(analysis, messageType, config);
+  const enhancedMessage = enhanceMessage(rawMessage, analysis, config);
 
-    // Add personal names if available
-    if (persons.length > 0 && persons.length <= 3) {
-        const names = persons.map(p => typeof p === 'string' ? p : p.name).join(' and ');
-        return `${baseStory} Featuring ${names}.`;
+  return {
+    message: enhancedMessage,
+    rawMessage,
+    analysis: {
+      totalPeople: analysis.totalPeople,
+      userInPhoto: analysis.userInPhoto,
+      personCount: analysis.otherPersons.length,
+      sentiment: analysis.possibleEmotions[0] || 'happy'
+    },
+    metadata: {
+      generatedAt: new Date().toISOString(),
+      length: enhancedMessage.length,
+      style: config.style,
+      complexity: config.complexity,
+      messageType
     }
-
-    return baseStory;
+  };
 }
 
+// --------------- REWORKED EXPORTED FUNCTIONS ---------------
+
 /**
- * BATCH GENERATOR WITH VARIETY
+ * Generates a batch of varied AI messages for multiple media items.
+ * Uses different styles and sentiments automatically for diversity.
+ *
+ * @param {Object[]} mediaArray - Array of media items.
+ * @param {Object} currentUser - Current user.
+ * @param {number} [count=5] - Number of messages to generate.
+ * @returns {Object[]} Array of results (same structure as single message).
  */
 export function generateBatchMessages(mediaArray, currentUser, count = 5) {
-    const styles = ['reflection', 'celebration', 'story', 'simple', 'detailed'];
-    const results = [];
+  const styles = ['casual', 'nostalgic', 'story', 'detailed', 'funny'];
+  const sentiments = ['auto', 'celebratory', 'reflection', 'missing'];
+  const results = [];
+  const shuffled = [...mediaArray].sort(() => Math.random() - 0.5);
 
-    // Shuffle media array
-    const shuffled = [...mediaArray].sort(() => Math.random() - 0.5);
+  for (let i = 0; i < Math.min(count, shuffled.length); i++) {
+    const media = shuffled[i];
+    const style = styles[i % styles.length];
+    const sentiment = sentiments[i % sentiments.length];
 
-    for (let i = 0; i < Math.min(count, shuffled.length); i++) {
-        const media = shuffled[i];
-        const style = styles[i % styles.length];
+    const { message, analysis, metadata } = generateAIPhotoMessage(media, currentUser, {
+      style,
+      sentiment,
+      includeEmojis: true,
+      includeHashtags: i % 2 === 0,  // mix hashtags on/off
+      addTimeContext: true
+    });
 
-        let message;
-        switch(style) {
-            case 'story':
-                message = generateStoryCaption(media, currentUser);
-                break;
-            case 'simple':
-                message = generateSimpleCaption(media, currentUser);
-                break;
-            case 'detailed':
-                message = generateDetailedDescription(media, currentUser);
-                break;
-            default:
-                message = generateIntelligentMessage(media, currentUser, {
-                    sentiment: style === 'celebration' ? 'celebratory' : 'auto'
-                }).message;
-        }
+    results.push({
+      media: media.src || media.alt || 'media_' + i,
+      message,
+      style,
+      sentiment,
+      persons: analysis.personCount,
+      userInPhoto: analysis.userInPhoto,
+      metadata
+    });
+  }
 
-        results.push({
-            media: media.src,
-            message,
-            style,
-            persons: media.persons || []
-        });
-    }
-
-    return results;
+  return results;
 }
 
 /**
- * Simple caption generator
+ * Simple, quick message (calls the unified generator with 'simple' style).
  */
-function generateSimpleCaption(mediaItem, currentUser) {
-    const persons = Array.isArray(mediaItem.persons) ? mediaItem.persons : [];
-    const userCode = currentUser?.code;
-
-    if (persons.length === 0) {
-        return "A beautiful moment captured 📸";
-    }
-
-    const userInPhoto = persons.some(p => {
-        const code = typeof p === 'string' ? p : p.code;
-        return code === userCode;
-    });
-
-    const otherCount = persons.filter(p => {
-        const code = typeof p === 'string' ? p : p.code;
-        return code !== userCode;
-    }).length;
-
-    if (userInPhoto && otherCount === 0) {
-        return "That's me! Living in the moment 😊";
-    }
-
-    if (otherCount === 1) {
-        const person = persons.find(p => {
-            const code = typeof p === 'string' ? p : p.code;
-            return code !== userCode;
-        });
-        const name = typeof person === 'string' ? person : person.name;
-        return userInPhoto ? `Me with ${name} 👫` : `${name} looking great!`;
-    }
-
-    if (otherCount === 2) {
-        const otherPersons = persons.filter(p => {
-            const code = typeof p === 'string' ? p : p.code;
-            return code !== userCode;
-        });
-        const names = otherPersons.map(p =>
-            typeof p === 'string' ? p : p.name
-        ).join(' & ');
-        return userInPhoto ? `Hanging with ${names} 👥` : `${names} together!`;
-    }
-
-    return `${persons.length} amazing people in one frame! 🎉`;
+export function generateSimpleMessage(mediaItem = {}, currentUser = {}) {
+  const result = generateAIPhotoMessage(mediaItem, currentUser, {
+    style: 'simple',
+    includeEmojis: true,
+    includeHashtags: false,
+    includeCurrentUser: true,
+    useFullNames: false,
+    addTimeContext: false,
+    maxLength: 120
+  });
+  return result.message;
 }
 
 /**
- * Detailed description generator
+ * Generates a narrative, storytelling caption (uses 'story' style).
  */
-function generateDetailedDescription(mediaItem, currentUser) {
-    const persons = Array.isArray(mediaItem.persons) ? mediaItem.persons : [];
-    const totalPeople = persons.length;
-    const userCode = currentUser?.code;
-
-    const userInPhoto = persons.some(p => {
-        const code = typeof p === 'string' ? p : p.code;
-        return code === userCode;
-    });
-
-    const otherPersons = persons.filter(p => {
-        const code = typeof p === 'string' ? p : p.code;
-        return code !== userCode;
-    });
-
-    let description = "";
-
-    // Start with context
-    if (totalPeople === 1) {
-        if (userInPhoto) {
-            description = "A personal moment of reflection";
-        } else {
-            const person = persons[0];
-            const name = typeof person === 'string' ? person : person.name;
-            description = `${name} in a moment of quiet contemplation`;
-        }
-    } else if (totalPeople === 2) {
-        description = "Two friends sharing a special connection";
-    } else if (totalPeople <= 5) {
-        description = `A close-knit group of ${totalPeople} friends`;
-    } else {
-        description = `A vibrant gathering of ${totalPeople} amazing individuals`;
-    }
-
-    // Add details about people
-    if (otherPersons.length > 0 && otherPersons.length <= 3) {
-        const names = otherPersons.map(p =>
-            typeof p === 'string' ? p : p.name
-        ).join(', ');
-        description += userInPhoto ? ` with ${names}` : ` featuring ${names}`;
-    }
-
-    // Add emotional tone
-    const emotions = ['joyful', 'memorable', 'heartwarming', 'unforgettable'];
-    const emotion = emotions[Math.floor(Math.random() * emotions.length)];
-    description += `. A truly ${emotion} memory`;
-
-    // Add closing
-    const closings = [
-        "that will be cherished forever.",
-        "captured in this single frame.",
-        "that tells a beautiful story.",
-        "preserved for years to come."
-    ];
-    description += ` ${selectRandom(closings)}`;
-
-    return description;
+export function generateStoryCaption(mediaItem, currentUser) {
+  const result = generateAIPhotoMessage(mediaItem, currentUser, { style: 'story' });
+  return result.message;
 }
 
 /**
- * SOCIAL MEDIA OPTIMIZER
+ * Generates a full paragraph description (uses 'detailed' style).
  */
-export function optimizeForPlatform(message, platform) {
-    const optimizations = {
-        twitter: {
-            maxLength: 280,
-            hashtagStrategy: 'end', // 'end', 'middle', 'separate'
-            linkPosition: 'end',
-            emojiLimit: 3
-        },
-        instagram: {
-            maxLength: 2200,
-            hashtagStrategy: 'separate',
-            emojiLimit: 5,
-            lineBreaks: true
-        },
-        facebook: {
-            maxLength: 2000,
-            hashtagStrategy: 'minimal',
-            emojiLimit: 2
-        },
-        linkedin: {
-            maxLength: 3000,
-            hashtagStrategy: 'end',
-            emojiLimit: 1,
-            professional: true
-        }
-    };
-
-    const config = optimizations[platform] || optimizations.twitter;
-
-    let optimized = message.message || message;
-
-    // Truncate if too long
-    if (optimized.length > config.maxLength) {
-        optimized = optimized.substring(0, config.maxLength - 3) + '...';
-    }
-
-    // Adjust emojis
-    if (config.emojiLimit) {
-        const emojiRegex = /[\p{Emoji_Presentation}\p{Emoji}\uFE0F]/gu;
-        const emojis = optimized.match(emojiRegex) || [];
-        if (emojis.length > config.emojiLimit) {
-            optimized = optimized.replace(emojiRegex, (match, index) => {
-                return index < config.emojiLimit ? match : '';
-            });
-        }
-    }
-
-    // Format for platform
-    if (platform === 'instagram' && config.lineBreaks) {
-        optimized = optimized.replace(/\. /g, '.\n\n');
-    }
-
-    if (platform === 'linkedin' && config.professional) {
-        optimized = optimized.replace(/[😊😂🤣]/g, '');
-    }
-
-    return optimized;
-}
-/**
- * Generates a quick, simple caption for photos
- * Used for tooltips and quick displays
- */
-export function generateQuickCaption(mediaItem, currentUser) {
-    const persons = Array.isArray(mediaItem.persons) ? mediaItem.persons : [];
-    const userCode = currentUser?.code;
-
-    if (persons.length === 0) {
-        return "A beautiful memory ✨";
-    }
-
-    const userInPhoto = persons.some(p => {
-        const code = typeof p === 'string' ? p : p.code;
-        return code === userCode;
-    });
-
-    const otherPersons = persons.filter(p => {
-        const code = typeof p === 'string' ? p : p.code;
-        return code !== userCode;
-    });
-
-    if (otherPersons.length === 1) {
-        const person = otherPersons[0];
-        const name = typeof person === 'string' ? person : (person.name || person.code);
-        return userInPhoto ? `With ${name} 😊` : `${name} looking great!`;
-    }
-
-    if (otherPersons.length === 2) {
-        const names = otherPersons.map(p =>
-            typeof p === 'string' ? p : (person.name || person.code)
-        ).join(' & ');
-        return userInPhoto ? `Hanging with ${names} 👥` : `${names} together!`;
-    }
-
-    return `${persons.length} amazing people 📸`;
+export function generateDetailedDescription(mediaItem, currentUser) {
+  const result = generateAIPhotoMessage(mediaItem, currentUser, { style: 'detailed' });
+  return result.message;
 }
 
-/**
- * Simple message generator for social sharing
- */
-export function generateSimpleMessage(mediaItem =[''], currentUser ={}) {
-    const persons = Array.isArray(mediaItem.persons) ? mediaItem.persons : [];
-    const userCode = currentUser?.code;
 
-    if (persons.length === 0) {
-        return "Beautiful memory captured forever ✨";
-    }
-
-    const userInPhoto = persons.some(p => {
-        const code = typeof p === 'string' ? p : p.code;
-        return code === userCode;
-    });
-
-    const otherPersons = persons.filter(p => {
-        const code = typeof p === 'string' ? p : p.code;
-        return code !== userCode;
-    });
-
-    if (otherPersons.length === 1) {
-        const person = otherPersons[0];
-        const name = typeof person === 'string' ? person : (person.name || person.code);
-        return userInPhoto
-            ? `Me with ${name} - great memories! 😊`
-            : `${name} looking amazing! ✨`;
-    }
-
-    if (otherPersons.length === 2) {
-        const names = otherPersons.map(p =>
-            typeof p === 'string' ? p : (p.name || p.code)
-        ).join(' and ');
-        return userInPhoto
-            ? `Amazing times with ${names}! 👥`
-            : `${names} together - what a beautiful memory! 💖`;
-    }
-
-    return `${persons.length-1} amazing people in one frame! 📸`;
-}
+export const generateIntelligentMessage = generateAIPhotoMessage;
+ export const generatePhotoMessage = generateAIPhotoMessage;
 
 // Export the main function and utilities
 export default filterMediaByUser;
-  /**
-   * Utility: Delay function
-   * @param {number} ms - Milliseconds to delay
-   * @returns {Promise<void>}
-   */
-  export function delay(ms) {
+
+/**
+ * Utility: Delay function (returns a promise that resolves after ms).
+ *
+ * @param {number} ms - Milliseconds to delay.
+ * @returns {Promise<void>}
+ */
+export function delay(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
-  }
+}

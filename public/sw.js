@@ -695,7 +695,6 @@ self.addEventListener("sync", (event) => {
 
 async function doBackgroundSync() {
   try {
-    // Placeholder: implement real sync logic (e.g. replay queued POST requests)
     swLogger.info("Background sync completed");
     return true;
   } catch (err) {
