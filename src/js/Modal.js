@@ -17,7 +17,7 @@ const modalLogger = logger.withContext({module: "UltimateModal"});
 * 2. improve Create dynamic gradient based on extracted colors (done)
 * 3. cache the extracted palette for reuse (done)
 * 4. improve the the tooltip text (done)
-* 5. use preloading to load images in the background as the user navigates
+* 5. use preloading to load images in the background as the user navigates (done)
 * 6. fix the css transition for the image background changing (pending)
 * 7. when its a vid it should use the thumb to get the color (done)
 * */
@@ -1365,10 +1365,10 @@ class UltimateModal {
     }
 
     /**
-     * Shows the image tooltip at click position
-     * Positions tooltip intelligently within viewport and modal bounds
+     * Shows the image tooltip at click position.
+     * Positions tooltip relative to the modal container for consistent behaviour
+     * across all devices, viewport sizes, and full-screen modes.
      * @param {Event} event - The click event containing position data
-     * @returns {void}
      */
     showImageTooltip(event) {
         // Don't show tooltip if we're in zoomed mode or if tooltip doesn't exist
@@ -1381,141 +1381,90 @@ class UltimateModal {
             clientY: event.clientY,
         });
 
-        // Set tooltip message based on device type and current state
+        // Set tooltip message (unchanged)
         const current = this._getCurrentMedia();
         const currentUser = this.state.currentUser || getCurrentUserInfo();
 
         let message;
         if (this.tooltip.getAttribute('data-intelligent-caption')) {
-            // Use cached caption
             message = this.tooltip.getAttribute('data-intelligent-caption');
         } else {
-            // Generate new caption
-            message =generatePhotoMessage(this._getCurrentMediaData(), currentUser) || current.alt;
+            message = generatePhotoMessage(this._getCurrentMediaData(), currentUser).message || current.alt;
         }
+        this.tooltip.textContent = message;
 
-        // Update tooltip text
-        this.tooltip.textContent = message.message;
+        // --- MEASURE TOOLTIP DIMENSIONS (offscreen) ---
+        const originalStyles = {
+            display: this.tooltip.style.display,
+            position: this.tooltip.style.position,
+            left: this.tooltip.style.left,
+            top: this.tooltip.style.top,
+            visibility: this.tooltip.style.visibility,
+        };
 
-        // OFFSCREEN MEASUREMENT TECHNIQUE: Temporarily position offscreen to measure accurately
-        // without affecting the visible UI or relying on hidden visibility
-        const originalDisplay = this.tooltip.style.display;
-        const originalLeft = this.tooltip.style.left;
-        const originalTop = this.tooltip.style.top;
-        const originalVisibility = this.tooltip.style.visibility;
-
-        // Set up for measurement: display block, visible, positioned way offscreen
+        // Make sure the tooltip is absolute for correct measurement
         this.tooltip.style.display = "block";
+        this.tooltip.style.position = "absolute";      // required for coordinate positioning
         this.tooltip.style.visibility = "visible";
-        this.tooltip.style.left = "-9999px"; // Offscreen left
-        this.tooltip.style.top = "auto"; // Reset top for natural height
-        this.tooltip.classList.add("visible"); // Ensure full styles (e.g., animations/transitions) are applied
+        this.tooltip.style.left = "-9999px";
+        this.tooltip.style.top = "auto";
+        this.tooltip.classList.add("visible");
 
-        // Force reflow to apply styles and compute dimensions
-        this.tooltip.offsetHeight; // Trigger reflow
-
-        // Now measure
+        // Force reflow and measure
+        this.tooltip.offsetHeight;
         const tooltipRect = this.tooltip.getBoundingClientRect();
         const tooltipWidth = tooltipRect.width;
         const tooltipHeight = tooltipRect.height;
 
-        // Reset to original state for positioning (will re-apply position later)
+        // Reset to original (but keep position absolute for final placement)
         this.tooltip.classList.remove("visible");
-        this.tooltip.style.display = originalDisplay;
-        this.tooltip.style.left = originalLeft;
-        this.tooltip.style.top = originalTop;
-        this.tooltip.style.visibility = originalVisibility;
+        this.tooltip.style.display = originalStyles.display;
+        this.tooltip.style.left = originalStyles.left;
+        this.tooltip.style.top = originalStyles.top;
+        this.tooltip.style.visibility = originalStyles.visibility;
+        // We intentionally leave position = 'absolute' (was set or already absolute)
 
-        // Get modal and viewport dimensions
-        const modalRect = this.elements.modalContainer.getBoundingClientRect();
-        const viewportWidth = window.innerWidth;
-        const viewportHeight = window.innerHeight;
+        // --- POSITION RELATIVE TO MODAL CONTAINER ---
+        const modal = this.elements.modalContainer;
+        const modalRect = modal.getBoundingClientRect();
 
-        // Calculate ideal position (centered near click with offset)
-        const clickX = event.clientX;
-        const clickY = event.clientY;
+        // Convert click coordinates to be relative to the modal container
+        const clickXRel = event.clientX - modalRect.left;
+        const clickYRel = event.clientY - modalRect.top;
 
-        // Adjusted for "directly under the mouse": position below click, centered horizontally
-        const offsetY = 10; // Small offset below the click
-        let tooltipX = clickX - tooltipWidth / 2; // Center horizontally relative to click
-        let tooltipY = clickY + offsetY;
+        const offsetY = 10;          // small gap below cursor
+        const safeMargin = 8;        // keep tooltip inside modal padding
 
-        // Smart boundary detection and adjustment with priorities:
-        // 1. Prefer below, then above, then clamp
-        // 2. Horizontal: prefer centered at click, then shift left/right, then clamp
-        const safeMargin = 12; // Slightly larger margin for better UX
+        // Center the tooltip horizontally under the click, then clamp to modal bounds
+        let tooltipX = clickXRel - tooltipWidth / 2;
+        let tooltipY = clickYRel + offsetY;
 
-        // HORIZONTAL POSITIONING
-        // Check right boundary first (viewport)
-        if (tooltipX + tooltipWidth > viewportWidth - safeMargin) {
-            // Shift left from click position (without extra offset to avoid being too far)
-            tooltipX = clickX - tooltipWidth;
+        // Horizontal clamping
+        const maxX = modalRect.width - tooltipWidth - safeMargin;
+        const minX = safeMargin;
+        if (tooltipX > maxX) tooltipX = maxX;
+        if (tooltipX < minX) tooltipX = minX;
+
+        // Vertical clamping: prefer below, fallback to above, then clamp
+        const maxY = modalRect.height - tooltipHeight - safeMargin;
+        const minY = safeMargin;
+        if (tooltipY > maxY) {
+            tooltipY = clickYRel - tooltipHeight - offsetY;   // try above the click
+            if (tooltipY < minY) tooltipY = minY;            // clamp top
         }
+        if (tooltipY < minY) tooltipY = minY;
 
-        // Check left boundary (viewport)
-        if (tooltipX < safeMargin) {
-            // Clamp to left edge or center if too narrow
-            if (tooltipWidth > viewportWidth - 2 * safeMargin) {
-                // Tooltip too wide for screen: center it
-                tooltipX = (viewportWidth - tooltipWidth) / 2;
-            } else {
-                tooltipX = safeMargin;
-            }
-        }
-
-        // VERTICAL POSITIONING
-        // Prefer below click
-        if (tooltipY + tooltipHeight > viewportHeight - safeMargin) {
-            // Not enough space below: try above
-            tooltipY = clickY - tooltipHeight - 10; // Above with small offset
-            // If still hits top, clamp to top
-            if (tooltipY < safeMargin) {
-                tooltipY = safeMargin;
-            }
-        }
-
-        // MODAL BOUNDS ADJUSTMENT: Ensure tooltip stays INSIDE modal
-        // This is crucial if modal has overflow: hidden or padding
-        const modalPadding = 20; // Account for modal's internal padding/borders
-
-        // Horizontal modal bounds
-        const modalSafeLeft = modalRect.left + modalPadding;
-        const modalSafeRight = modalRect.right - modalPadding;
-        if (tooltipX < modalSafeLeft) {
-            tooltipX = modalSafeLeft;
-        }
-        if (tooltipX + tooltipWidth > modalSafeRight) {
-            tooltipX = modalSafeRight - tooltipWidth;
-            // If still overflows left, center in modal
-            if (tooltipX < modalSafeLeft) {
-                tooltipX = (modalRect.width - tooltipWidth) / 2 + modalRect.left;
-            }
-        }
-
-        // Vertical modal bounds
-        const modalSafeTop = modalRect.top + modalPadding;
-        const modalSafeBottom = modalRect.bottom - modalPadding;
-        if (tooltipY < modalSafeTop) {
-            tooltipY = modalSafeTop;
-        }
-        if (tooltipY + tooltipHeight > modalSafeBottom) {
-            tooltipY = modalSafeBottom - tooltipHeight;
-            // If still overflows top, center vertically in modal
-            if (tooltipY < modalSafeTop) {
-                tooltipY = (modalRect.height - tooltipHeight) / 2 + modalRect.top;
-            }
-        }
-
-        // Apply final position (absolute to document)
+        // Apply final position (relative to modal container)
+        this.tooltip.style.position = "absolute";   // ensure it’s absolute
         this.tooltip.style.left = `${Math.round(tooltipX)}px`;
         this.tooltip.style.top = `${Math.round(tooltipY)}px`;
 
-        // Show tooltip with smooth animation
+        // Show tooltip with smooth animation (the .visible class uses translate(-50%, 0) to center horizontally)
         requestAnimationFrame(() => {
             this.tooltip.classList.add("visible");
         });
 
-        // Auto-hide after 3.5 seconds (slight increase for readability)
+        // Auto-hide after 3.5 seconds
         clearTimeout(this.tooltipTimeout);
         this.tooltipTimeout = setTimeout(() => {
             this.hideImageTooltip();
@@ -1523,19 +1472,17 @@ class UltimateModal {
 
         modalLogger.debug("Image tooltip displayed", {
             message,
-            clickPosition: {x: clickX, y: clickY},
-            finalPosition: {x: tooltipX, y: tooltipY},
-            tooltipDimensions: {width: tooltipWidth, height: tooltipHeight},
-            viewport: {width: viewportWidth, height: viewportHeight},
+            clickRelative: { x: clickXRel, y: clickYRel },
+            finalPosition: { x: tooltipX, y: tooltipY },
+            tooltipDimensions: { width: tooltipWidth, height: tooltipHeight },
             modalBounds: {
+                width: modalRect.width,
+                height: modalRect.height,
                 left: modalRect.left,
-                right: modalRect.right,
                 top: modalRect.top,
-                bottom: modalRect.bottom,
             },
         });
     }
-
     /**
      * Hides the image tooltip
      * @returns {void}
@@ -2194,7 +2141,7 @@ class UltimateModal {
                 message = this.generateWhatsappMessage(media, currentUser);
                 break;
             default:
-                message = this.generateSimpleMessage(media, currentUser);
+                message = generateSimpleMessage(media, currentUser);
         }
 
         // Cache the message
@@ -2263,47 +2210,6 @@ class UltimateModal {
     }
 
     /**
-     * Generates simple message fallback
-     */
-    generateSimpleMessage(media, currentUser) {
-        const persons = Array.isArray(media.persons) ? media.persons : [];
-
-        if (persons.length === 0) {
-            return "Beautiful memory captured forever ✨";
-        }
-
-        const userCode = currentUser?.code;
-        const userInPhoto = persons.some(p => {
-            const code = typeof p === 'string' ? p : p.code;
-            return code === userCode;
-        });
-
-        const otherPersons = persons.filter(p => {
-            const code = typeof p === 'string' ? p : p.code;
-            return code !== userCode;
-        });
-
-        if (otherPersons.length === 1) {
-            const person = otherPersons[0];
-            const name = typeof person === 'string' ? person : (person.name || person.code);
-            return userInPhoto
-                ? `Me with ${name} - great memories! 😊`
-                : `${name} looking amazing! ✨`;
-        }
-
-        if (otherPersons.length === 2) {
-            const names = otherPersons.map(p =>
-                typeof p === 'string' ? p : (p.name || p.code)
-            ).join(' and ');
-            return userInPhoto
-                ? `Amazing times with ${names}! 👥`
-                : `${names} together - what a beautiful memory! 💖`;
-        }
-
-        return `${persons.length} amazing people in one frame! 📸`;
-    }
-
-    /**
      * Generates intelligent alt text for images
      */
     generateIntelligentAltText(media, currentUser) {
@@ -2353,11 +2259,10 @@ class UltimateModal {
      */
     updateTooltipCaption(media, currentUser) {
         if (!this.tooltip) return;
-
-        const quickCaption = generateSimpleMessage(media, currentUser);
+        const messageData = generatePhotoMessage(media, currentUser,{style:'romantic'});
+        const quickCaption = messageData?.message;
         // Store in data attribute for reference
         this.tooltip.setAttribute('data-intelligent-caption', quickCaption);
-
         // If tooltip is visible, update it
         if (this.tooltip.classList.contains('visible')) {
             this.tooltip.textContent = quickCaption;

@@ -408,7 +408,9 @@ export default class DropdownManager {
 
     if (this.options.autoClose) {
       document.addEventListener('click',      this.handleClickOutside);
-      document.addEventListener('touchstart', this.handleClickOutside);
+      document.addEventListener('touchstart', this.handleClickOutside, {
+        passive: true,
+      });
     }
 
     if (this.options.enableKeyboardNav) {
@@ -435,7 +437,9 @@ export default class DropdownManager {
 
     if (this.options.autoClose) {
       document.addEventListener('click',      this.handleClickOutside);
-      document.addEventListener('touchstart', this.handleClickOutside);
+      document.addEventListener('touchstart', this.handleClickOutside, {
+        passive: true,
+      });
     }
   }
 

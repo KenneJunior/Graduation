@@ -372,11 +372,15 @@ class GraduationAppMemories {
         this.elements.celebrateButton.addEventListener("touchstart", () => {
             this.elements.celebrateButton.style.transform = "scale(0.95)";
             this.logger.debug("Celebrate button touch start - scaling down");
+        }, {
+            passive: true,
         });
 
         this.elements.celebrateButton.addEventListener("touchend", () => {
             this.elements.celebrateButton.style.transform = "";
             this.logger.debug("Celebrate button touch end - reset scale");
+        }, {
+            passive: true,
         });
 
         this.logger.debug("Celebration button event listeners added");
@@ -424,7 +428,9 @@ class GraduationAppMemories {
 
         // Release events
         document.addEventListener("mouseup", this.releaseGrowingHeart.bind(this));
-        document.addEventListener("touchend", this.releaseGrowingHeart.bind(this));
+        document.addEventListener("touchend", this.releaseGrowingHeart.bind(this), {
+            passive: true,
+        });
         document.addEventListener("mouseleave", this.releaseGrowingHeart.bind(this));
 
         this.logger.debug("Heart growth control listeners added");
@@ -444,7 +450,9 @@ class GraduationAppMemories {
 
         // Release events
         this.elements.growButton.addEventListener("mouseup", this.releaseButton.bind(this));
-        this.elements.growButton.addEventListener("touchend", this.releaseButton.bind(this));
+        this.elements.growButton.addEventListener("touchend", this.releaseButton.bind(this), {
+            passive: true,
+        });
 
         // Reset transforms on mouse leave
         document.addEventListener("mouseleave", () => {

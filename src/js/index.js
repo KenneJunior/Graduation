@@ -5,6 +5,7 @@ import { ThemeManager } from "./utility/Mode.js";
 import {
   filterMediaByUser,
   getCurrentUserInfo,
+  getMediaStatistics,
   hideMediaLoading,
   loadMediaData,
   showMediaLoading
@@ -603,7 +604,6 @@ class ConfettiSystem {
     if (this.animationId) {
       cancelAnimationFrame(this.animationId);
       this.animationId = null;
-      confettiLogger.debug("Animation stopped");
     }
   }
 
@@ -904,7 +904,6 @@ class ConfettiSystem {
        document.dispatchEvent(new CustomEvent('confetti:finished', {
         detail: { totalCreated: this.performanceStats.totalParticlesCreated }
     }));
-      confettiLogger.debug("All particles expired, animation stopped");
     }
   }
 
@@ -1320,9 +1319,7 @@ class ImageLoader {
             this.setupPlaybackControls();
 
             this.isLoaded = true;
-            imageLogger.info("ImageLoader initialized successfully", {
-                totalImages: this.mediaData.media.length
-            });
+            imageLogger.info({message:"ImageLoader initialized successfully", statistics: getMediaStatistics(this.mediaData.media)});
 
         } catch (error) {
             imageLogger.error("Failed to initialize ImageLoader", error);
@@ -2073,7 +2070,9 @@ applyTransitionEffect() {
                 throw new Error("No media data available");
             }
             const auth = getCurrentUserInfo()
-                this.config?.onlyWithPerson.push(auth.code)
+              if (auth.code != 'L') {
+                 this.config?.onlyWithPerson.push(auth.code)
+              }
                 this.mediaData.media = filterMediaByUser(this.mediaData.media, auth, {
                   onlyWithPerson: this.config?.onlyWithPerson || [],
                   excludeCodes:['L']
