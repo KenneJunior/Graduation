@@ -1582,6 +1582,59 @@ animation: orbitReverse 15s linear infinite;
     75% { transform: translateX(5px); }
   }
 
+
+.mode-toggle {
+position: fixed;
+top: 20px;
+left: 20px;
+z-index: 1000;
+background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+color: white;
+border: none;
+padding: 12px 18px;
+border-radius: 50px;
+cursor: pointer;
+display: flex;
+align-items: center;
+gap: 8px;
+font-size: 16px;
+box-shadow: var(--shadow-lg);
+transition: var(--transition);
+animation: subtleFloat 5s cubic-bezier(0.445, 0.05, 0.55, 0.95) infinite;
+}
+.mode-toggle:hover {
+transform: scale(1.08) translateY(-2px);
+box-shadow: var(--shadow-xl), var(--glow-primary);
+}
+.mode-icon {
+font-size: 18px;
+transition: var(--transition);
+}
+.mode-text {
+font-weight: 600;
+opacity: 0.95;
+}
+button:focus-visible,
+a:focus-visible {
+outline: 2px solid var(--primary);
+outline-offset: 2px;
+box-shadow: 0 0 0 3px rgba(142, 45, 226, 0.2);
+}
+
+.mode-text {
+    font-weight: 500;
+    opacity: 0.9;
+}
+
+[data-theme="dark"] .mode-toggle .mode-icon {
+    content: "☀️";
+    color: yellow;
+}
+
+[data-theme="dark"] .mode-toggle .mode-text {
+    content: "Light Mode";
+}
+
 /* ===== Animations ===== */
 @keyframes float {
   0%,
@@ -2264,6 +2317,15 @@ transition: var(--transition-fast);
     font-size: 1rem;
   }
 
+  .mode-toggle {
+    padding: 8px 12px;
+    font-size: 12px;
+  }
+
+  .mode-icon {
+    font-size: 16px;
+  }
+
   .Graduation-wishes {
     font-size: 1.4rem;
   }
@@ -2283,6 +2345,15 @@ transition: var(--transition-fast);
   .message-item {
     padding-left: 1.5rem;
     font-size: 0.95rem;
+  }
+
+  .mode-toggle {
+    padding: 6px 8px;
+    font-size: 8px;
+  }
+
+  .mode-icon {
+    font-size: 14px;
   }
 
   .Graduation-wishes {
@@ -2375,57 +2446,6 @@ border: 1px solid rgba(255, 255, 255, 0.2);
   .Graduation-card:hover {
     transform: none;
   }
-}
-.mode-toggle {
-position: fixed;
-top: 20px;
-left: 20px;
-z-index: 1000;
-background: linear-gradient(135deg, var(--primary), var(--primary-dark));
-color: white;
-border: none;
-padding: 12px 18px;
-border-radius: 50px;
-cursor: pointer;
-display: flex;
-align-items: center;
-gap: 8px;
-font-size: 16px;
-box-shadow: var(--shadow-lg);
-transition: var(--transition);
-animation: subtleFloat 5s cubic-bezier(0.445, 0.05, 0.55, 0.95) infinite;
-}
-.mode-toggle:hover {
-transform: scale(1.08) translateY(-2px);
-box-shadow: var(--shadow-xl), var(--glow-primary);
-}
-.mode-icon {
-font-size: 18px;
-transition: var(--transition);
-}
-.mode-text {
-font-weight: 600;
-opacity: 0.95;
-}
-button:focus-visible,
-a:focus-visible {
-outline: 2px solid var(--primary);
-outline-offset: 2px;
-box-shadow: 0 0 0 3px rgba(142, 45, 226, 0.2);
-}
-
-.mode-text {
-    font-weight: 500;
-    opacity: 0.9;
-}
-
-[data-theme="dark"] .mode-toggle .mode-icon {
-    content: "☀️";
-    color: yellow;
-}
-
-[data-theme="dark"] .mode-toggle .mode-text {
-    content: "Light Mode";
 }
 
 /* High contrast mode support */
@@ -2608,7 +2628,7 @@ html.theme-transitioning::before {
   [data-theme="dark"] .content-section {
       background-image: url("/pics/profile_pic.jpg") !important;
       background-size: cover !important;
-      background-position: center -15.5rem !important;
+      background-position: center  !important;
       background-repeat: no-repeat !important;
       color: white !important;
       text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5) !important;
@@ -2616,7 +2636,7 @@ html.theme-transitioning::before {
   }
   [data-theme="dark"] .Graduation-message {
     backdrop-filter: blur(10px);
-    background: rgba(30, 41, 59, 0.9);
+    background:rgb(14 26 46 / 65%);
   }
 }
 
