@@ -346,46 +346,6 @@
   <!-- Site-wide utilities -->
   <script src="/src/main.js" defer type="module"></script>
 
-  <!-- Auth guard — inline module so it runs early without render-blocking -->
-  <script type="module">
-    import logger from '/src/js/utility/logger.js';
-    import { getAuthManager } from '/src/auth-check.js';
-    import { getCurrentUserInfo } from ".js//utility/utils.js";
-
-    async function initProtectedPage() {
-      const user = getCurrentUserInfo();
-      if (user.code !== L) {
-        logger.warn('Unauthorized access attempt.');
-        window.location.href = '/login.html';
-        return;
-      }
-      try {
-        const auth = await getAuthManager();
-        auth.updateLoadingText('Lux Mea — preparing your special experience…');
-        auth.showLoading();
-
-        const result = await auth.setupAuthProtection();
-
-        if (result.authenticated) {
-          auth.hideLoading(3000);
-        } else {
-          logger.warn('Not authenticated — redirecting.');
-          window.location.href = '/login.html';
-        }
-      } catch (err) {
-        logger.error('Auth error:', err);
-        const auth = await getAuthManager();
-        auth.hideLoading();
-        window.location.href = '/login.html';
-      }
-    }
-
-    if (document.readyState === 'loading') {
-      document.addEventListener('DOMContentLoaded', initProtectedPage);
-    } else {
-      initProtectedPage();
-    }
-  </script>
 
 </body>
 </html>

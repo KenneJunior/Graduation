@@ -70,8 +70,7 @@
     <link rel="stylesheet" href="src/css/loading.css" />
   </head>
 
-  <body id="myPage" page="Memories">
-      <button id="mode-toggle" class="mode-toggle" hidden aria-label="Toggle dark mode">
+<body id="myPage" page="Memories" data-loading-text="Gathering your memories... 📸">      <button id="mode-toggle" class="mode-toggle" hidden aria-label="Toggle dark mode">
           <span class="mode-icon">🌙</span>
           <span class="mode-text">Dark Mode</span>
       </button>
@@ -400,44 +399,6 @@
     </div>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/hammer.js/2.0.8/hammer.min.js"></script>
       <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-      <script type="module" src="/src/auth-check.js"></script>
     <script type="module" src="/src/main.js"></script>
-<script type="module">
-  import logger from '/src/js/utility/logger.js';
-  import { getAuthManager } from "/src/auth-check.js";
-
-  // Asynchronous function to initialize the protected page
-  async function initializeProtectedPage() {
-    try {
-      const authManager = await getAuthManager();
-      authManager.updateLoadingText("Yeah I know again😏... Just a moment 😅😊");
-      authManager.showLoading();
-
-      const authResult = await authManager.setupAuthProtection();
-      if (authResult.authenticated) {
-        // Delay hiding loader for a smoother transition
-        authManager.hideLoading(1000);
-
-      } else {
-        authManager.hideLoading();
-        logger.warn("Access denied: User not authenticated");
-        window.location.href = "/login";
-      }
-    } catch (error) {
-      const authManager = await getAuthManager();
-      authManager.hideLoading();
-      logger.error("Authentication fail:", error);
-      window.location.href = "/login";
-    }
-  }
-
-
-  // Check document ready state and initialize accordingly
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", initializeProtectedPage);
-  } else {
-    initializeProtectedPage();
-  }
-</script>
   </body>
 </html>

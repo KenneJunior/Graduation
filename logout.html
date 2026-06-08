@@ -1,20 +1,17 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <title>Hey There Beautiful</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  </head>
-  <link rel="stylesheet" href="/src/css/logout.css" />
-  <link rel="stylesheet" href="/src/css/loading.css" />
-  <link
-    rel="stylesheet"
-    href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css"
-    crossorigin="anonymous"
-    referrerpolicy="no-referrer"
-  />
 
-  <script type="application/ld+json">
+<head>
+  <meta charset="UTF-8" />
+  <title>Hey There Beautiful</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+</head>
+<link rel="stylesheet" href="/src/css/logout.css" />
+<link rel="stylesheet" href="/src/css/loading.css" />
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css"
+  crossorigin="anonymous" referrerpolicy="no-referrer" />
+
+<script type="application/ld+json">
     {
       "@context": "https://schema.org",
       "@type": "CreativeWork",
@@ -31,181 +28,107 @@
     }
   </script>
 
-  <body>
-    <div class="loading-container is-visible" id="loadingSpinner" aria-hidden="false" aria-live="off">
-        <div class="loading-spinner"></div>
-        <div class="loading-text">
-            Loading<span class="loading-dots">
-                <span class="loading-dots__dot"></span>
-                <span class="loading-dots__dot"></span>
-                <span class="loading-dots__dot"></span>
-            </span>
-        </div>
-        <div class="loading-progress">
-            <div class="loading-progress__bar"></div>
-        </div>
+<body id='myPage' page="logOut" aria-label="Logout Page">
+  <div class="loading-container is-visible" id="loadingSpinner" aria-hidden="false" aria-live="off">
+    <div class="loading-spinner"></div>
+    <div class="loading-text">
+      Loading<span class="loading-dots">
+        <span class="loading-dots__dot"></span>
+        <span class="loading-dots__dot"></span>
+        <span class="loading-dots__dot"></span>
+      </span>
     </div>
-
-    <div class="cursor-follower" aria-hidden="true">
-      <div class="cursor-inner"></div>
-      <div class="cursor-outer"></div>
+    <div class="loading-progress">
+      <div class="loading-progress__bar"></div>
     </div>
+  </div>
 
-    <main
-      id="main-content"
-      class="main-content"
-      id="protectedContent"
-      role="main"
-    >
-      <div class="card" role="article" aria-labelledby="greeting-heading">
-        <div class="card-inner">
-          <div class="card-effects">
-            <svg
-              viewBox="0 0 100% 100%"
-              xmlns="http://www.w3.org/2000/svg"
-              class="noise"
-            >
-              <filter id="noiseFilter">
-                <feTurbulence
-                  type="fractalNoise"
-                  baseFrequency="0.85"
-                  numOctaves="6"
-                  stitchTiles="stitch"
-                />
-              </filter>
+  <div class="cursor-follower" aria-hidden="true">
+    <div class="cursor-inner"></div>
+    <div class="cursor-outer"></div>
+  </div>
 
-              <rect
-                width="100%"
-                height="100%"
-                preserveAspectRatio="xMidYMid meet"
-                filter="url(#noiseFilter)"
-              />
-            </svg>
-            <div class="card-shine" aria-hidden="true"></div>
-            <div class="card-glare" aria-hidden="true"></div>
+  <main  class="main-content" id="protectedContent" role="main">
+    <div class="card" role="article" aria-labelledby="greeting-heading">
+      <div class="card-inner">
+        <div class="card-effects">
+          <svg viewBox="0 0 100% 100%" xmlns="http://www.w3.org/2000/svg" class="noise">
+            <filter id="noiseFilter">
+              <feTurbulence type="fractalNoise" baseFrequency="0.85" numOctaves="6" stitchTiles="stitch" />
+            </filter>
+
+            <rect width="100%" height="100%" preserveAspectRatio="xMidYMid meet" filter="url(#noiseFilter)" />
+          </svg>
+          <div class="card-shine" aria-hidden="true"></div>
+          <div class="card-glare" aria-hidden="true"></div>
+        </div>
+        <div class="content">
+          <header class="content-header">
+            <h1 id="greeting-heading" class="greeting-title">
+              <span class="title-word">Thank You for Using this Graduation site</span>
+              <span class="title-punctuation">!</span>
+            </h1>
+            <div class="decoration-line" aria-hidden="true"></div>
+          </header>
+          <div class="message-content" id="proposalCard">
+            <p class="message-text">
+              I hope you had a great experience exploring the features and
+              functionalities of this site. If you have any feedback or
+              suggestions, feel free to share them. Wishing you all the best<br />
+              in your future endeavors!
+            </p>
           </div>
-          <div class="content">
-            <header class="content-header">
-              <h1 id="greeting-heading" class="greeting-title">
-                <span class="title-word">Thank You for Using this Graduation site</span>
-                <span class="title-punctuation">!</span>
-              </h1>
-              <div class="decoration-line" aria-hidden="true"></div>
-            </header>
-            <div class="message-content" id="proposalCard">
-              <p class="message-text">
-                I hope you had a great experience exploring the features and
-                functionalities of this site. If you have any feedback or
-                suggestions, feel free to share them. Wishing you all the best<br/>
-                in your future endeavors!
-              </p>
+
+          <footer class="content-footer">
+            <div class="interaction-buttons">
+              <button class="cta-button primary" id="LogoutBtn" aria-label="Continue to next experience" title="Logout">
+                <span class="button-text"></span>
+                <span class="button-icon" aria-hidden="true">
+                  <!-- use a logout icon here -->
+                  <i class="fas fa-sign-out-alt fa-2x"></i>
+                </span>
+              </button>
             </div>
-
-            <footer class="content-footer">
-              <div class="interaction-buttons" >
-                <button
-                  class="cta-button primary"
-                  id="LogoutBtn"
-                  aria-label="Continue to next experience"
-                  title="Logout"
-                >
-                  <span class="button-text"></span>
-                  <span class="button-icon" aria-hidden="true">
-                    <!-- use a logout icon here -->
-                    <i class="fas fa-sign-out-alt fa-2x"></i>
-                  </span>
-                </button>
-              </div>
-            </footer>
-          </div>
+          </footer>
         </div>
       </div>
-    </main>
+    </div>
+  </main>
 
-    <div class="gradient-bg">
-      <svg
-        viewBox="0 0 100vw 100vw"
-        xmlns="http://www.w3.org/2000/svg"
-        class="noiseBg"
-      >
-        <filter id="noiseFilterBg">
-          <feTurbulence
-            type="fractalNoise"
-            baseFrequency="0.6"
-            stitchTiles="stitch"
-          />
+  <div class="gradient-bg">
+    <svg viewBox="0 0 100vw 100vw"  xmlns="http://www.w3.org/2000/svg" class="noiseBg">
+      <filter id="noiseFilterBg">
+        <feTurbulence type="fractalNoise" baseFrequency="0.6" stitchTiles="stitch" />
+      </filter>
+
+      <rect width="100%" height="100%" preserveAspectRatio="xMidYMid meet" filter="url(#noiseFilterBg)" />
+    </svg>
+    <svg xmlns="http://www.w3.org/2000/svg" class="svgBlur">
+      <defs>
+        <filter id="goo">
+          <feGaussianBlur in="SourceGraphic" stdDeviation="10" result="blur" />
+          <feColorMatrix in="blur" mode="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 18 -8" result="goo" />
+          <feBlend in="SourceGraphic" in2="goo" />
         </filter>
-
-        <rect
-          width="100%"
-          height="100%"
-          preserveAspectRatio="xMidYMid meet"
-          filter="url(#noiseFilterBg)"
-        />
-      </svg>
-      <svg xmlns="http://www.w3.org/2000/svg" class="svgBlur">
-        <defs>
-          <filter id="goo">
-            <feGaussianBlur
-              in="SourceGraphic"
-              stdDeviation="10"
-              result="blur"
-            />
-            <feColorMatrix
-              in="blur"
-              mode="matrix"
-              values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 18 -8"
-              result="goo"
-            />
-            <feBlend in="SourceGraphic" in2="goo" />
-          </filter>
-        </defs>
-      </svg>
-      <div class="gradients-container">
-        <div class="g1"></div>
-        <div class="g2"></div>
-        <div class="g3"></div>
-        <div class="g4"></div>
-        <div class="g5"></div>
-        <div class="interactive"></div>
-      </div>
+      </defs>
+    </svg>
+    <div class="gradients-container">
+      <div class="g1"></div>
+      <div class="g2"></div>
+      <div class="g3"></div>
+      <div class="g4"></div>
+      <div class="g5"></div>
+      <div class="interactive"></div>
     </div>
-    <div class="particles-container" hidden aria-hidden="true">
-      <canvas id="particles-canvas" role="presentation"></canvas>
-    </div>
+  </div>
+  <div class="particles-container" hidden aria-hidden="true">
+    <canvas id="particles-canvas" role="presentation"></canvas>
+  </div>
 
-    <audio id="hover-sound">
-      <source
-        src="public/Ruth-B_-Dandelions-(TopGhanaMusic.Com).mp3"
-        type="audio/mpeg"
-      />
-    </audio>
-    <script src="/src/js/logout.js" type="module"></script>
-    <script type="module" src="/src/auth-check.js"></script>
+  <audio id="hover-sound">
+    <source src="public/Ruth-B_Dandelions.mp3" type="audio/mpeg" />
+  </audio>
+  <script src="/src/main.js" type="module"></script>
+</body>
 
-<script type="module">
-  import logger from '/src/js/utility/logger.js';
-  import { getAuthManager } from "/src/auth-check.js";
-
-  async function initializeProtectedPage() {
-    const authManager = await getAuthManager();
-    try {
-      authManager.showLoading();
-      // wait after 3 seconds to simulate loading
-      await new Promise((resolve) => setTimeout(resolve, 3000));
-      authManager.hideLoading()
-
-    } catch (error) {
-      authManager.hideLoading();
-      logger.error("Authentication failed:", error);
-     // window.location.href = "/login.html";
-    }
-  }
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", initializeProtectedPage);
-  } else {
-    initializeProtectedPage();
-  }
-</script>
-  </body>
 </html>

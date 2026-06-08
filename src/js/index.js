@@ -1,6 +1,7 @@
 import logger from "../js/utility/logger.js";
 import DropdownManager from "./utility/DropdownManager.js";
 import { getDeviceType } from "./utility/logger_info.js";
+import { confirm } from './utility/Dialog.js';
 import { ThemeManager } from "./utility/Mode.js";
 import {
   filterMediaByUser,
@@ -4331,7 +4332,7 @@ class PerformanceMonitor {
  * @class GraduationApp
  */
 class GraduationApp {
-  constructor() {
+  constructor(options = { loadingManager: null, notificationManager: null }) {
     appLogger.time("GraduationApp constructor");
     this.modules = {};
     this.performanceMonitor = new PerformanceMonitor();
@@ -4340,6 +4341,8 @@ class GraduationApp {
     // Dropdown and Theme Managers
     this.dropdownManager = null;
     this.themeManager = null;
+    this.loadingManager = options.loadingManager;
+    this.notificationManager = options.notificationManager;
 
     // App state
     this.state = {
@@ -4378,23 +4381,27 @@ try {
         window.scrollAnimator.init();
     }
       // Check authentication
+      this.loadingManager?.updateText("Checking authentication...");
       await this.checkAuthentication();
 
       this.getPreferences();
 
       // Initialize modules
+      this.loadingManager.updateText("Initializing Modules...");
       await this.initializeModules();
 
       // Setup dropdown and theme
       await this.initDropdownManager();
 
       // Setup event listeners
+      this.loadingManager.updateText("setting Up EvenListeners");
       this.setupEventListeners();
 
       this.setupKeyboardShortcuts();
 
 
       // Start the app
+      this.loadingManager.updateText("Launching App");
       this.startApp();
 
       this.updateMenuItems();
@@ -4634,8 +4641,8 @@ try {
  */
 setupDropdownListeners() {
   // Logout handler
-  document.addEventListener('user:logout', () => {
-    this.handleLogout();
+  document.addEventListener('user:logout', async () => {
+    await this.handleLogout();
   });
 
   // Theme change handler
@@ -4876,70 +4883,44 @@ copyToClipboard(text) {
 
   /**
    * Handle logout
+   * @return
    */
-  handleLogout() {
+  async handleLogout() {
     appLogger.info("User initiated logout");
 
     // Show confirmation
-    const confirmed = window.confirm(
-      'Are you sure you want to logout? You will need to re-enter the password.'
-    );
+    const confirmed = await confirm({
+      title: 'Sign Out',
+      message: 'Are you sure you want to sign out? You\'ll need to log in again to access the site.',
+      type: 'warning',
+
+      confirmText: 'Sign Out',
+      cancelText: 'Stay',
+    });
 
     if (!confirmed) {
       appLogger.debug("Logout cancelled by user");
+      this.dropdownManager.showToast("Canceled",'info')
       return;
     }
-
     // Show logout animation
-    this.showLogoutAnimation();
-
-    // Clear all app data
-    this.clearAppData();
-
-
+    await this.showLogoutAnimation();
     // Track logout event
     this.trackEvent("user_logout", {
       sessionDuration: Date.now() - this.state.sessionStartTime
     });
 
     // Redirect to login page
+    this.dropdownManager.showToast("log out successfully","info",{duration:2.5});
     setTimeout(() => {
       window.location.href = '/logout.html';
-    }, 2000);
+    }, 10000);
   }
 
   /**
-   * Clear all app data
-   */
-  clearAppData() {
-    try {
-      // Clear authentication
-      localStorage.removeItem("GraduationAppPassword");
-
-      // Clear any other app-specific data
-      localStorage.removeItem("pwa-prompt-dismissal");
-      localStorage.removeItem("pwa-prompt-display-history");
-      localStorage.removeItem("Welcome_Notification");
-      localStorage.removeItem("last_visited");
-
-      // Clear session cookies
-      document.cookie.split(";").forEach((c) => {
-        document.cookie = c
-          .replace(/^ +/, "")
-          .replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/");
-      });
-
-      appLogger.info("App data cleared successfully");
-
-    } catch (error) {
-      appLogger.error("Failed to clear app data", error);
-    }
-  }
-
-/**
  * Show enhanced logout animation
  */
-showLogoutAnimation() {
+async showLogoutAnimation() {
     // Remove any existing logout overlay
     const existingOverlay = document.querySelector('.logout-overlay');
     if (existingOverlay) existingOverlay.remove();
@@ -5135,7 +5116,6 @@ showLogoutAnimation() {
                 font-size: 14px;
                 opacity: 0.6;
                 letter-spacing: 1px;
-                opacity: 0;
                 animation: fadeIn 0.5s ease 0.8s forwards;
             ">
                 Redirecting in <span class="countdown-number">3</span> seconds
@@ -6438,7 +6418,7 @@ showAboutDialog() {
         <div class="dialog-footer">
           <p style="
             margin: 0;
-            color: var(--dropdown-text-muted, #999);
+            color: #999;
             font-size: 12px;
             line-height: 1.4;
           ">

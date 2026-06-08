@@ -8,34 +8,40 @@
   "PasswordManager": {
     "STORAGE_KEY": "GraduationAppPassword",
 
-    "CURRENT_USER_KEY": "GraduationAppCurrentUser",
+    "CURRENT_USER_KEY": "junior",
 
     "general": {
+      "code": "general",
       "password": "Congratulations2025!"
     },
     "users": {
       "K": {
         "name": "Kech",
+        "code": "K",
         "password": "CongratulationsMamaKech",
         "isGraduand": "true"
       },
       "T": {
         "name": "Terence",
+        "code": "T",
         "password": "CongratulationsdullMan",
         "isGraduand": "true"
       },
       "M": {
         "name": "Mcckelly",
+        "code": "M",
         "password": "CongratulationsMcc",
         "isGraduand": "true"
       },
       "J":{
         "name": "Junior",
+        "code": "J",
         "password": "CongratulationsJunior",
         "isGraduand": "true"
       },
       "L": {
         "name": "Lux mea\uD83E\uDEF6\uD83D\uDC96",
+        "code": "L",
         "password": "WelcomeLulu",
         "isGraduand": "false"
       }

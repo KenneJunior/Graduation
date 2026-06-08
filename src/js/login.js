@@ -1,1224 +1,612 @@
-/**
- * Auth0 and Password Authentication System
- *
- * This script handles user authentication using Auth0 as the primary method,
- * with a fallback password-based system for local verification.
- *
- * Features:
- * - Auth0 integration for secure authentication
- * - Fallback password manager with local storage persistence
- * - UI updates based on authentication state
- * - Notifications and animations for user feedback
- * - Secure password handling with auto-hide
- * - Error handling and logging
- *
- * Dependencies: Auth0 SDK
- */
-import { createAuth0Client } from "@auth0/auth0-spa-js";
-import Hammer from "hammerjs";
+
+import { LoginController } from "../auth.js";
 import logger from "./utility/logger.js";
 
-// Create contextual loggers for different modules
-const loginLogger = logger.withContext({
-  module: "LoginModule",
-  File: "login.js",
-  location: window.location.href,
-  environment: process.env.NODE_ENV || "development",
-  userAgent: navigator.userAgent,
-});
-const pwaLogger = loginLogger.withContext({
-  module: "PWA",
-  pwa: {
-    // PWA capabilities
-    isInstalled: window.matchMedia("(display-mode: standalone)").matches,
-    hasServiceWorker: "serviceWorker" in navigator,
-    isOnline: navigator.onLine,
+// -----------------------------------------------------------------------------
+// Contextual Logger
+// -----------------------------------------------------------------------------
 
-    // Storage capabilities
-    storage: {
-      localStorage: !!window.localStorage,
-      sessionStorage: !!window.sessionStorage,
-      indexedDB: !!window.indexedDB,
-      cacheStorage: !!window.caches,
-    },
+const loginUILogger = logger.withContext({ module: "LoginUIManager" });
 
-    // Device capabilities
-    device: {
-      type: getDeviceType(),
-      touch: "ontouchstart" in window,
-      cores: navigator.hardwareConcurrency || "unknown",
-      memory: navigator.deviceMemory || "unknown",
-    },
-
-    // Network information
-    network: navigator.connection
-      ? {
-          type: navigator.connection.effectiveType,
-          downlink: navigator.connection.downlink,
-          rtt: navigator.connection.rtt,
-          saveData: navigator.connection.saveData,
-        }
-      : null,
-  },
-
-  // Service worker context
-  serviceWorker: {
-    status: navigator.serviceWorker?.controller ? "active" : "none",
-    scope: navigator.serviceWorker?.controller?.scriptURL || "none",
-  },
-});
-const auth0Logger = loginLogger.withContext({ module: "Auth0" });
-function getDeviceType() {
-  const ua = navigator.userAgent;
-  if (/(tablet|ipad|playbook|silk)|(android(?!.*mobi))/i.test(ua)) {
-    return "tablet";
-  }
-  if (
-    /Mobile|Android|iP(hone|od)|IEMobile|BlackBerry|Kindle|Silk-Accelerated|(hpw|web)OS|Opera M(obi|ini)/.test(
-      ua
-    )
-  ) {
-    return "mobile";
-  }
-  return "desktop";
-}
-// PWA Service Worker Registration
-function initializePWA() {
-  pwaLogger.time("PWA initialization");
-
-  if (!("serviceWorker" in navigator)) {
-    pwaLogger.warn("Service Workers are not supported in this browser");
-    pwaLogger.timeEnd("PWA initialization");
-    return;
-  }
-
-  window.addEventListener("load", async () => {
-    try {
-      pwaLogger.debug("Registering service worker");
-      const registration = await navigator.serviceWorker.register("/sw.js", {
-        scope: "/",
-      });
-
-      pwaLogger.info("Service Worker registered successfully", {
-        scope: registration.scope,
-        active: !!registration.active,
-      });
-
-      // Handle service worker updates
-      registration.addEventListener("updatefound", () => {
-        const newWorker = registration.installing;
-        pwaLogger.info("New Service Worker found", {
-          state: newWorker.state,
-          scriptURL: newWorker.scriptURL,
-        });
-
-        newWorker.addEventListener("statechange", () => {
-          pwaLogger.debug(`Service Worker state change`, {
-            state: newWorker.state,
-          });
-
-          if (
-            newWorker.state === "installed" &&
-            navigator.serviceWorker.controller
-          ) {
-            pwaLogger.info(
-              "New version available, showing update notification"
-            );
-            showUpdateNotification(registration);
-          }
-
-          if (newWorker.state === "activated") {
-            pwaLogger.info("New Service Worker activated");
-          }
-        });
-      });
-
-      // Track installation progress
-      if (registration.installing) {
-        pwaLogger.debug("Service Worker installing");
-      } else if (registration.waiting) {
-        pwaLogger.debug("Service Worker waiting");
-      } else if (registration.active) {
-        pwaLogger.info("Service Worker active and ready");
-      }
-
-      // Handle controller changes (when SW takes control)
-      navigator.serviceWorker.addEventListener("controllerchange", () => {
-        pwaLogger.info("Service Worker controller changed, reloading page");
-        window.location.reload();
-      });
-
-      pwaLogger.timeEnd("PWA initialization");
-    } catch (error) {
-      pwaLogger.error("Service Worker registration failed", error);
-
-      // Provide helpful error messages
-      if (error.name === "SecurityError") {
-        pwaLogger.error(
-          "Service Worker security error - serve over HTTPS or localhost"
-        );
-      } else if (error.name === "TypeError") {
-        pwaLogger.error(
-          "Service Worker file might not exist or have syntax errors"
-        );
-      } else if (error.message.includes("MIME type")) {
-        pwaLogger.error("Service Worker file might have wrong MIME type");
-      }
-
-      pwaLogger.timeEnd("PWA initialization");
-    }
-  });
-}
-
-function showUpdateNotification(registration) {
-  pwaLogger.debug("Showing update notification to user");
-
-  // You can customize this to show a nicer UI notification later
-  const shouldUpdate = confirm(
-    "A new version of Graduatin site is available! Reload to update?"
-  );
-
-  if (shouldUpdate) {
-    pwaLogger.info("User accepted update, activating new Service Worker");
-    // Tell the waiting service worker to activate
-    if (registration.waiting) {
-      registration.waiting.postMessage({ type: "SKIP_WAITING" });
-    }
-    window.location.reload();
-  } else {
-    pwaLogger.debug("User declined update");
-  }
-}
-
-// Initialize PWA
-initializePWA();
-
-let auth0 = null;
-
-// Auth0 Configuration
-const Auth0Config = {
-  domain: "{DOMAIN}",
-  client_id: "{ID}",
-  cacheLocation: "{CACHE}",
-  redirect_uri: window.location.origin,
-};
-
-// Password Manager Configuration
-const PasswordConfig = {
-  STORAGE_KEY: "{KEY}",
-  Auth: {},
-  REDIRECT_URL: window.location.origin,
-  MIN_PASSWORD_LENGTH: 8,
-  NOTIFICATION_DURATION: 3000,
-  THROTTLE_DELAY: 250,
-  SECURE_INPUT_TIMEOUT: 5000,
-  REDIRECT_DELAY: 3000,
-};
-
-  /**
-   * Fetches Auth0 configuration from server
-   * @returns {Promise<Object>} Configuration object
-   */
-  async function fetchAuthConfig() {
-    auth0Logger.time("Fetch auth config");
-    try {
-      auth0Logger.debug("Fetching auth configuration from /auth_config.json");
-      const response = await fetch("/auth_config.json");
-      if (!response.ok) {
-        throw new Error(`Failed to fetch auth config: ${response.status}`);
-      }
-      const config = await response.json();
-      auth0Logger.info("Auth configuration fetched successfully");
-      auth0Logger.timeEnd("Fetch auth config");
-      return config;
-    } catch (error) {
-      auth0Logger.error("Failed to fetch auth configuration", error);
-      auth0Logger.timeEnd("Fetch auth config");
-      throw error;
-    }
-  }
+// -----------------------------------------------------------------------------
+// LoginUIManager Class
+// -----------------------------------------------------------------------------
 
 /**
- * Auth0 Manager - Handles Auth0 authentication
+ * Manages all login page DOM interactions.
+ * Wires up form events, toggles views, and delegates auth to LoginController.
  */
-const Auth0Manager = (() => {
-  let isAuthenticated = false;
-  let userProfile = null;
+export class LoginUIManager {
+  constructor(options = {}) {
+    this.logger = options.logger || loginUILogger;
 
+    // Auth controller (set during init)
+    this.loginController = options.loginController || null;
+
+    // State
+    this.isPasswordVisible = false;
+    this._secureInputTimeout = null;
+    this.secureInputTimeout = options.secureInputTimeout || 5000;
+
+    // DOM references (cached on init)
+    this.dom = {};
+  }
 
   /**
-   * Initialize Auth0 client
-   * @returns {Promise<boolean>} Initialization success
+   * Initializes the login UI: caches DOM, binds events, sets up auth connection
+   * @param {LoginController} [loginController] - Optional pre-created controller
+   * @returns {Promise<void>}
    */
-  const init = async () => {
-    auth0Logger.time("Auth0 initialization");
+  async init(loginController) {
+    this.logger.time("LoginUIManager initialization");
 
     try {
-      const savedLocation = getSavedLocation();
-      PasswordConfig.REDIRECT_URL =
-        savedLocation && savedLocation.startsWith(window.location.origin)
-          ? savedLocation
-          : window.location.origin;
+      // Use provided controller or create one
+      if (loginController) {
+        this.loginController = loginController;
+      } else if (!this.loginController) {
+        this.loginController = new LoginController({
+          logger: this.logger.withContext({ module: "LoginController" }),
+        });
+        await this.loginController.init();
+      }
 
-      auth0Logger.debug("Redirect URL configured", {
-        url: PasswordConfig.REDIRECT_URL,
-      });
+      this._cacheDomElements();
 
-      try {
-        auth0Logger.debug("Creating Auth0 client");
-        auth0 = await createAuth0Client({
-          domain: Auth0Config.domain,
-          client_id: Auth0Config.client_id,
-          cacheLocation: Auth0Config.cacheLocation,
-          useRefreshTokens: true,
+      if (this.loginController?.urlAuthResult?.ok) {
+        const result = this.loginController.urlAuthResult;
+        this.logger.info("URL authentication successful — auto-redirecting", {
+          name: result.name,
+          code: result.code,
         });
 
-        // Check if user is authenticated
-        isAuthenticated = await auth0.isAuthenticated();
-        auth0Logger.debug("Auth0 authentication check", {
-          isAuthenticated,
-          hasUser: !!userProfile,
-        });
-
-        if (isAuthenticated) {
-          auth0Logger.debug("User is authenticated, fetching profile");
-          userProfile = await auth0.getUser();
-          _handleAuthenticated();
-        } else {
-          auth0Logger.debug("User is not authenticated with Auth0");
-        }
-      } catch (err) {
-        auth0Logger.error("Auth0 client initialization failed", err);
-        await PasswordManager.showNotification(
-          "Check your internet connection",
-          "warning"
+        // Show welcome message briefly then redirect
+        this._showNotification(
+            `Welcome${result.name ? `, ${result.name}` : ""}! Logging you in... 🎉`,
+            "success"
         );
-        auth0Logger.timeEnd("Auth0 initialization");
-        return false;
-      }
 
-      auth0Logger.info("Auth0 initialized successfully");
-      auth0Logger.timeEnd("Auth0 initialization");
-      return true;
-    } catch (error) {
-      auth0Logger.error("Auth0 initialization failed", error);
-      await PasswordManager.showNotification(
-        "Failed to initialize authentication system. Check your internet connection",
-        "error"
-      );
-      auth0Logger.timeEnd("Auth0 initialization");
-      return false;
-    }
-  };
+        // Hide the login form, show a brief loading state
+        if (this.dom.passwordContainer) {
+          this.dom.passwordContainer.classList.add("d-none");
+        }
+        if (this.dom.auth0Container) {
+          this.dom.auth0Container.classList.add("d-none");
+        }
 
-  const getSavedLocation = () => {
-    const savedUrl =
-      sessionStorage.getItem("returnUrl") || window.location.origin;
-    auth0Logger.debug("Retrieved saved location", { savedUrl });
-    return savedUrl;
-  };
+        // Redirect after a short delay for the user to see the message
+        setTimeout(() => {
+          const returnUrl = sessionStorage.getItem("returnUrl") || "/";
+          window.location.href = returnUrl;
+        }, 1500);
 
-  /**
-   * Handle login with Auth0
-   */
-  const login = async () => {
-    auth0Logger.time("Auth0 login");
-
-    try {
-      auth0Logger.info("Initiating Auth0 login");
-      await auth0.loginWithRedirect({
-        redirect_uri: PasswordConfig.REDIRECT_URL,
-      });
-      auth0Logger.timeEnd("Auth0 login");
-    } catch (error) {
-      auth0Logger.error("Auth0 login failed", error);
-      await PasswordManager.showNotification(
-        "Authentication failed. Please try again.",
-        "error"
-      );
-      auth0Logger.timeEnd("Auth0 login");
-    }
-  };
-
-  /**
-   * Handle logout
-   */
-  const logout = async () => {
-    auth0Logger.time("Auth0 logout");
-
-    try {
-      auth0Logger.info("Initiating Auth0 logout");
-      auth0.logout({
-        returnTo: window.location.origin + "/logOut",
-      });
-      auth0Logger.timeEnd("Auth0 logout");
-    } catch (error) {
-      auth0Logger.error("Auth0 logout failed", error);
-      await PasswordManager.showNotification(
-        "LogOut failed. Please try again.",
-        "error"
-      );
-      auth0Logger.timeEnd("Auth0 logout");
-    }
-  };
-
-  /**
-   * Check authentication state
-   * @returns {Promise<boolean>} Authentication status
-   */
-  const checkAuth = async () => {
-    auth0Logger.time("Auth check");
-
-    try {
-      const query = window.location.search;
-      auth0Logger.debug("Checking URL for auth callback", {
-        hasCode: query.includes("code="),
-        hasState: query.includes("state="),
-      });
-
-      if (query.includes("code=") && query.includes("state=")) {
-        auth0Logger.debug("Handling Auth0 redirect callback");
-        await auth0.handleRedirectCallback();
-        window.history.replaceState({}, document.title, "/");
-        auth0Logger.debug("URL cleaned after redirect callback");
-      }
-
-      isAuthenticated = await auth0.isAuthenticated();
-      auth0Logger.debug("Auth0 authentication status", { isAuthenticated });
-
-      if (isAuthenticated) {
-        auth0Logger.debug("User authenticated, fetching profile");
-        userProfile = await auth0.getUser();
-        _handleAuthenticated();
-      }
-
-      _updateUI();
-      auth0Logger.timeEnd("Auth check");
-      return isAuthenticated;
-    } catch (error) {
-      auth0Logger.error("Auth0 check failed", error);
-      _showNotification("Authentication check failed.", "error");
-      auth0Logger.timeEnd("Auth check");
-      return false;
-    }
-  };
-
-  /**
-   * Handle authenticated state
-   */
-  const _handleAuthenticated = () => {
-    auth0Logger.info("User authenticated successfully", {
-      userName: userProfile?.name || userProfile?.email,
-      redirectUrl: PasswordConfig.REDIRECT_URL,
-    });
-
-    _showNotification(
-      `Welcome back! Redirecting to ${PasswordConfig.REDIRECT_URL}...`,
-      "success"
-    );
-    _scheduleRedirect();
-  };
-
-  /**
-   * Update UI based on authentication state
-   */
-  const _updateUI = () => {
-    auth0Logger.time("UI update");
-
-    const auth0Container = document.getElementById("auth0");
-    const passwordContainer = document.getElementById("passwordContainer");
-    const userInfo = document.getElementById("userInfo");
-    const loginBtn = document.getElementById("loginBtn");
-    const logoutBtn = document.getElementById("logoutBtn");
-
-    if (!auth0Container || !passwordContainer) {
-      auth0Logger.warn("Required UI elements not found for update");
-      auth0Logger.timeEnd("UI update");
-      return;
-    }
-
-    if (isAuthenticated) {
-      // User is authenticated with Auth0
-      auth0Container.classList.remove("d-none");
-      passwordContainer.classList.add("d-none");
-
-      if (userInfo && userProfile) {
-        userInfo.textContent = `Logged in as: ${
-          userProfile.name || userProfile.email
-        }`;
-        auth0Logger.debug("User info updated in UI", {
-          userName: userProfile.name || userProfile.email,
-        });
-      }
-
-      if (loginBtn) loginBtn.classList.add("d-none");
-      if (logoutBtn) logoutBtn.classList.remove("d-none");
-
-      auth0Logger.debug("UI updated for authenticated state");
-    } else {
-      // User is not authenticated with Auth0, show fallback option
-      auth0Container.classList.remove("d-none");
-      passwordContainer.classList.remove("d-none");
-
-      if (loginBtn) loginBtn.classList.remove("d-none");
-      if (logoutBtn) logoutBtn.classList.add("d-none");
-
-      auth0Logger.debug("UI updated for unauthenticated state");
-    }
-
-    auth0Logger.timeEnd("UI update");
-  };
-
-  /**
-   * Schedule redirect
-   */
-  const _scheduleRedirect = () => {
-    auth0Logger.debug("Scheduling redirect", {
-      delay: PasswordConfig.REDIRECT_DELAY,
-      url: PasswordConfig.REDIRECT_URL,
-    });
-
-    setTimeout(() => {
-      auth0Logger.info("Executing scheduled redirect");
-      window.location.href = PasswordConfig.REDIRECT_URL;
-    }, PasswordConfig.REDIRECT_DELAY);
-  };
-
-  const _showNotification = (message, type) => {
-    auth0Logger.debug("Auth0 notification", { message, type });
-    // This will be handled by PasswordManager's showNotification
-  };
-
-  // Public API
-  return {
-    init,
-    login,
-    logout,
-    checkAuth,
-    isAuthenticated: () => isAuthenticated,
-    getUser: () => userProfile,
-    fetchAuth: fetchAuthConfig,
-  };
-})();
-/**
- * Password Manager - Handles fallback password authentication
- */
-const PasswordManager = (() => {
-  // Create contextual logger for PasswordManager
-  const passwordLogger = logger.withContext({ module: "PasswordManager" });
-
-  let state = {
-    isPasswordVisible: false,
-    hasExistingPassword: false,
-    notificationTimeout: null,
-    secureInputTimeout: null,
-    redirectTimeout: null,
-    ismouseOnNotification: false,
-    isNotificationVisible: false,
-  };
-
-  const dom = {};
-  let hammer = null;
-
-  /**
-   * Initialize the password manage
-   */
-  const init = () => {
-    passwordLogger.time("PasswordManager initialization");
-
-    try {
-      _cacheDomElements();
-      _checkExistingPassword();
-
-      // If password exists or Auth0 is authenticated, redirect
-      if (state.hasExistingPassword || Auth0Manager.isAuthenticated()) {
-        passwordLogger.info("Existing password found, redirecting user");
-        _showNotification("Password verified. Redirecting...", "success");
-        _scheduleRedirect();
-        passwordLogger.timeEnd("PasswordManager initialization");
+        this.logger.timeEnd("LoginUIManager initialization");
         return;
       }
 
-      _bindEvents();
-      passwordLogger.info("Password manager initialized successfully");
-      passwordLogger.timeEnd("PasswordManager initialization");
-    } catch (error) {
-      passwordLogger.error("Password manager initialization failed", error);
-      passwordLogger.timeEnd("PasswordManager initialization");
-    }
-  };
-
-  /**
-   * Cache DOM elements
-   */
-  const _cacheDomElements = () => {
-    passwordLogger.time("DOM element caching");
-
-    //for testing purpose only
-    /*if (window.location.origin.includes("localhost")|| window.location.origin.includes("kennejunior")) {
-      passwordLogger.debug("Localhost detected, setting test password");
-      _saveAuth("Congratulations2025");
-    }*/
-
-    dom.helper = document.getElementById("password-requirements");
-    dom.Auth0 = document.getElementById("auth0");
-    dom.name = document.getElementById("name");
-    dom.loginForm = document.getElementById("loginForm");
-    dom.passwordInput = document.getElementById("password");
-    dom.toggleButton = document.getElementById("togglePassword");
-    dom.customerSupport = document.getElementById("contactSupport");
-    dom.notificationCancelBtn = document.querySelector(".fa-times");
-    dom.notification = document.getElementById("notification");
-
-    if (dom.notification) {
-      hammer = new Hammer(dom.notification);
-      passwordLogger.debug("Hammer.js initialized for notification gestures");
-    }
-
-    if (!dom.loginForm || !dom.passwordInput || !dom.toggleButton) {
-      const error = new Error("Required DOM elements not found");
-      passwordLogger.error("DOM elements missing", {
-        loginForm: !!dom.loginForm,
-        passwordInput: !!dom.passwordInput,
-        toggleButton: !!dom.toggleButton,
-      });
-      throw error;
-    }
-
-    dom.Auth0.classList.add("d-none");
-    passwordLogger.debug("DOM elements cached successfully", {
-      elementsFound: Object.keys(dom).filter((key) => !!dom[key]).length,
-    });
-    passwordLogger.timeEnd("DOM element caching");
-  };
-
-  /**
-   * Bind event listeners
-   */
-  const _bindEvents = () => {
-    passwordLogger.time("Event binding");
-
-    dom.loginForm.addEventListener("submit", _handleFormSubmit);
-    dom.passwordInput.addEventListener(
-      "input",
-      _debounce(_validatePassword, 300)
-    );
-    dom.passwordInput.addEventListener("blur", _handleInputBlur);
-    dom.customerSupport.addEventListener("click", _handleSupport);
-    dom.passwordInput.addEventListener("focus", _handleInputFocus);
-    dom.toggleButton.addEventListener("click", _togglePasswordVisibility);
-    dom.toggleButton.addEventListener("keydown", _handleToggleKeydown);
-
-    if (dom.notification) {
-      dom.notification.addEventListener("mouseenter", () => {
-        state.ismouseOnNotification = true;
-        passwordLogger.debug("Mouse entered notification");
-      });
-      dom.notification.addEventListener("mouseleave", () => {
-        state.ismouseOnNotification = false;
-        passwordLogger.debug("Mouse left notification");
-      });
-    }
-
-    if (dom.notificationCancelBtn) {
-      dom.notificationCancelBtn.addEventListener("click", _hideNotification);
-    }
-
-    if (hammer) {
-      hammer.on("swipe", _hideNotification);
-    }
-
-    window.addEventListener("beforeunload", _hideNotification);
-
-    passwordLogger.debug("Event listeners bound successfully");
-    passwordLogger.timeEnd("Event binding");
-  };
-
-  /**
-   * Hide notification immediately
-   */
-  const _hideNotification = () => {
-    passwordLogger.debug("Hiding notification");
-    const { notification } = dom;
-    if (notification) {
-      notification.classList.remove("show");
-      state.isNotificationVisible = false;
-    }
-  };
-
-  /**
-   * Check if password exists in local storage
-   */
-  const _checkExistingPassword = () => {
-    passwordLogger.time("Existing password check");
-
-    try {
-      const storedAuth = localStorage.getItem(PasswordConfig.STORAGE_KEY);
-      const auth = JSON.parse(storedAuth);
-      state.hasExistingPassword = auth.ok;
-
-      passwordLogger.debug("Password storage check", {
-        auth
-      });
-
-      if (state.hasExistingPassword) {
-        passwordLogger.info("Existing password found in local storage");
-        dom.name.textContent = `${auth.message || "User"}`;
-      } else {
-        passwordLogger.debug("No valid password found in local storage");
+      // Check if password already exists — if so, redirect
+      if (this.loginController.password?.hasExistingPassword) {
+        this.logger.info("Existing password found, redirecting user");
+        this._showNotification("Password verified. Redirecting...", "success");
+        this.loginController.password.scheduleRedirect();
+        this.logger.timeEnd("LoginUIManager initialization");
+        return;
       }
+      this._bindEvents();
+
+      // Hide Auth0 container initially if password is fallback
+      this._showAuthOptions();
+
+      this._handleUrlParamsInForm();
+      this.logger.info("LoginUIManager initialized successfully");
+      this.logger.timeEnd("LoginUIManager initialization");
     } catch (error) {
-      passwordLogger.error("Failed to check existing password", error);
+      this.logger.error("LoginUIManager initialization failed", error);
+      this.logger.timeEnd("LoginUIManager initialization");
     }
-    finally{
-            passwordLogger.timeEnd("Existing password check");
-
-    }
-  };
+  }
 
   /**
-   * Handle form submission
+   * Checks for URL params and auto-fills/submits the password form.
+   * This handles the case where the user arrives on the login page
+   * with params but they weren't auto-authenticated (e.g., invalid code).
+   * @private
    */
-  const _handleFormSubmit = (e) => {
-    passwordLogger.time("Form submission");
-    e.preventDefault();
+  _handleUrlParamsInForm() {
+    const params = new URLSearchParams(window.location.search);
+    const urlCode = params.get("code");
+    const urlName = params.get("name");
 
-    const password = dom.passwordInput.value.trim();
-    passwordLogger.debug("Form submitted", {
-      passwordLength: password.length,
-      hasValue: !!password,
+    if (!urlCode && !urlName) return;
+
+    this.logger.debug("URL params found on login page", {
+      code: urlCode ? "present" : "none",
+      name: urlName ? "present" : "none",
     });
 
-    let isValid = _validatePassword();
+    // If a code is present, pre-fill the password field
+    if (urlCode && this.dom.passwordInput) {
+      this.dom.passwordInput.value = urlCode;
+      this._validatePasswordField();
 
-    if (isValid) {
-      passwordLogger.debug("Password format valid, verifying");
-      isValid = _verifyAndSavePassword(password);
-    } else {
-      passwordLogger.warn("Password format invalid", {
-        minLength: PasswordConfig.MIN_PASSWORD_LENGTH,
-        actualLength: password.length,
-      });
-      _showNotification(
-        `Password must be at least ${PasswordConfig.MIN_PASSWORD_LENGTH} characters`,
-        "error"
-      );
-      _shakeElement(dom.loginForm);
-    }
+      this.logger.debug("Password field auto-filled from URL code");
 
-    _validateInput(dom.passwordInput, isValid);
-    passwordLogger.timeEnd("Form submission");
-  };
-
-  /**
-   * Validate password
-   */
-  const _validatePassword = () => {
-    const password = dom.passwordInput.value.trim();
-    const isValid = password.length >= PasswordConfig.MIN_PASSWORD_LENGTH;
-
-    passwordLogger.debug("Password validation", {
-      length: password.length,
-      isValid,
-      minRequired: PasswordConfig.MIN_PASSWORD_LENGTH,
-    });
-
-    _validatetext(dom.helper, isValid);
-    return isValid;
-  };
-
-  /**
-   * Verifies and saves password if correct
-   * @param {string} password - Input password
-   */
-  const _verifyAndSavePassword = (password) => {
-    passwordLogger.time("Password verification");
-
-    let valid;
-    const passwordMetada = checkPassword(password,PasswordConfig.Auth);
-    if (passwordMetada.ok) {
-      passwordLogger.info("Password verification successful");
-      _saveAuth(passwordMetada);
-      _showNotification(
-        passwordMetada.message || "Password verified. Redirecting...",
-        "success"
-      );
-      _scheduleRedirect();
-      valid = true;
-    } else {
-      passwordLogger.warn("Password verification failed", {
-        inputLength: password.length,
-        expectedLength: state.correctPassword?.length,
-      });
-      valid = false;
-      _showNotification("Incorrect password. Please try again.", "error");
-      _shakeElement(dom.loginForm);
-    }
-
-    passwordLogger.timeEnd("Password verification");
-    return valid;
-  };
-
-  /**
-   * Validates and styles input element
-   * @param {HTMLElement} input - Input element
-   * @param {boolean} isValid - Validation result
-   */
-  const _validateInput = (input, isValid) => {
-    input.classList.toggle("valid", isValid);
-    input.classList.toggle("invalid", !isValid);
-    dom.passwordInput.classList.remove("focus");
-
-    passwordLogger.debug("Input validation styling applied", { isValid });
-  };
-
-  /**
-   * Validates and styles text element
-   * @param {HTMLElement} input - Text element
-   * @param {boolean} isValid - Validation result
-   */
-  const _validatetext = (input, isValid) => {
-    const text = input.textContent || input.innerText;
-    if (!text) {
-      passwordLogger.debug("No text content for validation styling");
-      return;
-    }
-
-    input.innerHTML = _textIcon(isValid, text);
-    input.classList.toggle("validtext", isValid);
-    input.classList.toggle("invalidtext", !isValid);
-
-    passwordLogger.debug("Text validation styling applied", { isValid });
-  };
-
-  /**
-   * @param {boolean} isValid return the icon with text
-   * @param {string} text
-   * @returns
-   */
-  const _textIcon = (isValid, text) => {
-    if (!isValid) {
-      return `${_getNotificationIcon("error")} ${text}`;
-    } else {
-      return `${_getNotificationIcon("success")} ${text}`;
-    }
-  };
-
-  /**
-   * Saves password to local storage
-   */
-  const _saveAuth = (passwordData) => {
-    passwordLogger.time("Password save");
-
-    try {
-      localStorage.setItem(PasswordConfig.STORAGE_KEY, JSON.stringify(passwordData));
-      state.hasExistingPassword = true;
-      passwordLogger.info("Password saved to local storage successfully");
-      passwordLogger.timeEnd("Password save");
-    } catch (error) {
-      passwordLogger.error("Failed to save password to local storage", error);
-      _showNotification("Storage error: Could not save password", "error");
-      passwordLogger.timeEnd("Password save");
-    }
-  };
-
-  /**
-   * Schedule redirect
-   */
-  const _scheduleRedirect = () => {
-    passwordLogger.time("Redirect scheduling");
-
-    if (state.redirectTimeout) {
-      clearTimeout(state.redirectTimeout);
-      passwordLogger.debug("Cleared existing redirect timeout");
-    }
-
-    passwordLogger.info("Scheduling redirect", {
-      delay: PasswordConfig.REDIRECT_DELAY,
-      url: PasswordConfig.REDIRECT_URL,
-    });
-
-    state.redirectTimeout = setTimeout(() => {
-      passwordLogger.info("Executing scheduled redirect");
-      window.location.href = PasswordConfig.REDIRECT_URL;
-    }, PasswordConfig.REDIRECT_DELAY);
-
-    passwordLogger.timeEnd("Redirect scheduling");
-  };
-
-  /**
-   * Toggle password visibility
-   */
-  const _togglePasswordVisibility = () => {
-    passwordLogger.time("Password visibility toggle");
-
-    state.isPasswordVisible = !state.isPasswordVisible;
-    dom.passwordInput.type = state.isPasswordVisible ? "text" : "password";
-
-    const action = state.isPasswordVisible ? "Hide" : "Show";
-    dom.toggleButton.setAttribute("aria-label", `${action} password`);
-    dom.toggleButton.setAttribute("aria-pressed", state.isPasswordVisible);
-    dom.toggleButton.classList.toggle("visible", state.isPasswordVisible);
-
-    passwordLogger.debug("Password visibility changed", {
-      isVisible: state.isPasswordVisible,
-      inputType: dom.passwordInput.type,
-    });
-
-    _schedulePasswordHide();
-    passwordLogger.timeEnd("Password visibility toggle");
-  };
-
-  /**
-   * Schedule automatic password hiding
-   */
-  const _schedulePasswordHide = () => {
-    passwordLogger.time("Auto-hide scheduling");
-
-    if (state.secureInputTimeout) {
-      clearTimeout(state.secureInputTimeout);
-      passwordLogger.debug("Cleared existing secure input timeout");
-    }
-
-    if (state.isPasswordVisible) {
-      passwordLogger.debug("Scheduling automatic password hide", {
-        timeout: PasswordConfig.SECURE_INPUT_TIMEOUT,
-      });
-
-      state.secureInputTimeout = setTimeout(() => {
-        if (state.isPasswordVisible) {
-          passwordLogger.debug("Auto-hiding password for security");
-          _togglePasswordVisibility();
-          _showNotification("Password hidden for security", "info");
-          PasswordConfig.SECURE_INPUT_TIMEOUT += 2000;
+      // Auto-submit after a brief delay
+      setTimeout(() => {
+        if (this.dom.loginForm) {
+          this.logger.info("Auto-submitting login form with URL code");
+          this.dom.loginForm.dispatchEvent(new Event("submit", { cancelable: true }));
         }
-      }, PasswordConfig.SECURE_INPUT_TIMEOUT);
+      }, 500);
     }
 
-    passwordLogger.timeEnd("Auto-hide scheduling");
-  };
+    // If only name is present, show it as a hint
+    if (urlName && !urlCode && this.dom.nameDisplay) {
+      this.dom.nameDisplay.textContent = `Welcome, ${decodeURIComponent(urlName)}! Please enter your password.`;
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // DOM Caching
+  // ---------------------------------------------------------------------------
 
   /**
-   * Displays a notification
-   * @param {string} message - Notification message
-   * @param {string} [type='info'] - Notification type
+   * Caches all DOM element references used by the login page
+   * @private
    */
-  const _showNotification = async (message, type = "info") => {
-    passwordLogger.time("Notification display");
+  _cacheDomElements() {
+    this.logger.time("DOM element caching");
 
-    if (state.isNotificationVisible) {
-      passwordLogger.debug("Notification already visible, hiding first");
-      _hideNotification();
-      await delay(200);
-    }
-
-    let { notification } = dom;
-    if (!notification) {
-      notification = document.getElementById("notification");
-      passwordLogger.debug("Retrieved notification element from DOM");
-    }
-
-    const notificationText = document.getElementById("notificationText");
-
-    if (!notification || !notificationText) {
-      passwordLogger.warn("Notification elements not found");
-      passwordLogger.timeEnd("Notification display");
-      return;
-    }
-
-    if (state.notificationTimeout) {
-      clearTimeout(state.notificationTimeout);
-      passwordLogger.debug("Cleared existing notification timeout");
-    }
-
-    const icon = _getNotificationIcon(type);
-
-    notificationText.innerHTML = `${icon} ${message}`;
-    notification.className = `notification show ${type}`;
-    state.isNotificationVisible = true;
-
-    passwordLogger.debug("Notification displayed", { type, message });
-
-    state.notificationTimeout = setInterval(() => {
-      if (!state.ismouseOnNotification) {
-        notification.classList.remove("show");
-        state.isNotificationVisible = false;
-      }
-    }, PasswordConfig.NOTIFICATION_DURATION);
-
-    passwordLogger.timeEnd("Notification display");
-  };
-
-  /**
-   * take is the type of notification then return the icon
-   * @param {type} type
-   * @returns {string} icon HTML string for the icon
-   */
-  const _getNotificationIcon = (type) => {
-    const icons = {
-      info: '<i class="fas fa-info-circle"></i>',
-      error: '<i class="fas fa-times-circle"></i>',
-      warning: '<i class="fas fa-exclamation-triangle"></i>',
-      success: '<i class="fas fa-check-circle"></i>',
+    this.dom = {
+      auth0Container: document.getElementById("auth0"),
+      passwordContainer: document.getElementById("passwordContainer"),
+      loginForm: document.getElementById("loginForm"),
+      passwordInput: document.getElementById("password"),
+      toggleButton: document.getElementById("togglePassword"),
+      helperText: document.getElementById("password-requirements"),
+      nameDisplay: document.getElementById("name"),
+      loginBtn: document.getElementById("loginBtn"),
+      logoutBtn: document.getElementById("logoutBtn"),
+      customerSupport: document.getElementById("contactSupport"),
     };
 
-    const icon = icons[type] || '<i class="fas fa-bell"></i>';
-    passwordLogger.debug("Notification icon selected", { type, icon });
-    return icon;
-  };
+    // Log which elements are missing, but don't throw
+    const missing = Object.entries(this.dom)
+      .filter(([, el]) => !el)
+      .map(([key]) => key);
 
-  const delay = (ms) => {
-    passwordLogger.debug("Creating delay promise", { milliseconds: ms });
-    return new Promise((resolve) => setTimeout(resolve, ms));
-  };
+    if (missing.length > 0) {
+      this.logger.warn("Some DOM elements not found", { missing });
+    }
+
+    // Update name display if user was previously authenticated
+    if (this.dom.nameDisplay && this.loginController?.password) {
+      const storedName = this.loginController.password.getStoredUserName();
+      if (storedName) {
+        this.dom.nameDisplay.textContent = `Welcome Back ${storedName}`;
+      }
+    }
+
+    this.logger.debug("DOM elements cached", {
+      found: Object.values(this.dom).filter(Boolean).length,
+      missing: missing.length,
+    });
+    this.logger.timeEnd("DOM element caching");
+  }
+
+  // ---------------------------------------------------------------------------
+  // Event Binding
+  // ---------------------------------------------------------------------------
 
   /**
-   * Handle input blur
+   * Binds all event listeners for the login form
+   * @private
    */
-  const _handleInputBlur = () => {
-    passwordLogger.debug("Password input blur");
-    dom.passwordInput.classList.remove("focused");
-    _validatePassword();
-  };
+  _bindEvents() {
+    this.logger.time("Event binding");
+
+    // Form submission
+    if (this.dom.loginForm) {
+      this.dom.loginForm.addEventListener("submit", (e) => this._handleFormSubmit(e));
+    }
+
+    // Password input events
+    if (this.dom.passwordInput) {
+      this.dom.passwordInput.addEventListener(
+        "input",
+        this._debounce(() => this._validatePasswordField(), 300),
+      );
+      this.dom.passwordInput.addEventListener("blur", () => this._handleInputBlur());
+      this.dom.passwordInput.addEventListener("focus", () => this._handleInputFocus());
+    }
+
+    // Toggle password visibility
+    if (this.dom.toggleButton) {
+      this.dom.toggleButton.addEventListener("click", () => this._togglePasswordVisibility());
+      this.dom.toggleButton.addEventListener("keydown", (e) => this._handleToggleKeydown(e));
+    }
+
+    // Customer support
+    if (this.dom.customerSupport) {
+      this.dom.customerSupport.addEventListener("click", () => this._handleSupport());
+    }
+
+    this.logger.debug("Event listeners bound successfully");
+    this.logger.timeEnd("Event binding");
+  }
+
+  // ---------------------------------------------------------------------------
+  // Form Handling
+  // ---------------------------------------------------------------------------
 
   /**
-   * Handle input focus
+   * Handles form submission
+   * @param {Event} e - Submit event
+   * @private
    */
-  const _handleInputFocus = () => {
-    passwordLogger.debug("Password input focus");
-    dom.passwordInput.classList.add("focused");
-    dom.passwordInput.classList.remove("invalid");
-    dom.passwordInput.classList.remove("valid");
-  };
+  _handleFormSubmit(e) {
+    this.logger.time("Form submission");
+    e.preventDefault();
+
+    const password = this.dom.passwordInput?.value.trim() || "";
+    let isValid = this._validatePasswordField();
+
+    if (!isValid) {
+      this._showNotification(
+        `Password must be at least ${this.loginController?.config?.password?.minPasswordLength || 8} characters`,
+        "error",
+      );
+      this._shakeElement(this.dom.loginForm);
+      this.logger.timeEnd("Form submission");
+      return;
+    }
+
+    // Delegate verification to PasswordProvider
+    if (this.loginController?.password) {
+      const result = this.loginController.password.verifyAndSavePassword(password);
+
+      if (result.success) {
+        this._showNotification(result.message, "success");
+        this.loginController.password.scheduleRedirect();
+      } else {
+        this._showNotification(result.message, "error");
+        this._shakeElement(this.dom.loginForm);
+      }
+    } else {
+      this._showNotification("Authentication system not ready", "error");
+    }
+
+    this._validateInputField(this.dom.passwordInput, isValid);
+    this.logger.timeEnd("Form submission");
+  }
 
   /**
-   * create a new page and redirect the user using whatsapp Api
-   * and send a message of help to my number
+   * Validates password field in real-time
+   * @returns {boolean} Whether password meets minimum length
+   * @private
    */
-  const _handleSupport = () => {
-    passwordLogger.time("Support request");
+  _validatePasswordField() {
+    if (!this.dom.passwordInput) return false;
+
+    const password = this.dom.passwordInput.value.trim();
+    const minLength = this.loginController?.config?.password?.minPasswordLength || 8;
+    const isValid = password.length >= minLength;
+
+    if (this.dom.helperText) {
+      this._validateHelperText(this.dom.helperText, isValid);
+    }
+
+    return isValid;
+  }
+
+  // ---------------------------------------------------------------------------
+  // Password Visibility
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Toggles password visibility
+   * @private
+   */
+  _togglePasswordVisibility() {
+    if (!this.dom.passwordInput || !this.dom.toggleButton) return;
+
+    this.isPasswordVisible = !this.isPasswordVisible;
+    this.dom.passwordInput.type = this.isPasswordVisible ? "text" : "password";
+
+    const action = this.isPasswordVisible ? "Hide" : "Show";
+    this.dom.toggleButton.setAttribute("aria-label", `${action} password`);
+    this.dom.toggleButton.setAttribute("aria-pressed", this.isPasswordVisible);
+    this.dom.toggleButton.classList.toggle("visible", this.isPasswordVisible);
+
+    this._schedulePasswordHide();
+  }
+
+  /**
+   * Schedules automatic password hiding for security
+   * @private
+   */
+  _schedulePasswordHide() {
+    if (this._secureInputTimeout) {
+      clearTimeout(this._secureInputTimeout);
+    }
+
+    if (this.isPasswordVisible) {
+      this._secureInputTimeout = setTimeout(() => {
+        if (this.isPasswordVisible) {
+          this._togglePasswordVisibility();
+          this._showNotification("Password hidden for security", "info");
+        }
+      }, this.secureInputTimeout);
+    }
+  }
+
+  /**
+   * Handles keyboard activation of toggle button
+   * @param {KeyboardEvent} e
+   * @private
+   */
+  _handleToggleKeydown(e) {
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      this._togglePasswordVisibility();
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Input Focus/Blur
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Handles input blur event
+   * @private
+   */
+  _handleInputBlur() {
+    if (this.dom.passwordInput) {
+      this.dom.passwordInput.classList.remove("focused");
+    }
+    this._validatePasswordField();
+  }
+
+  /**
+   * Handles input focus event
+   * @private
+   */
+  _handleInputFocus() {
+    if (this.dom.passwordInput) {
+      this.dom.passwordInput.classList.add("focused");
+      this.dom.passwordInput.classList.remove("invalid", "valid");
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // UI Navigation
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Shows the password login form, hides Auth0 options
+   */
+  showPasswordForm() {
+    if (this.dom.auth0Container) {
+      this.dom.auth0Container.classList.add("d-none");
+    }
+    if (this.dom.passwordContainer) {
+      this.dom.passwordContainer.classList.remove("d-none");
+    }
+    this.logger.debug("Switched to password form view");
+  }
+
+  /**
+   * Shows Auth0 login options, hides password form
+   */
+  _showAuthOptions() {
+    if (this.dom.passwordContainer) {
+      this.dom.passwordContainer.classList.add("d-none");
+    }
+    if (this.dom.auth0Container) {
+      this.dom.auth0Container.classList.remove("d-none");
+    }
+    this.logger.debug("Switched to Auth0 options view");
+  }
+
+  // ---------------------------------------------------------------------------
+  // Validation Styling
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Applies validation styling to an input element
+   * @param {HTMLElement} input - The input element
+   * @param {boolean} isValid - Whether the input is valid
+   * @private
+   */
+  _validateInputField(input, isValid) {
+    if (!input) return;
+    input.classList.toggle("valid", isValid);
+    input.classList.toggle("invalid", !isValid);
+    input.classList.remove("focused");
+  }
+
+  /**
+   * Applies validation styling to helper text element with icon
+   * @param {HTMLElement} element - The text element
+   * @param {boolean} isValid - Whether the condition is met
+   * @private
+   */
+  _validateHelperText(element, isValid) {
+    if (!element) return;
+
+    const text = element.textContent || element.innerText;
+    if (!text) return;
+
+    const icon = isValid
+      ? '<i class="fas fa-check-circle"></i>'
+      : '<i class="fas fa-times-circle"></i>';
+
+    element.innerHTML = `${icon} ${text}`;
+    element.classList.toggle("validtext", isValid);
+    element.classList.toggle("invalidtext", !isValid);
+  }
+
+  // ---------------------------------------------------------------------------
+  // Animations
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Applies a shake animation to an element
+   * @param {HTMLElement} element - Element to shake
+   * @private
+   */
+  _shakeElement(element) {
+    if (!element) return;
+    element.classList.add("shake");
+    setTimeout(() => {
+      element.classList.remove("shake");
+    }, 500);
+  }
+
+  // ---------------------------------------------------------------------------
+  // Support
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Opens WhatsApp support window
+   * @private
+   */
+  _handleSupport() {
+    this.logger.time("Support request");
 
     const phoneNumber = 237670852835;
-    const message = encodeURIComponent(
-      "Hello! I have a question about how to use this app."
-    );
+    const message = encodeURIComponent("Hello! I have a question about how to use this app.");
     const whatsappUrl = `https://api.whatsapp.com/send?phone=${phoneNumber}&text=${message}`;
-
-    passwordLogger.info("Opening WhatsApp support", { phoneNumber });
 
     const newWindow = window.open(
       whatsappUrl,
       "whatsappWindow",
-      "width=500,height=600 ,noopener,noreferrer"
+      "width=500,height=600,noopener,noreferrer",
     );
 
     if (!newWindow) {
-      passwordLogger.warn("WhatsApp popup was blocked by browser");
-      _showNotification("Popup was blocked!", "error");
+      this._showNotification("Popup was blocked!", "error");
+    }
+
+    this.logger.timeEnd("Support request");
+  }
+
+  // ---------------------------------------------------------------------------
+  // Notifications
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Shows a notification via the LoginController's notification manager
+   * @param {string} message
+   * @param {string} [type='info']
+   * @private
+   */
+  _showNotification(message, type = "info") {
+    if (this.loginController?.notifications) {
+      this.loginController.notifications.show(message, type);
     } else {
-      passwordLogger.debug("WhatsApp support window opened successfully");
+      this.logger.debug("Notification (no manager)", { message, type });
     }
+  }
 
-    passwordLogger.timeEnd("Support request");
-  };
-
-  /**
-   * Handles toggle button keydown
-   * @param {KeyboardEvent} e - Keydown event
-   */
-  const _handleToggleKeydown = (e) => {
-    if (e.key === "Enter" || e.key === " ") {
-      passwordLogger.debug("Toggle button activated via keyboard", {
-        key: e.key,
-      });
-      e.preventDefault();
-      _togglePasswordVisibility();
-    }
-  };
+  // ---------------------------------------------------------------------------
+  // Utilities
+  // ---------------------------------------------------------------------------
 
   /**
-   * Applies shake animation to element
-   * @param {HTMLElement} element - Element to shake
-   */
-  const _shakeElement = (element) => {
-    passwordLogger.debug("Applying shake animation to element");
-    element.classList.add("shake");
-    setTimeout(() => {
-      element.classList.remove("shake");
-      passwordLogger.debug("Shake animation completed");
-    }, 500);
-  };
-
-  /**
-   * Debounce utility function
+   * Creates a debounced version of a function
    * @param {Function} func - Function to debounce
    * @param {number} wait - Wait time in ms
-   * @returns {Function} Debounced function
+   * @returns {Function}
+   * @private
    */
-  const _debounce = (func, wait) => {
+  _debounce(func, wait) {
     let timeout;
-    return function executedFunction(...args) {
-      const later = () => {
-        clearTimeout(timeout);
-        func(...args);
-      };
+    return (...args) => {
       clearTimeout(timeout);
-      timeout = setTimeout(later, wait);
+      timeout = setTimeout(() => func.apply(this, args), wait);
     };
+  }
+}
+
+
+window.showPasswordLogin = function () {
+  // If LoginUIManager instance exists, use it; otherwise do basic toggle
+  if (window.__loginUIManager) {
+    window.__loginUIManager.showPasswordForm();
+  } else {
+    document.getElementById("auth0")?.classList.add("d-none");
+    document.getElementById("passwordContainer")?.classList.remove("d-none");
+  }
+};
+
+window.showAuthOptions = function () {
+  if (window.__loginUIManager) {
+    window.__loginUIManager._showAuthOptions();
+  } else {
+    document.getElementById("passwordContainer")?.classList.add("d-none");
+    document.getElementById("auth0")?.classList.remove("d-none");
+  }
+};
+
+// Placeholder for Auth0 functions — will be overridden by LoginController
+if (!window.loginWithAuth0) {
+  window.loginWithAuth0 = function () {
+    console.warn("Authentication system is still loading. Please wait...");
   };
-
-  // Public API
-  return {
-    init,
-    showNotification: _showNotification,
-  };
-})();
-
-/**
- * Checks a user-entered password against config
- * and returns rich authentication info.
- *
- * @param {string} inputPassword
- * @param {object} passwordConfig - PasswordManager section from config JSON
- * @returns {object}
- */
-export function checkPassword(inputPassword, passwordConfig) {
-  if (!inputPassword || typeof inputPassword !== "string") {
-    return {
-      ok: false,
-      reason: "EMPTY_OR_INVALID",
-      message: "Password is required",
-    };
-  }
-
-  const cleanInput = inputPassword.trim();
-
-  // 1️⃣ Check GENERAL password
-  if (cleanInput === passwordConfig.general?.password) {
-    return {
-      ok: true,
-      type: "general",
-      code: "ALL",
-      isGraduand: false,
-      name: "Everyone",
-      accessLevel: 100,
-      message: "General access granted 🎉",
-    };
-  }
-
-  // 2️⃣ Check USER-SPECIFIC passwords
-  const users = passwordConfig.users || {};
-
-  for (const [code, user] of Object.entries(users)) {
-    if (cleanInput === user.password) {
-        const isGraduand = user.isGraduand !==   "false";
-      return {
-        ok: true,
-        isGraduand,
-        code,
-        name: user.name,
-        accessLevel: code === 'L' ? 100 : 50, //
-        message: `Welcome back, ${user.name} 😈`,
-      };
-    }
-  }
-
-  // 3️⃣ Failed authentication
-  return {
-    ok: false,
-    reason: "INVALID_PASSWORD",
-    attemptsRemaining: null,
-    message: "Wrong password. Try again 👀",
+}
+if (!window.logoutWithAuth0) {
+  window.logoutWithAuth0 = function () {
+    console.warn("Authentication system is still loading. Please wait...");
   };
 }
 
-async function inialisedPasswordConfig(){
-      const config = await Auth0Manager.fetchAuth();
-      Auth0Config.domain = config.Auth.domain;
-      Auth0Config.client_id = config.Auth.clientId;
-      Auth0Config.cacheLocation = config.Auth.cacheLocation;
-      PasswordConfig.Auth = config.PasswordManager;
-      PasswordConfig.STORAGE_KEY = config.PasswordManager.STORAGE_KEY;
+// -----------------------------------------------------------------------------
+// Standalone Entry Point
+// -----------------------------------------------------------------------------
+// Runs when login.js is loaded directly on the login page.
+// When loaded via main.js, main.js creates and manages the LoginController
+// and passes it to LoginUIManager.
 
-      auth0Logger.debug("Configuration updated from server", {
-        domain: Auth0Config.domain ? "set" : "missing",
-        clientId: Auth0Config.client_id ? "set" : "missing",
-        password: PasswordConfig.Auth ? "set" : "missing",
+if (!window.__LOGIN_CONTROLLER_MANAGED__) {
+  document.addEventListener("DOMContentLoaded", async () => {
+    // Only auto-initialize if we're on the login page
+    const pageElement = document.querySelector("#myPage");
+    const currentPage = pageElement?.getAttribute("page");
+
+    if (currentPage !== "login") {
+      loginUILogger.debug(`Not on login page (page="${currentPage}") — skipping auto-init`);
+      return;
+    }
+
+    try {
+      // Create the auth controller
+      const loginController = new LoginController({
+        logger: logger.withContext({ module: "LoginController" }),
+        isLoginPage: true,
+      });
+      await loginController.init();
+
+      // Create and initialize the UI manager
+      const loginUIManager = new LoginUIManager({
+        loginController: loginController,
+        logger: logger.withContext({ module: "LoginUIManager" }),
       });
 
+      // Store reference for global functions
+      window.__loginUIManager = loginUIManager;
+
+      await loginUIManager.init(loginController);
+
+      loginUILogger.info("Login page initialized in standalone mode");
+    } catch (error) {
+      loginUILogger.error("Failed to initialize login page", error);
+    }
+  });
 }
 
+// -----------------------------------------------------------------------------
+// Exports
+// -----------------------------------------------------------------------------
 
-// Create contextual logger for main application
-const appLogger = logger.withContext({ module: "MainApp" });
-
-// Main application initialization
-document.addEventListener("DOMContentLoaded", async () => {
-  appLogger.time("Application initialization");
-
-  try {
-    appLogger.info("Starting application initialization");
-
-    // Initialize Auth0
-    appLogger.debug("Initializing Auth0 manager");
-    const auth0Initialized = await Auth0Manager.init();
-      await inialisedPasswordConfig();
-
-    if (auth0Initialized) {
-      appLogger.debug("Auth0 initialized, checking authentication");
-      await Auth0Manager.checkAuth();
-      // Get password from config if available
-    } else {
-      appLogger.warn(
-        "Auth0 initialization failed, using password fallback only"
-      );
-    }
-
-    // Initialize Password Manager (fallback)
-    appLogger.debug("Initializing Password Manager");
-    PasswordManager.init();
-
-    appLogger.info("Application initialization completed successfully");
-    appLogger.timeEnd("Application initialization");
-  } catch (error) {
-    appLogger.error("Application initialization failed", error);
-
-    // Fallback error message
-    appLogger.debug("Showing fallback error message to user");
-    const fallbackMessage = document.createElement("div");
-    fallbackMessage.style.cssText = `
-      position: fixed;
-      top: 0;
-      left: 0;
-      right: 0;
-      background: #ef476f;
-      color: white;
-      padding: 1rem;
-      text-align: center;
-      z-index: 10000;
-      font-family: sans-serif;
-    `;
-    fallbackMessage.textContent =
-      "Application failed to load. Please refresh the page.";
-    document.body.appendChild(fallbackMessage);
-
-    appLogger.timeEnd("Application initialization");
-  }
-});
-
-// Global functions for HTML onclick attributes
-window.loginWithAuth0 = () => {
-  appLogger.info("Global login function called");
-  Auth0Manager.login();
-};
-
-window.logoutWithAuth0 = () => {
-  appLogger.info("Global logout function called");
-  Auth0Manager.logout();
-};
-
-// Ensure global functions are properly assigned
-window.loginWithAuth0 = Auth0Manager.login;
-window.logoutWithAuth0 = Auth0Manager.logout;
-
-appLogger.debug("Global authentication functions assigned");
+export default LoginUIManager;

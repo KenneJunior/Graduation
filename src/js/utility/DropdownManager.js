@@ -394,7 +394,7 @@ export default class DropdownManager {
       'center-left':  { top: '50%',     left: '20px',   bottom: '',  right: '',    transform: 'translateY(-50%)' },
     };
 
-    const pos = positionMap[this.options.position] || positionMap['bottom-right'];
+    const pos = positionMap[this.options.position] || positionMap['top-right'];
     Object.assign(this.elements.container.style, pos);
     this.elements.container.dataset.position = this.options.position;
   }
@@ -689,7 +689,6 @@ export default class DropdownManager {
     this.animateClick(e);
     this.executeAction(item.action, e.target);
 
-    // Respect autoClose: only close automatically when the option is enabled.
     // Individual items can still opt out via closeOnClick: false.
     const shouldClose = this.options.autoClose && item.closeOnClick !== false;
     if (shouldClose) this.closeDropdown();
@@ -789,9 +788,7 @@ export default class DropdownManager {
   // ---------------------------------------------------------------------------
 
   handleLogoutAction() {
-    if (!window.confirm('Are you sure you want to logout?')) return;
     this.dispatchEvent('user:logout');
-    this.showToast('Logging out...', 'info');
   }
 
   // ---------------------------------------------------------------------------

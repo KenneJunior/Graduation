@@ -1,0 +1,38 @@
+# Dependencies
+node_modules/
+package-lock.json
+yarn.lock
+
+# Build output
+dist/
+build/
+.next/
+.cache/
+
+# Minified files
+*.min.js
+*.min.css
+
+# Assets
+*.svg
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.ico
+*.webp
+*.woff
+*.woff2
+
+# Config files that should stay as-is
+auth_config.json
+manifest.webmanifest
+.env
+.env.*
+
+# IDE
+.vscode/
+.idea/
+
+# Logs
+*.log

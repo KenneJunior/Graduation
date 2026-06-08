@@ -252,8 +252,7 @@
       </style>
     </noscript>
   </head>
-  <body id="myPage" page="index" itemscope itemtype="https://schema.org/WebPage">
-    <noscript>
+<body id="myPage" page="index" data-loading-text="Ok just give me a second to load this ⚒👷‍♀️👩‍🏭">    <noscript>
       <div class="no-js-warning">
         JavaScript is disabled in your browser. Some features may not work
         properly.
@@ -327,7 +326,7 @@
                             <!-- Playback Controls -->
                             <div class="playback-controls" role="toolbar" aria-label="Playback controls" >
                                 <span class="playback-speed">1x</span>
-                                <button class="playback-btn play" id="resumeRotationBtn">
+                                <button class="playback-btn  play" id="resumeRotationBtn">
                                     <i class="fas fa-play" aria-hidden="true"></i>
                                 </button>
                             </div>
@@ -983,87 +982,20 @@
       </button>
     </template>
     <!-- Bootstrap JS Bundle with Popper -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="https://cdn.auth0.com/js/auth0-spa-js/2.1.3/auth0-spa-js.production.js"  content="text/javascript"></script>
-    <script src="https://unpkg.com/swiper/swiper-bundle.min.js"></script>
+   <!-- Bootstrap JS Bundle with Popper -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 
-    <script src="/src/main.js" type="module"></script>
-    <script src="src/PWA/pwa-prompt.js" type="module"></script>
-<script type="module">
-  import logger from "/src/js/utility/logger.js";
-  import { getAuthManager } from "/src/auth-check.js";
+<!-- Auth0 SDK (required by auth.js) -->
+<script src="https://cdn.auth0.com/js/auth0-spa-js/2.1.3/auth0-spa-js.production.js"></script>
 
-  async function initializeProtectedPage() {
-    try {
-      // Get the auth manager instance
-      const authManager = await getAuthManager();
+<!-- Swiper -->
+<script src="https://unpkg.com/swiper/swiper-bundle.min.js"></script>
 
-      // Update loading text and show loading animation
-      authManager.updateLoadingText("Ok just give me a second to load this ⚒👷‍♀️👩‍🏭");
-      authManager.showLoading();
+<!-- Main Application (handles auth, theme, PWA, page bootstrap) -->
+<script src="/src/main.js" type="module"></script>
 
-      // Set up authentication protection
-      const authResult = await authManager.setupAuthProtection();
-
-      if (authResult.authenticated) {
-        // Show protected content
-        authManager.hideLoading();
-      }
-      document.addEventListener('load',() => initializePageContent(authManager))
-    } catch (error) {
-      logger.error("Authentication failed:", error);
-
-      // Hide loading and redirect to login
-      const authManager = await getAuthManager();
-      authManager.hideLoading();
-
-      setTimeout(() => {
-        window.location.href = "/login";
-      }, 1000);
-    }
-  }
-
-  async function checkOnlineStatus() {
-    try {
-      const online = await fetch("https://mock.httpstatus.io/202");
-      return online.status >= 200 && online.status < 300;
-    } catch (err) {
-      return false;
-    }
-  }
-
-  function initializePageContent(authManager) {
-    logger.info("Protected content loaded successfully");
-
-    const music = document.getElementById("music");
-    const pwa = document.querySelector("#pwa-prompt");
-
-    const interval = setInterval(async () => {
-      const result = await checkOnlineStatus();
-      if (result) {
-        music.classList.remove("d-none");
-        pwa.classList.remove("d-none");
-        clearInterval(interval);
-      } else {
-        pwa.classList.add("d-none");
-        music.classList.add("d-none");
-      }
-    },30000);
-
-    authManager.hideLoading();
-    logger.info("PWA Prompt should be automatically initialized");
-  }
-
-  // Initialize the page based on document ready state
-  if (document.readyState === "loading") {
-    // Show loading immediately while DOM is loading
-    getAuthManager().then(authManager => {
-      authManager.showLoading();
-    });
-    document.addEventListener("DOMContentLoaded", initializeProtectedPage);
-  } else {
-    initializeProtectedPage();
-  }
+<!-- PWA Prompt -->
+<script src="src/PWA/pwa-prompt.js" type="module"></script>
 </script>
   </body>
 </html>
