@@ -1268,6 +1268,7 @@ class ImageLoader {
         }
         this.currentIndex = 0;
         this.isLoaded = false;
+        this.isInitializing = true;
         this.swiper = null;
         this.loadedImages = new Set(); // Track loaded images
 
@@ -1306,8 +1307,6 @@ class ImageLoader {
                 imageLogger.warn("No media found for slideshow");;
                 return;
             }
-
-            // Filter out undefined sources (videos)
             this. filterUndefinedMedia();
 
             // Initialize Swiper
@@ -1318,6 +1317,9 @@ class ImageLoader {
 
             // Setup playback controls
             this.setupPlaybackControls();
+
+            // Mark initialization as complete - allow saving from now on
+            this.isInitializing = false;
 
             this.isLoaded = true;
             imageLogger.info({message:"ImageLoader initialized successfully", statistics: getMediaStatistics(this.mediaData.media)});
@@ -1433,6 +1435,8 @@ async initializeSwiper() {
 
                 // Manually load first few images
                 this.preloadAdjacentImages();
+
+                this.restoreCurrentImageIndex();
             },
 
             slideChange: (swiperInstance) => {
@@ -1447,6 +1451,9 @@ async initializeSwiper() {
 
                 this.updateImageCounter();
                 this.updateThumbnailNav();
+
+                // Save the current index to localStorage for persistence
+                this.saveCurrentImageIndex();
 
                 if (this.navigationController) {
                     this.navigationController.currentIndex = this.currentIndex;
@@ -2063,6 +2070,74 @@ applyTransitionEffect() {
         };
     }
 
+    /**
+     * Save the current image index to localStorage for persistence, including user code
+     */
+    saveCurrentImageIndex() {
+        // Don't save during initialization phase
+        if (this.isInitializing) {
+            imageLogger.debug("Skipping save during initialization", { currentIndex: this.currentIndex });
+            return;
+        }
+
+        try {
+            const userInfo = getCurrentUserInfo();
+            const userCode = userInfo?.code || 'UNKNOWN';
+
+            localStorage.setItem('graduationImageIndex', JSON.stringify({
+                index: this.currentIndex,
+                userCode: userCode,
+                timestamp: Date.now()
+            }));
+            imageLogger.debug("Image index saved to localStorage", { index: this.currentIndex, userCode: userCode });
+        } catch (error) {
+            imageLogger.warn("Failed to save image index to localStorage", error);
+        }
+    }
+
+    /**
+     * Restore the saved image index from localStorage and jump to it
+     * Only restores if the saved user code matches the current user code
+     */
+    restoreCurrentImageIndex() {
+        try {
+            const saved = localStorage.getItem('graduationImageIndex');
+            if (saved) {
+                const data = JSON.parse(saved);
+                const savedIndex = data.index;
+                const savedUserCode = data.userCode;
+                
+                // Get current user code
+                const currentUserInfo = getCurrentUserInfo();
+                const currentUserCode = currentUserInfo?.code || 'UNKNOWN';
+
+                // Check if user codes match
+                if (savedUserCode !== currentUserCode) {
+                    imageLogger.debug("User code mismatch - clearing saved index", {
+                        savedUserCode: savedUserCode,
+                        currentUserCode: currentUserCode
+                    });
+                    // Clear the saved index since it belongs to a different user
+                    localStorage.removeItem('graduationImageIndex');
+                    return;
+                }
+                
+                // Validate the saved index is within bounds
+                if (savedIndex >= 0 && savedIndex < this.mediaData.media.length) {
+                    if (this.swiper) {
+                        this.swiper.slideToLoop(savedIndex);
+                        this.currentIndex = savedIndex;
+                        imageLogger.debug("Restored image index from localStorage", { index: savedIndex });
+                    }
+                } else {
+                    imageLogger.warn("Saved image index out of bounds, ignoring", { savedIndex, totalImages: this.mediaData.media.length });
+                }
+            }
+        } catch (error) {
+            imageLogger.warn("Failed to restore image index from localStorage", error);
+        }
+    }
+
     async loadMediaData() {
         imageLogger.time("Load media data");
         try {
@@ -2071,11 +2146,11 @@ applyTransitionEffect() {
                 throw new Error("No media data available");
             }
             const auth = getCurrentUserInfo()
-              if (auth.code != 'L') {
+              if (auth.code !== 'L' && auth.code !== "ALL") {
                  this.config?.onlyWithPerson.push(auth.code)
               }
                 this.mediaData.media = filterMediaByUser(this.mediaData.media, auth, {
-                  onlyWithPerson: this.config?.onlyWithPerson || [],
+                  personCodesToShow: this.config?.onlyWithPerson || [],
                   excludeCodes:['L']
                 });
 
@@ -4912,9 +4987,6 @@ copyToClipboard(text) {
 
     // Redirect to login page
     this.dropdownManager.showToast("log out successfully","info",{duration:2.5});
-    setTimeout(() => {
-      window.location.href = '/logout.html';
-    }, 10000);
   }
 
   /**
@@ -5279,7 +5351,7 @@ async showLogoutAnimation() {
                 setTimeout(() => {
                     overlay.remove();
                     // Add your redirect logic here
-                    // window.location.href = '/login';
+                    window.location.href = '/logout';
                 }, countdown);
             }
         }
@@ -5294,7 +5366,7 @@ async showLogoutAnimation() {
             setTimeout(() => {
                 overlay.remove();
                 // Add your redirect logic here
-                // window.location.href = '/login';
+                 window.location.href = '/logout';
             }, 500);
         }
     });
@@ -5308,7 +5380,7 @@ async showLogoutAnimation() {
             setTimeout(() => {
                 overlay.remove();
                 // Add your redirect logic here
-                // window.location.href = '/login';
+                window.location.href = '/logout.html';
             }, 500);
 
             document.removeEventListener('keydown', handleKeyDown);
@@ -5363,25 +5435,38 @@ openImageSettings() {
     MN: "Marie"
   };
 
-  const availablePeople = Object.entries(allPeople).filter(([code]) => code !== currentUserCode);
+   const availablePeople = Object.entries(allPeople).filter(([code]) => code !== currentUserCode);
 
-    const selectedPersons = config.onlyWithPerson || [];
+      const selectedPersons = config.onlyWithPerson || [];
+    const manuallyToggledOff = config.manuallyToggledOffPeople || [];
 
-      const personCheckboxes = availablePeople.map(([code, name]) => `
-    <label class="dm-setting-row person-checkbox" style="cursor: pointer;">
-      <span class="dm-setting-row__label">
-        <span class="dm-setting-row__name">${name}</span>
-        <span class="dm-setting-row__hint">Code: ${code}</span>
-      </span>
-      <span class="dm-setting-row__control">
-        <span class="dm-toggle">
-          <input class="dm-toggle__input person-select" type="checkbox" value="${code}"
-                 ${selectedPersons.includes(code) ? 'checked' : ''}>
-          <span class="dm-toggle__track"></span>
-        </span>
-      </span>
-    </label>
-  `).join('');
+    // Determine which people should be selected
+    let autoSelectedPersons = selectedPersons;
+    if (currentUserCode === 'ALL') {
+      // If onlyWithPerson.length > 0, use it; otherwise auto-select all except manually toggled off
+      if (selectedPersons.length === 0) {
+        autoSelectedPersons = availablePeople
+          .map(([code]) => code)
+          .filter(code => !manuallyToggledOff.includes(code));
+      }
+      // else: use selectedPersons as-is when it has values
+    }
+
+       const personCheckboxes = availablePeople.map(([code, name]) => `
+     <label class="dm-setting-row person-checkbox" style="cursor: pointer;">
+       <span class="dm-setting-row__label">
+         <span class="dm-setting-row__name">${name}</span>
+         <span class="dm-setting-row__hint">Code: ${code}</span>
+       </span>
+       <span class="dm-setting-row__control">
+         <span class="dm-toggle">
+           <input class="dm-toggle__input person-select" type="checkbox" value="${code}"
+                  ${autoSelectedPersons.includes(code) ? 'checked' : ''} data-user-code="${code}">
+           <span class="dm-toggle__track"></span>
+         </span>
+       </span>
+     </label>
+   `).join('');
 
   // Create backdrop (reuse dm-overlay)
   const backdrop = document.createElement('div');
@@ -5598,16 +5683,44 @@ openImageSettings() {
     preloadValue.textContent = preloadSlider.value;
   });
 
-  if (selectAllBtn) {
-    selectAllBtn.addEventListener('click', () => {
-      personCheckboxesList.forEach(cb => cb.checked = true);
-    });
-  }
-  if (clearAllBtn) {
-    clearAllBtn.addEventListener('click', () => {
-      personCheckboxesList.forEach(cb => cb.checked = false);
-    });
-  }
+   // Track manually toggled off people
+   personCheckboxesList.forEach(checkbox => {
+     checkbox.addEventListener('change', () => {
+       const userCode = checkbox.getAttribute('data-user-code');
+       if (!checkbox.checked) {
+         // User unchecked the box - add to manually toggled off list
+         if (!manuallyToggledOff.includes(userCode)) {
+           manuallyToggledOff.push(userCode);
+         }
+       } else {
+         // User checked the box - remove from manually toggled off list
+         const index = manuallyToggledOff.indexOf(userCode);
+         if (index > -1) {
+           manuallyToggledOff.splice(index, 1);
+         }
+       }
+     });
+   });
+
+   if (selectAllBtn) {
+     selectAllBtn.addEventListener('click', () => {
+       if (currentUserCode === 'ALL') {
+         // For "ALL" user: select all except manually toggled off
+         personCheckboxesList.forEach(cb => {
+           const userCode = cb.getAttribute('data-user-code');
+           cb.checked = !manuallyToggledOff.includes(userCode);
+         });
+       } else {
+         // For regular users: select all
+         personCheckboxesList.forEach(cb => cb.checked = true);
+       }
+     });
+   }
+   if (clearAllBtn) {
+     clearAllBtn.addEventListener('click', () => {
+       personCheckboxesList.forEach(cb => cb.checked = false);
+     });
+   }
 
   // Close handlers
   const closeDialog = () => {
@@ -5619,26 +5732,27 @@ openImageSettings() {
   dialog.querySelector('#img-settings-cancel').addEventListener('click', closeDialog);
   backdrop.addEventListener('click', (e) => { if (e.target === backdrop) closeDialog(); });
 
-  // Save handler
-  const saveBtn = dialog.querySelector('#img-settings-save');
-  saveBtn.addEventListener('click', () => {
-        const selectedPersonCodes = Array.from(personCheckboxesList)
-      .filter(cb => cb.checked)
-      .map(cb => cb.value);
-    const newConfig = {
-      rotationDelay: parseInt(speedSlider.value, 10),
-      transitionDuration: parseInt(transitionSlider.value, 10),
-      preloadCount: parseInt(preloadSlider.value, 10),
-      transitionEffect: effectSelect.value,
-      automaticRotate: autoRotateCheck.checked,
-      pauseOnHover: pauseHoverCheck.checked,
-      keyboardNavigation: keyboardNavCheck.checked,
-      loopSlides: loopSlidesCheck.checked,
-      stopOnLastSlide: stopLastSlideCheck.checked,
-      showThumbnails: showThumbnailsCheck.checked,
-      onlyWithPerson: selectedPersonCodes
+   // Save handler
+   const saveBtn = dialog.querySelector('#img-settings-save');
+   saveBtn.addEventListener('click', () => {
+         const selectedPersonCodes = Array.from(personCheckboxesList)
+       .filter(cb => cb.checked)
+       .map(cb => cb.value);
+     const newConfig = {
+       rotationDelay: parseInt(speedSlider.value, 10),
+       transitionDuration: parseInt(transitionSlider.value, 10),
+       preloadCount: parseInt(preloadSlider.value, 10),
+       transitionEffect: effectSelect.value,
+       automaticRotate: autoRotateCheck.checked,
+       pauseOnHover: pauseHoverCheck.checked,
+       keyboardNavigation: keyboardNavCheck.checked,
+       loopSlides: loopSlidesCheck.checked,
+       stopOnLastSlide: stopLastSlideCheck.checked,
+       showThumbnails: showThumbnailsCheck.checked,
+       onlyWithPerson: selectedPersonCodes,
+       manuallyToggledOffPeople: manuallyToggledOff
 
-    };
+     };
 
     // Apply to loader
     loader.updateConfig(newConfig);
@@ -7017,11 +7131,12 @@ importAuth(authData) {
 importOtherData(data, mode) {
   if (!data || typeof data !== 'object') return;
 
-  const keys = ['modal-backup-styles', 'pwa-prompt-dismissal', 'pwa-prompt-display-history'];
+  const keys = ['modal-backup-styles','graduationImageIndex', 'pwa-prompt-dismissal', 'pwa-prompt-display-history'];
   const map = {
     'modal-backup-styles': data.modalBackUpStyles,
     'pwa-prompt-dismissal': data.pwaPromptDismissal,
-    'pwa-prompt-display-history': data.pwaPromptDismissalHistory
+    'pwa-prompt-display-history': data.pwaPromptDismissalHistory,
+    'graduationImageIndex':data?.graduationImageIndex
   };
 
   if (mode === 'replace') {

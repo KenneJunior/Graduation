@@ -95,7 +95,8 @@ export class LoginUIManager {
       this._bindEvents();
 
       // Hide Auth0 container initially if password is fallback
-      this._showAuthOptions();
+      //this._showAuthOptions();
+      this.showPasswordForm();
 
       this._handleUrlParamsInForm();
       this.logger.info("LoginUIManager initialized successfully");

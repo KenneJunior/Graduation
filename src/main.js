@@ -171,6 +171,7 @@ async function authenticateUser() {
         'last_visited',
         'GraduationAppSettings',
         'lastActivityTime',
+        'graduationImageIndex',
       ];
       keysToRemove.forEach((key) => localStorage.removeItem(key));
       sessionStorage.clear();
