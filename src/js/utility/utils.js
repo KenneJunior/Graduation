@@ -105,11 +105,11 @@ export async function loadMediaData() {
  * @param {boolean} [options.returnAllOnError=false] - Return all media if authResult is invalid.
  * @param {boolean} [options.groupByPerson=false] - Group results by person combinations.
  * @param {boolean} [options.excludeSolo=false] - Exclude media with ≤1 person.
- * @param {string|string[]|null} [options.onlyWithPerson=null] - If set, only media containing any of these person codes will be included.
- * @param {string[]} [options.excludeCodes=[]] - Array of person codes; media containing any will be excluded.
- * @param {string[]} [options.includeOnlyCodes=[]] - Media must contain at least one of these codes and **no** other persons.
- * @param {number} [options.minPersons=1] - Minimum number of persons in the media.
- * @param {number|null} [options.maxPersons=null] - Maximum number of persons in the media.
+  * @param {string|string[]|null} [options.onlyWithPerson=null] - SUBSET: If set, only media whose person list contains only codes from this set will be included (items may contain one or more of the codes, but no other codes). Example: `['M','K']` will include `['M']`, `['K']`, `['M','K']` but exclude `['M','J']`.
+  * @param {string[]} [options.excludeCodes=[]] - Array of person codes; media containing any will be excluded.
+  * @param {string[]} [options.personCodesToShow=[]] - Show only media containing at least one of these person codes. Empty array shows all. Example: `['M', 'K']` shows media with M or K.
+  * @param {number} [options.minPersons=1] - Minimum number of persons in the media.
+  * @param {number|null} [options.maxPersons=null] - Maximum number of persons in the media.
  * @param {boolean} [options.enhanceMetadata=true] - Add computed properties (id, relevanceScore, etc.).
  * @param {boolean} [options.generateThumbnails=true] - Generate thumbnail URLs if missing.
  * @param {boolean} [options.debug=false] - Enable debug logging.
@@ -139,9 +139,9 @@ export function filterMediaByUser(media, authResult, options = {}) {
     returnAllOnError: false,
     groupByPerson: false,
     excludeSolo: false,
-    onlyWithPerson: null,    // Filter to only include media with specific person code
-    excludeCodes: [],        // NEW: array of person codes to exclude entirely
-    includeOnlyCodes: [],        // NEW: array of person codes to only include (media should have just one of these codes to be included)
+    onlyWithPerson: null,    // SUBSET filter: include items whose person codes are a subset of the provided codes
+    excludeCodes: [],        // array of person codes to exclude entirely
+    personCodesToShow: [],   // NEW: Filter media to show only items containing at least one of these person codes (from dropdown toggle)
     minPersons: 1,
     maxPersons: null,
     enhanceMetadata: true,
@@ -152,19 +152,19 @@ export function filterMediaByUser(media, authResult, options = {}) {
 
   // Validation
   if (!Array.isArray(media)) {
-    console.warn('filterMediaByUser: media is not an array');
+    logger.warn('filterMediaByUser: media is not an array');
     return [];
   }
 
   if (!authResult || typeof authResult !== 'object') {
-    console.warn('filterMediaByUser: authResult is missing or invalid');
+    logger.warn('filterMediaByUser: authResult is missing or invalid');
     return config.returnAllOnError ? media : [];
   }
 
   const { accessLevel, code, name } = authResult;
 
   if (config.debug) {
-    console.debug('🔍 Advanced Media Filter started:', {
+    logger.debug('🔍 Advanced Media Filter started:', {
       mediaCount: media.length,
       authResult,
       config
@@ -177,17 +177,17 @@ export function filterMediaByUser(media, authResult, options = {}) {
 
   if (!hasGeneralAccess) {
     if (!code) {
-      if (config.debug) console.warn('Personal access requested but no code provided');
+      if (config.debug) logger.warn('Personal access requested but no code provided');
       return [];
     }
 
-    filteredMedia = filteredMedia.filter(item => {
+   /* filteredMedia = filteredMedia.filter(item => {
       if (!Array.isArray(item.persons) || item.persons.length === 0) return false;
       return item.persons.some(person => {
         const personCode = typeof person === 'string' ? person : (person && person.code);
         return personCode === code;
       });
-    });
+    });*/
   }
 
   // PHASE 2: Content type filtering (images / videos)
@@ -195,23 +195,43 @@ export function filterMediaByUser(media, authResult, options = {}) {
     const dataType = item['data-type'] || item.type || 'image';
     if (config.includeImages && config.includeVideos) return true;
     if (config.includeImages && dataType === 'image') return true;
-    if (config.includeVideos && dataType === 'video') return true;
-    return false;
+    return config.includeVideos && dataType === 'video';
   });
 
 // PHASE 3: Only include items with specific person(s)
+// SUBSET MODE: `onlyWithPerson` now means "include items whose person list contains
+// only codes from the provided set (i.e., item.persons is a subset of search codes)".
+// This allows items that are exactly one of the search codes or combinations of them,
+// but excludes items that include any other person codes.
 if (config.onlyWithPerson && (Array.isArray(config.onlyWithPerson) ? config.onlyWithPerson.length > 0 : !!config.onlyWithPerson)) {
   const searchCodes = Array.isArray(config.onlyWithPerson)
     ? config.onlyWithPerson
     : [config.onlyWithPerson];
 
+  // Normalize and build set for fast lookup
+  const normalizedSearchCodes = searchCodes.map(c => (c == null ? '' : String(c))).filter(Boolean);
+  const searchSet = new Set(normalizedSearchCodes);
+
   filteredMedia = filteredMedia.filter(item => {
-    if (!Array.isArray(item.persons)) return false;
-    return item.persons.some(person => {
-      const personCode = typeof person === 'string' ? person : (person && person.code);
-      return searchCodes.includes(personCode);
-    });
+    if (!Array.isArray(item.persons) || item.persons.length === 0) return false;
+
+    const itemCodes = item.persons.map(p => (typeof p === 'string' ? p : (p && p.code))).filter(Boolean);
+
+    // Ensure every code on the item is within the allowed search set
+    for (const code of itemCodes) {
+      if (!searchSet.has(code)) return false;
+    }
+
+    // At this point the item's codes are a non-empty subset of the search codes
+    return true;
   });
+
+  if (config.debug) {
+    logger.debug('🔍 onlyWithPerson (subset) applied', {
+      onlyWithPerson: normalizedSearchCodes,
+      remaining: filteredMedia.length
+    });
+  }
 }
 
   //  PHASE 3.5: Exclude items that contain any of the specified codes
@@ -226,20 +246,27 @@ if (config.onlyWithPerson && (Array.isArray(config.onlyWithPerson) ? config.only
     });
   }
 
-  //  PHASE 3.6: only include items that contain just one of the specified codes
-    if (config.includeOnlyCodes && config.includeOnlyCodes.length > 0) {
-        filteredMedia = filteredMedia.filter(item => {
-            if (!Array.isArray(item.persons)) return false;
-            // Include item only if it contains at least one of the specified codes and does not contain any other codes
-            const itemCodes = item.persons.map(person => typeof person === 'string' ? person : (person && person.code));
-            const hasIncludedCode = itemCodes.some(code => config.includeOnlyCodes.includes(code));
-            const hasExcludedCode = itemCodes.some(code => !config.includeOnlyCodes.includes(code));
-            return hasIncludedCode && !hasExcludedCode;
-        });
+  // PHASE 3.6: Filter by specific person codes from dropdown toggle
+  // Include items that contain at least one of the specified person codes
+  if (config.personCodesToShow && config.personCodesToShow.length > 0) {
+    filteredMedia = filteredMedia.filter(item => {
+      if (!Array.isArray(item.persons)) return false;
+      // Return true if item contains at least one of the specified person codes
+      return item.persons.some(person => {
+        const personCode = typeof person === 'string' ? person : (person && person.code);
+        return config.personCodesToShow.includes(personCode);
+      });
+    });
 
+    if (config.debug) {
+      logger.debug('🔍 Filtered by person codes:', {
+        personCodesToShow: config.personCodesToShow,
+        itemsAfterFilter: filteredMedia.length
+      });
     }
+  }
 
-  // PHASE 4: Group size filtering
+   // PHASE 4: Group size filtering
   filteredMedia = filteredMedia.filter(item => {
     const personCount = Array.isArray(item.persons) ? item.persons.length : 0;
     if (config.excludeSolo && personCount <= 1) return false;
@@ -322,7 +349,7 @@ if (config.onlyWithPerson && (Array.isArray(config.onlyWithPerson) ? config.only
   }
 
   if (config.debug) {
-    console.debug('✅ Advanced Media Filter complete:', {
+    logger.debug('✅ Advanced Media Filter complete:', {
       finalCount: filteredMedia.length,
       sample: filteredMedia.slice(0, 3).map(m => ({
         src: m.src,
@@ -646,7 +673,7 @@ export function createPersonalizedMediaFeed(media, authResult) {
   // For each person user appears with, find other photos with that person
   Array.from(allPersons).forEach(personCode => {
     const personPhotos = filterMediaByUser(allMedia, authResult, {
-      onlyWithPerson: personCode,
+      personCodesToShow: [personCode],
       limit: 3
     });
 

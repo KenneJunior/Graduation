@@ -1819,7 +1819,7 @@ class UltimateModal {
         if (data ){
             if(user.code==='L') {
             // If filterMediaByUser is available and should be used, apply it
-            this.mediaData.media = filterMediaByUser(data.media, user, { includeVideos: false, includeOnlyCodes:['L','J'] });
+            this.mediaData.media = filterMediaByUser(data.media, user, { includeVideos: false, onlyWithPerson:['L','J'] });
         }
         else{
             this.mediaData = data;

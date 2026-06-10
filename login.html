@@ -206,10 +206,23 @@
                 </div>
 
             <div class="auth-options">
-                <div class="auth-option-card">   
+
+                <div class="auth-option-card">
+                    <h3>Password Login</h3>
+                    <p>Use the password provided to you</p>
+                    <button class="btn btn-primary auth-btn" onclick="showPasswordLogin()">
+                        <svg class="btn-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z"/>
+                        </svg>
+                        <span>Use Password</span>
+                    </button>
+                </div>
+                <div class="auth-divider">
+                    <span>OR</span>
+                </div>
+                <div class="auth-option-card">
                     <h3>Secure Login with Auth0</h3>
-                    <p>Recommended for the best security experience</p>
-                    <button id="loginBtn" class="btn btn-primary auth-btn" onclick="loginWithAuth0()">
+                    <button id="loginBtn" class="btn btn-secondary auth-btn" onclick="loginWithAuth0()" disabled>
                         <svg class="btn-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
                             <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
                         </svg>
@@ -217,20 +230,6 @@
                     </button>
                 </div>
 
-                <div class="auth-divider">
-                    <span>OR</span>
-                </div>
-
-                <div class="auth-option-card">
-                        <h3>Password Login</h3>
-                        <p>Use the password provided to you</p>
-                        <button class="btn btn-secondary auth-btn" onclick="showPasswordLogin()">
-                            <svg class="btn-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
-                                <path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z"/>
-                            </svg>
-                            <span>Use Password</span>
-                        </button>
-                </div>
             </div>
 
             <div id="userInfo" class="user-info d-none">
@@ -337,6 +336,6 @@
 
     <script src="src/main.js" type="module"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="https://cdn.auth0.com/js/auth0-spa-js/2.1.3/auth0-spa-js.production.js"></script>
+<script src="https://cdn.auth0.com/js/auth0-spa-js/2.1.3/auth0-spa-js.production.js"></script>
 </body>
 </html>
