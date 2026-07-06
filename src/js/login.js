@@ -1,6 +1,6 @@
-
 import { LoginController } from "../auth.js";
 import logger from "./utility/logger.js";
+import { initLiquidGlass } from "./login-glass.js";
 
 // -----------------------------------------------------------------------------
 // Contextual Logger
@@ -173,8 +173,8 @@ export class LoginUIManager {
 
     // Log which elements are missing, but don't throw
     const missing = Object.entries(this.dom)
-      .filter(([, el]) => !el)
-      .map(([key]) => key);
+        .filter(([, el]) => !el)
+        .map(([key]) => key);
 
     if (missing.length > 0) {
       this.logger.warn("Some DOM elements not found", { missing });
@@ -214,8 +214,8 @@ export class LoginUIManager {
     // Password input events
     if (this.dom.passwordInput) {
       this.dom.passwordInput.addEventListener(
-        "input",
-        this._debounce(() => this._validatePasswordField(), 300),
+          "input",
+          this._debounce(() => this._validatePasswordField(), 300),
       );
       this.dom.passwordInput.addEventListener("blur", () => this._handleInputBlur());
       this.dom.passwordInput.addEventListener("focus", () => this._handleInputFocus());
@@ -254,8 +254,8 @@ export class LoginUIManager {
 
     if (!isValid) {
       this._showNotification(
-        `Password must be at least ${this.loginController?.config?.password?.minPasswordLength || 8} characters`,
-        "error",
+          `Password must be at least ${this.loginController?.config?.password?.minPasswordLength || 8} characters`,
+          "error",
       );
       this._shakeElement(this.dom.loginForm);
       this.logger.timeEnd("Form submission");
@@ -384,7 +384,10 @@ export class LoginUIManager {
   // ---------------------------------------------------------------------------
 
   /**
-   * Shows the password login form, hides Auth0 options
+   * Shows the password login form, hides Auth0 options.
+   * Patched by initLiquidGlass() to animate the transition —
+   * the patch calls this original via the bound reference it
+   * captures before replacing, so auth state is always in sync.
    */
   showPasswordForm() {
     if (this.dom.auth0Container) {
@@ -397,7 +400,8 @@ export class LoginUIManager {
   }
 
   /**
-   * Shows Auth0 login options, hides password form
+   * Shows Auth0 login options, hides password form.
+   * Patched by initLiquidGlass() to animate the transition.
    */
   _showAuthOptions() {
     if (this.dom.passwordContainer) {
@@ -439,8 +443,8 @@ export class LoginUIManager {
     if (!text) return;
 
     const icon = isValid
-      ? '<i class="fas fa-check-circle"></i>'
-      : '<i class="fas fa-times-circle"></i>';
+        ? '<i class="fas fa-check-circle"></i>'
+        : '<i class="fas fa-times-circle"></i>';
 
     element.innerHTML = `${icon} ${text}`;
     element.classList.toggle("validtext", isValid);
@@ -480,9 +484,9 @@ export class LoginUIManager {
     const whatsappUrl = `https://api.whatsapp.com/send?phone=${phoneNumber}&text=${message}`;
 
     const newWindow = window.open(
-      whatsappUrl,
-      "whatsappWindow",
-      "width=500,height=600,noopener,noreferrer",
+        whatsappUrl,
+        "whatsappWindow",
+        "width=500,height=600,noopener,noreferrer",
     );
 
     if (!newWindow) {
@@ -504,7 +508,7 @@ export class LoginUIManager {
    */
   _showNotification(message, type = "info") {
     if (this.loginController?.notifications) {
-      this.loginController.notifications.show(message, type);
+      this.loginController.notifications.show(message, type).then(r =>{} );
     } else {
       this.logger.debug("Notification (no manager)", { message, type });
     }
@@ -598,6 +602,14 @@ if (!window.__LOGIN_CONTROLLER_MANAGED__) {
       window.__loginUIManager = loginUIManager;
 
       await loginUIManager.init(loginController);
+
+      // ── Liquid glass layer ──────────────────────────────────
+      // Runs after the manager is fully initialised so the
+      // transition patches land on the live instance and both
+      // navigation paths (window globals + direct method calls)
+      // go through the animated pipeline.
+      initLiquidGlass(loginUIManager);
+      // ────────────────────────────────────────────────────────
 
       loginUILogger.info("Login page initialized in standalone mode");
     } catch (error) {
