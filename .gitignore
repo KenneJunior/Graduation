@@ -39,4 +39,4 @@ coverage/
 .env
 .env.local
 /public/offline.template.js
-.clearCache.js
+.clearCache.js!/offline.min.html
