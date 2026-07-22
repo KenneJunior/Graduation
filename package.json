@@ -11,7 +11,14 @@
     "prebuild": "node src/scripts/pre-build.js",
     "build": "vite build && node src/scripts/copy-sw.js && npm run build:sw",
     "dev": "vite --port 4000",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "format": "prettier --write .",
+    "lint": "eslint . --ext .js,.ts,.vue",
+    "v-build": "vercel build",
+    "v-dev": "vercel dev",
+    "v-deploy": "vercel --prod",
+    "v-deploy-dev": "vercel --prebuilt --prod",
+    "v-deploy-preview": "vercel --prebuilt"
   },
   "devDependencies": {
     "html-minifier-terser": "^7.2.0",
@@ -31,6 +38,6 @@
     "hammerjs": "^2.0.8",
     "pwa-asset-generator": "^8.1.2",
     "sharp": "^0.34.4",
-    "vercel": "^54.14.0"
+    "vercel": "^54.21.1"
   }
 }

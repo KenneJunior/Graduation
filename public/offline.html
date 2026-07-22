@@ -6,7 +6,7 @@
     <title>Graduation - Offline | Connection Required</title>
     <meta name="description" content="Gradation is currently offline. Check your internet connection and try again.">
     <meta name="theme-color" content="#ef4d00">
-    
+
     <!-- Open Graph -->
     <meta property="og:title" content="Gradation - Offline">
     <meta property="og:description" content="Gradation site is currently offline. Check your internet connection and try again.">
@@ -18,9 +18,9 @@
         <!-- Web App Manifest -->
     <link rel="manifest" href="/manifest.webmanifest" crossorigin="use-credentials">
 <style>
-/* 
+/*
  * Gradution OFFLINE PAGE - CSS ENHANCEMENTS
- * 
+ *
  * - v1.0.0
  * - Complete design token system with semantic variables
  * - Enhanced typography scale with system font stack
@@ -38,15 +38,15 @@
   --color-primary-500: #667eea;
   --color-primary-600: #5a67d8;
   --color-primary-700: #4c51bf;
-  
+
   --color-success-500: #48bb78;
   --color-success-600: #38a169;
-  
+
   --color-error-50: #fef2f2;
   --color-error-500: #f56565;
   --color-error-600: #e53e3e;
   --color-error-700: #c53030;
-  
+
   --color-gray-50: #f9fafb;
   --color-gray-100: #f3f4f6;
   --color-gray-200: #e5e7eb;
@@ -57,7 +57,7 @@
   --color-gray-700: #374151;
   --color-gray-800: #1f2937;
   --color-gray-900: #111827;
-  
+
   /* ===== SEMANTIC TOKENS ===== */
   --surface: rgba(255, 255, 255, 0.95);
   --surface-elevated: rgba(255, 255, 255, 0.98);
@@ -67,13 +67,13 @@
   --text-muted: var(--color-gray-500);
   --border: rgba(0, 0, 0, 0.08);
   --border-strong: rgba(0, 0, 0, 0.12);
-  
+
   /* ===== GRADIENT TOKENS ===== */
   --gradient-primary: linear-gradient(135deg, var(--color-primary-500) 0%, var(--color-primary-700) 100%);
   --gradient-success: linear-gradient(135deg, var(--color-success-500) 0%, var(--color-success-600) 100%);
   --gradient-error: linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%);
   --gradient-glass: linear-gradient(135deg, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0.05) 100%);
-  
+
   /* ===== SPACING SCALE ===== */
   --space-1: 0.25rem;
   --space-2: 0.5rem;
@@ -83,7 +83,7 @@
   --space-6: 2rem;
   --space-8: 3rem;
   --space-10: 4rem;
-  
+
   /* ===== TYPOGRAPHY SCALE ===== */
   --text-xs: 0.75rem;
   --text-sm: 0.875rem;
@@ -93,26 +93,26 @@
   --text-2xl: 1.5rem;
   --text-3xl: 1.875rem;
   --text-4xl: 2.25rem;
-  
+
   /* ===== BORDER RADIUS ===== */
   --radius-sm: 0.375rem;
   --radius-md: 0.5rem;
   --radius-lg: 0.75rem;
   --radius-xl: 1rem;
   --radius-2xl: 1.5rem;
-  
+
   /* ===== SHADOWS ===== */
   --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
   --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
   --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
   --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
   --shadow-glow: 0 0 0 1px rgba(255, 255, 255, 0.1), 0 20px 40px rgba(0, 0, 0, 0.15);
-  
+
   /* ===== TRANSITIONS ===== */
   --transition-base: all 0.2s ease;
   --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   --transition-bounce: all 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
-  
+
   /* ===== Z-INDEX ===== */
   --z-below: -1;
   --z-base: 1;
@@ -154,7 +154,7 @@ body::before {
   left: 0;
   width: 100%;
   height: 100%;
-  background-image: 
+  background-image:
     radial-gradient(circle at 25% 25%, rgba(255, 255, 255, 0.1) 0%, transparent 50%),
     radial-gradient(circle at 75% 75%, rgba(255, 255, 255, 0.05) 0%, transparent 50%);
   pointer-events: none;
@@ -422,7 +422,7 @@ h1 {
   .button-group {
     grid-template-columns: 1fr 1fr;
   }
-  
+
   .button-group .btn:last-child:nth-child(odd) {
     grid-column: 1 / -1;
   }
@@ -432,11 +432,11 @@ h1 {
   body {
     padding: var(--space-6);
   }
-  
+
   .offline-container {
     padding: var(--space-10) var(--space-8);
   }
-  
+
   .button-group {
     grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
   }
@@ -482,11 +482,11 @@ h1 {
   .emoji {
     animation: bounce 3s ease-in-out infinite;
   }
-  
+
   .fade-in {
     animation: fadeIn 0.6s cubic-bezier(0.4, 0, 0.2, 1) both;
   }
-  
+
   .offline-container {
     animation: fadeIn 0.8s cubic-bezier(0.4, 0, 0.2, 1) both;
   }
@@ -495,7 +495,7 @@ h1 {
         outline-offset: 2px;
         transform: translateY(-1px);
     }
-    
+
     .keyboard-shortcuts__summary:focus-visible {
         outline: 2px solid var(--color-primary-500);
         outline-offset: 2px;
@@ -506,11 +506,11 @@ h1 {
     .offline-container {
         border: 2px solid currentColor;
     }
-    
+
     .btn {
         border: 1px solid currentColor;
     }
-    
+
     .url-info {
         border: 2px solid currentColor;
     }
@@ -527,7 +527,7 @@ h1 {
       .btn:hover {
         transform: none;
     }
-    
+
     .btn::before {
         animation: none;
     }
@@ -575,13 +575,13 @@ h1 {
         box-shadow: none;
         border: 1px solid #000;
     }
-    
+
     .btn {
         border: 1px solid #000;
         color: #000;
         background: none;
     }
-    
+
     .emoji {
         display: none;
     }
@@ -599,7 +599,7 @@ h1 {
         --border-strong: rgba(255, 255, 255, 0.15);
     }
 }
-   
+
 .theme-dark {
   --surface: rgba(17, 24, 39, 0.95);
   --surface-muted: rgba(31, 41, 55, 0.8);
@@ -719,10 +719,10 @@ h1 {
 <body>
     <!-- Skip to main content for keyboard users -->
     <a href="#main-content" class="u-sr-only u-sr-only--focusable">Skip to main content</a>
-    
+
     <!-- Live region for status announcements -->
     <div class="u-sr-only" aria-live="polite" aria-atomic="true" id="a11y-status"></div>
-    
+
     <!-- Live region for assertive announcements -->
     <div class="u-sr-only" aria-live="assertive" aria-atomic="true" id="a11y-alert"></div>
 
@@ -733,10 +733,10 @@ h1 {
             <span class="status-indicator__text">Offline</span>
             <span class="u-sr-only">No internet connection detected</span>
         </div>
-        
+
         <!-- Decorative emoji with accessible alternative -->
         <span class="emoji" role="img" aria-label="Power plug symbol indicating offline status">🔌</span>
-        
+
         <!-- Main heading hierarchy -->
         <header class="offline-header">
             <h1 class="offline-title">Connection Lost</h1>
@@ -757,20 +757,20 @@ h1 {
         <!-- Action buttons section -->
         <section class="actions-section" aria-labelledby="actions-heading">
             <h2 id="actions-heading" class="u-sr-only">Available Actions</h2>
-            
+
             <div class="button-group" role="group" aria-label="Connection recovery options">
                 <button class="btn btn-primary" id="retryBtn" type="button" aria-describedby="retry-description">
                     <span class="icon" aria-hidden="true">🔄</span>
                     Retry Connection
                     <span class="u-sr-only" id="retry-description">Attempt to reconnect to the internet</span>
                 </button>
-                
+
                 <a href="/" class="btn btn-primary" id="goHomeBtn" role="button" aria-describedby="home-description">
                     <span class="icon" aria-hidden="true">🏠</span>
                     Go to Home
                     <span class="u-sr-only" id="home-description">Navigate to the home page</span>
                 </a>
-                
+
                 <a href="#" class="btn btn-success" id="supportBtn" target="_blank" rel="noopener noreferrer" style="display:none" aria-describedby="support-description">
                     <span class="icon" aria-hidden="true">💬</span>
                     Contact Support
@@ -848,12 +848,12 @@ class OfflinePage {
     #visibilityHandler = null;
     #onlineHandler = null;
     #offlineHandler = null;
-    
+
     // Configuration
     config = {
         testEndpoints: [
             'https://www.google.com/favicon.ico', // External fallback
-            'https://mock.httpstatus.io/202' // 
+            'https://mock.httpstatus.io/202' //
         ],
         enableServiceWorker: true,
         logLevel: 'debug', // 'debug', 'info', 'warn', 'error'
@@ -880,7 +880,7 @@ class OfflinePage {
         };
 
         this.supportWhatsAppNumber = document.documentElement.dataset.whatsappNumber || "670852835";
-        
+
         this.init();
     }
 
@@ -890,12 +890,12 @@ class OfflinePage {
             this.#populateRequestInfo();
             this.#startConnectionMonitoring();
             this.#logOfflineEvent();
-            
+
             // Initial connection check
             this.#checkConnection().catch(() => {
                 this.#startAutoRetry();
             });
-            
+
             this.#log('Offline page initialized', 'info');
         } catch (error) {
             this.#log(`Initialization failed: ${error.message}`, 'error');
@@ -920,7 +920,7 @@ class OfflinePage {
             this.elements.goHomeBtn.addEventListener('click', (e) => {
                 this.state.userInteracted = true;
                 this.#log('Home navigation requested');
-                
+
                 // If we have history and not the first page, use back
                 if (window.history.length > 1 && document.referrer) {
                     e.preventDefault();
@@ -941,7 +941,7 @@ class OfflinePage {
         // Network event listeners
         this.#onlineHandler = () => this.#handleConnectionRestored();
         this.#offlineHandler = () => this.#handleConnectionLost();
-        
+
         window.addEventListener('online', this.#onlineHandler);
         window.addEventListener('offline', this.#offlineHandler);
 
@@ -955,7 +955,7 @@ class OfflinePage {
 
         // Page unload cleanup
         window.addEventListener('beforeunload', () => this.#cleanup());
-        
+
         // Keyboard shortcuts
         document.addEventListener('keydown', (e) => this.#handleKeyboardShortcuts(e));
     }
@@ -966,7 +966,7 @@ class OfflinePage {
             event.preventDefault();
             this.#handleManualRetry();
         }
-        
+
         // Escape key to go home
         if (event.key === 'Escape') {
             this.elements.goHomeBtn?.click();
@@ -993,10 +993,10 @@ class OfflinePage {
                 const supportMessage = `Hello! I need support with Graduation app. I'm offline and trying to access: ${originalUrl}`;
                 const encodedMessage = encodeURIComponent(supportMessage);
                 const whatsappUrl = `https://wa.me/${this.supportWhatsAppNumber}?text=${encodedMessage}`;
-                
+
                 this.elements.supportBtn.href = whatsappUrl;
                 this.elements.supportBtn.style.display = 'flex';
-                
+
                 // Add safety attributes
                 this.elements.supportBtn.setAttribute('rel', 'noopener noreferrer');
                 this.elements.supportBtn.setAttribute('aria-label', 'Contact support via WhatsApp');
@@ -1018,17 +1018,17 @@ class OfflinePage {
     async #checkConnectionQuality() {
         try {
             const startTime = performance.now();
-            const response = await fetch('/', { 
+            const response = await fetch('/', {
                 method: 'HEAD',
                 cache: 'no-cache',
                 signal: AbortSignal.timeout(5000)
             });
             const endTime = performance.now();
-            
+
             const responseTime = endTime - startTime;
-            this.state.connectionQuality = responseTime < 1000 ? 'good' : 
+            this.state.connectionQuality = responseTime < 1000 ? 'good' :
                                          responseTime < 3000 ? 'fair' : 'poor';
-            
+
             this.#log(`Connection quality: ${this.state.connectionQualityconfig} (${responseTime}ms)`, 'debug');
         } catch (error) {
             this.state.connectionQuality = 'poor';
@@ -1037,10 +1037,10 @@ class OfflinePage {
 
     #startAutoRetry() {
         this.#clearTimers();
-        
+
         const delay = this.#calculateExponentialBackoff();
         this.#updateCountdown(Math.ceil(delay / 1000));
-        
+
         this.#autoRetryTimer = setTimeout(() => {
             this.#checkConnection();
         }, delay);
@@ -1059,14 +1059,14 @@ class OfflinePage {
 
         let count = seconds;
         this.#clearCountdown();
-        
+
         this.elements.countdown.textContent = count;
         this.elements.countdown.setAttribute('aria-live', 'polite');
-        
+
         this.#countdownTimer = setInterval(() => {
             count--;
             this.elements.countdown.textContent = count;
-            
+
             if (count <= 0) {
                 this.#clearCountdown();
                 this.elements.countdown.setAttribute('aria-live', 'off');
@@ -1083,17 +1083,17 @@ class OfflinePage {
 
     async #handleManualRetry() {
         if (this.state.isRetrying) return;
-        
+
         this.state.userInteracted = true;
         this.state.isRetrying = true;
-        
+
         this.#trackEvent('manual_retry_triggered');
         this.#showRetryStatus('Checking connection...');
-        
+
         // Add loading state to button
         this.elements.retryBtn?.classList.add('is-loading');
         this.elements.retryBtn?.setAttribute('aria-busy', 'true');
-        
+
         try {
             await this.#checkConnection(true);
         } finally {
@@ -1114,25 +1114,25 @@ class OfflinePage {
 
         try {
             this.#log(`Connection check attempt ${this.#retryCount}`, 'info');
-            
+
             // Try multiple endpoints for better reliability
             const isOnline = await this.#testMultipleEndpoints();
-            
+
             if (isOnline) {
                 await this.#handleConnectionRestored();
                 return true;
             } else {
                 throw new Error('All endpoints failed');
             }
-            
+
         } catch (error) {
             this.#log(`Connection check failed: ${error.message}`, 'warn');
-            
+
             if (isManual) {
                 this.#showRetryStatus(
                     `Still offline (attempt ${this.#retryCount}/${this.#maxRetries})`
                 );
-                
+
                 // Show final message after brief delay
                 setTimeout(() => {
                     if (this.#retryCount >= this.#maxRetries) {
@@ -1140,11 +1140,11 @@ class OfflinePage {
                     }
                 }, 2000);
             }
-            
+
             if (!isManual) {
                 this.#retryConnection();
             }
-            
+
             return false;
         } finally {
             this.state.isRetrying = false;
@@ -1166,19 +1166,19 @@ class OfflinePage {
                         mode: 'no-cors',
                         signal: controller.signal
                     });
-                    
+
                     // If we get any response, consider it successful
                     this.#log(`Endpoint ${endpoint} responded successfully`, 'debug');
                     return true;
-                    
+
                 } catch (error) {
                     this.#log(`Endpoint ${endpoint} failed: ${error.message}`, 'debug');
                     continue; // Try next endpoint
                 }
             }
-            
+
             return false; // All endpoints failed
-            
+
         } finally {
             clearTimeout(timeoutId);
         }
@@ -1201,10 +1201,10 @@ class OfflinePage {
         });
 
         this.#showRetryStatus('Connection restored! Redirecting...');
-        
+
         // Add a small delay to show the success message
         await new Promise(resolve => setTimeout(resolve, 1000));
-        
+
         // Use replace to prevent back navigation to offline page
         window.location.replace(window.location.href);
     }
@@ -1213,7 +1213,7 @@ class OfflinePage {
         this.#log('Connection lost', 'warn');
         this.state.lastOnline = Date.now();
         this.#trackEvent('connection_lost');
-        
+
         if (!this.state.userInteracted) {
             this.#startAutoRetry();
         }
@@ -1224,7 +1224,7 @@ class OfflinePage {
             if (this.elements.retryIndicator) {
                 this.elements.retryIndicator.textContent = message;
                 this.elements.retryIndicator.setAttribute('aria-live', 'polite');
-                
+
                 // Clear aria-live after announcement
                 setTimeout(() => {
                     this.elements.retryIndicator?.setAttribute('aria-live', 'off');
@@ -1241,7 +1241,7 @@ class OfflinePage {
 
     #clearTimers() {
         this.#clearCountdown();
-        
+
         if (this.#autoRetryTimer) {
             clearTimeout(this.#autoRetryTimer);
             this.#autoRetryTimer = null;
@@ -1250,7 +1250,7 @@ class OfflinePage {
 
     #cleanup() {
         this.#clearTimers();
-        
+
         if (this.#networkCheckTimer) {
             clearInterval(this.#networkCheckTimer);
         }
@@ -1259,7 +1259,7 @@ class OfflinePage {
         window.removeEventListener('online', this.#onlineHandler);
         window.removeEventListener('offline', this.#offlineHandler);
         document.removeEventListener('visibilitychange', this.#visibilityHandler);
-        
+
         this.#log('Cleanup completed', 'debug');
     }
 

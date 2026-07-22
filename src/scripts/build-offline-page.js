@@ -71,7 +71,7 @@ const IMAGE_PLACEHOLDER_SVG = \`${SVGescaped}\`
 `;
 
     // Write to public directory so it's accessible by service worker
-    fs.writeFileSync("./public/offline-template.js", templateContent);
+    fs.writeFileSync(join(publicDir, "offline-template.js"), templateContent);
 
     const originalSize = Buffer.from(htmlContent).length + Buffer.from(svgContent).length;
     const minifiedSize = Buffer.from(HTMLescaped).length + Buffer.from(SVGescaped).length;
@@ -93,5 +93,6 @@ const IMAGE_PLACEHOLDER_SVG = \`${SVGescaped}\`
 if (import.meta.url === `file://${process.argv[1]}`) {
   buildOfflineTemplate();
 }
+buildOfflineTemplate();
 
 export { buildOfflineTemplate };

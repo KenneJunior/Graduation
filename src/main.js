@@ -1,8 +1,8 @@
 import logger from './js/utility/logger.js';
-import { ThemeManager } from './js/utility/Mode.js';
-import { PWAManager, LoadingManager, LoginController } from './auth.js';
-import { LoginUIManager } from './js/login.js';
-import { InteractiveBackground } from './js/logout.js';
+import {ThemeManager} from './js/utility/Mode.js';
+import {LoadingManager, LoginController, PWAManager} from './auth.js';
+import {LoginUIManager} from './js/login.js';
+import {InteractiveBackground} from './js/logout.js';
 import GraduationApp from './js/index.js';
 import GraduationAppMemories from './js/HBD.js';
 
@@ -231,8 +231,7 @@ async function _handleLoginPage() {
 
   if (loginController.urlAuthResult?.ok) {
     logger.info('✅ URL authentication successful on login page');
-    const returnUrl = sessionStorage.getItem('returnUrl') || '/';
-    window.location.href = returnUrl;
+    window.location.href = sessionStorage.getItem('returnUrl') || '/';
     return new Promise(() => {});
   }
 
