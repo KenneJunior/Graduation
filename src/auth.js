@@ -2,6 +2,7 @@
 import { createAuth0Client } from "@auth0/auth0-spa-js";
 import Hammer from "hammerjs";
 import logger from "./js/utility/logger.js";
+import {confirm} from "./js/utility/Dialog.js";
 
 // -----------------------------------------------------------------------------
 // Contextual Loggers
@@ -1354,10 +1355,18 @@ export class PWAManager {
    * @param {ServiceWorkerRegistration} registration
    * @private
    */
-  _showUpdateNotification(registration) {
+  async _showUpdateNotification(registration) {
     this.logger.debug("Showing update notification to user");
 
-    const shouldUpdate = confirm(this.updateMessage);
+    const shouldUpdate = await confirm({
+      title:'Update App',
+      message:this.updateMessage,
+      detail:'This app has just been updated some bugs and UI components have been fix',
+      type:'info',
+      confirmText:'Update App',
+      cancelText:'Cancel',
+
+    });
 
     if (shouldUpdate) {
       this.logger.info("User accepted update, activating new Service Worker");

@@ -5,6 +5,7 @@ import {LoginUIManager} from './js/login.js';
 import {InteractiveBackground} from './js/logout.js';
 import GraduationApp from './js/index.js';
 import GraduationAppMemories from './js/HBD.js';
+import {inject} from "@vercel/analytics";
 
 // -----------------------------------------------------------------------------
 // Constants & Configuration
@@ -529,7 +530,9 @@ async function initializeApp() {
 
     // 4. Page-specific application logic
     await bootstrapPageApp(authResult);
-
+    inject({
+      debug: true
+    });
     logger.info('✅ Application initialized successfully');
     logger.timeEnd('Application initialization');
   } catch (error) {

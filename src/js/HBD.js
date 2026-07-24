@@ -2,7 +2,7 @@ import {PlatformDetector} from "../PWA/pwa-prompt.js";
 import UltimateModal from "./Modal.js";
 import Notification from "./notification.js";
 import logger from "./utility/logger.js";
-import {ThemeManager} from "./utility/Mode.js";
+import {confirm} from "./utility/Dialog.js";
 import {getDeviceType} from "./utility/logger_info.js";
 import { getCurrentUserInfo } from "./utility/utils.js";
 
@@ -309,7 +309,7 @@ class GraduationAppMemories {
     }
     changeSignatureanimated(){
         const signatureElement = document.querySelector(".signature");
-        signatureElement.innerHTML = "With all my love,<br> Boni Boni  ❤️🥰";
+        signatureElement.innerHTML = "With all my love,<br> Junior  ❤️🥰";
     }
     ChangeTitile(){
         const titleWord = document.querySelector("#Graduation-name");
@@ -706,9 +706,10 @@ class GraduationAppMemories {
         this.pwaLogger.debug("Showing update notification to user");
 
         // You can customize this to show a nicer UI notification later
-        const shouldUpdate = confirm(
-            "A new version of Graduation is available! Reload to update?"
-        );
+        const shouldUpdate = confirm({
+            Title:"Update App",
+            message:"A new version of Graduation is available! Reload to update?"
+        });
 
         if (shouldUpdate) {
             this.pwaLogger.info("User accepted update, activating new Service Worker");
