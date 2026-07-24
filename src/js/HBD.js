@@ -10,7 +10,6 @@ import { getCurrentUserInfo } from "./utility/utils.js";
  * Main Graduation Application Class
  *
  * This class handles the core functionality of the graduation celebration app including:
- * - PWA initialization and service worker management
  * - Audio controls and media playback
  * - Visual effects (confetti, heart animations, floating elements)
  * - Celebration sequences and user interactions
@@ -28,7 +27,6 @@ class GraduationAppMemories {
     constructor() {
         // Create contextual loggers for different modules
         this.logger = logger.withContext({ name: "GraduationAppMemories" });
-        this.pwaLogger = this.logger.withContext({ module: "PWA" });
         this.confettiLogger = this.logger.withContext({ module: "Confetti" });
         this.audioLogger = this.logger.withContext({ module: "Audio" });
         this.heartLogger = this.logger.withContext({ module: "HeartEffects" });
@@ -175,8 +173,6 @@ class GraduationAppMemories {
             // Setup periodic refresh of effects
             this.setupPeriodicEffects();
 
-            // Initialize PWA
-            this.initializePWA();
 
             // Personalize message content for specific users
             this.changePageContent();
@@ -602,125 +598,6 @@ class GraduationAppMemories {
         }, this.state.cooldown);
 
         this.logger.debug("Periodic effects scheduler set up");
-    }
-
-    /**
-     * Initializes PWA functionality and service worker
-     * @private
-     * @returns {void}
-     */
-    initializePWA() {
-        this.pwaLogger.time("PWA initialization");
-
-        if (!("serviceWorker" in navigator)) {
-            this.pwaLogger.warn("Service Workers are not supported in this browser");
-            this.pwaLogger.timeEnd("PWA initialization");
-            return;
-        }
-
-        window.addEventListener("load", async () => {
-            try {
-                this.pwaLogger.debug("Registering service worker");
-                const registration = await navigator.serviceWorker.register("/sw.js", {
-                    scope: "/",
-                });
-
-                this.pwaLogger.info("Service Worker registered successfully", {
-                    scope: registration.scope,
-                    active: !!registration.active,
-                });
-
-                // Handle service worker updates
-                registration.addEventListener("updatefound", () => {
-                    const newWorker = registration.installing;
-                    this.pwaLogger.info("New Service Worker found", {
-                        state: newWorker.state,
-                        scriptURL: newWorker.scriptURL,
-                    });
-
-                    newWorker.addEventListener("statechange", () => {
-                        this.pwaLogger.debug(`Service Worker state change`, {
-                            state: newWorker.state,
-                        });
-
-                        if (
-                            newWorker.state === "installed" &&
-                            navigator.serviceWorker.controller
-                        ) {
-                            this.pwaLogger.info(
-                                "New version available, showing update notification"
-                            );
-                            this.showUpdateNotification(registration);
-                        }
-
-                        if (newWorker.state === "activated") {
-                            this.pwaLogger.info("New Service Worker activated");
-                        }
-                    });
-                });
-
-                // Track installation progress
-                if (registration.installing) {
-                    this.pwaLogger.debug("Service Worker installing");
-                } else if (registration.waiting) {
-                    this.pwaLogger.debug("Service Worker waiting");
-                } else if (registration.active) {
-                    this.pwaLogger.info("Service Worker active and ready");
-                }
-
-                // Handle controller changes (when SW takes control)
-                navigator.serviceWorker.addEventListener("controllerchange", () => {
-                    this.pwaLogger.info("Service Worker controller changed, reloading page");
-                    window.location.reload();
-                });
-
-                this.pwaLogger.timeEnd("PWA initialization");
-            } catch (error) {
-                this.pwaLogger.error("Service Worker registration failed", error);
-
-                // Provide helpful error messages
-                if (error.name === "SecurityError") {
-                    this.pwaLogger.error(
-                        "Service Worker security error - serve over HTTPS or localhost"
-                    );
-                } else if (error.name === "TypeError") {
-                    this.pwaLogger.error(
-                        "Service Worker file might not exist or have syntax errors"
-                    );
-                } else if (error.message.includes("MIME type")) {
-                    this.pwaLogger.error("Service Worker file might have wrong MIME type");
-                }
-
-                this.pwaLogger.timeEnd("PWA initialization");
-            }
-        });
-    }
-
-    /**
-     * Shows update notification when a new service worker is available
-     * @private
-     * @param {ServiceWorkerRegistration} registration - The service worker registration
-     * @returns {void}
-     */
-    showUpdateNotification(registration) {
-        this.pwaLogger.debug("Showing update notification to user");
-
-        // You can customize this to show a nicer UI notification later
-        const shouldUpdate = confirm({
-            Title:"Update App",
-            message:"A new version of Graduation is available! Reload to update?"
-        });
-
-        if (shouldUpdate) {
-            this.pwaLogger.info("User accepted update, activating new Service Worker");
-            // Tell the waiting service worker to activate
-            if (registration.waiting) {
-                registration.waiting.postMessage({ type: "SKIP_WAITING" });
-            }
-            window.location.reload();
-        } else {
-            this.pwaLogger.debug("User declined update");
-        }
     }
 
     /**

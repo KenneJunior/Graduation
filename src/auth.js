@@ -1275,6 +1275,33 @@ export class PWAManager {
           resolve(registration);
         } catch (error) {
           this.logger.error("PWA initialization failed", error);
+          switch (error.name) {
+            case "SecurityError":
+              this.logger.warn(
+                "Service Worker registration failed due to insecure context"
+              );
+              break;
+            case "TypeError":
+              this.logger.warn(
+                "Service Worker registration failed due to invalid scope or path"
+              );
+              break;
+            default: {
+              if (error.message?.includes("Failed to fetch")) {
+                this.logger.warn(
+                    "Service Worker registration failed due to network issues"
+                );
+              }
+              else if (error.message.includes("MIME type")){
+                  this.logger.warn(
+                    "Service Worker registration failed due to incorrect MIME type"
+                  );
+                }
+              else {
+                this.logger.error("Unexpected error during Service Worker registration", error);
+              }
+            }
+          }
           this.logger.timeEnd("PWA initialization");
           resolve();
         }
