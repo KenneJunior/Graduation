@@ -50,6 +50,7 @@ body {
     var(--primary-dark) 50%,
     var(--primary-light) 100%
   );
+    zoom: 0.8;
   min-height: 100vh;
   display: flex;
   justify-content: center;
@@ -110,9 +111,18 @@ button{
 
 /* ===== Layout Components ===== */
 .container {
+  display: grid;
+    gap: 1rem;
   max-width: 1200px;
   margin: 0 auto;
   position: relative;
+}
+
+.col-6{
+    grid-column: span 6;
+}
+.col-12{
+    grid-column: span 12;
 }
 
 .Graduation-card {
@@ -733,103 +743,6 @@ animation: sparkle 1s infinite;
     animation: pulseActive 2s infinite;
 }
 
-/* ===== RESPONSIVE ADJUSTMENTS ===== */
-@media (max-width: 768px) {
-    .nav-controls {
-        bottom: clamp(5px, 5vw, 10px) !important;
-        padding: 0.5rem 1rem;
-        gap: 1rem;
-        border-radius: 40px;
-    }
-
-    .nav-btn {
-        width: 40px;
-        height: 40px;
-    }
-
-    .playback-btn {
-        width: 46px;
-        height: 46px;
-    }
-
-    .nav-btn i {
-        font-size: 1rem;
-    }
-
-    .playback-btn i {
-        font-size: 1.1rem;
-    }
-
-    .image-counter {
-        font-size: 0.75rem;
-        padding: 4px 10px;
-        bottom: 1rem;
-        right: 1rem;
-    }
-
-    .thumbnail-nav {
-        bottom: clamp(5rem, 5vw, 7rem) !important;
-    }
-
-    .thumbnail-dot {
-        /*use the clamp */
-        width: clamp(6px, 1.5vw, 8px);
-        height: clamp(6px, 1.5vw, 8px);
-    }
-}
-
-@media (max-width: 480px) {
-    .nav-controls {
-        bottom: clamp(5px, 5vw, 10px) !important;
-        padding: 0.5rem 1rem;
-        gap: 1rem;
-        border-radius: 40px;
-    }
-
-    .nav-btn {
-        width: 36px;
-        height: 36px;
-    }
-
-    .nav-btn i {
-        font-size: 1rem;
-    }
-
-    .playback-btn {
-        width: 40px;
-        height: 40px;
-    }
-
-    .playback-btn i {
-        font-size: 1rem;
-    }
-
-    .image-counter {
-        font-size: 0.7rem;
-        padding: 3px 8px;
-        bottom: 0.8rem;
-        right: 0.8rem;
-    }
-
-    .thumbnail-nav {
-        bottom: 3rem;
-        gap: 4px;
-        max-width: 95%;
-        padding: 4px;
-    }
-
-    .thumbnail-dot {
-        width: 6px;
-        height: 6px;
-    }
-}
-@media (max-width: 360px) {
-    .thumbnail-nav {
-        display: none;
-    }
-}
-
-
 /* ===== PROGRESS INDICATOR ===== */
 .rotation-progress {
   position: absolute;
@@ -981,32 +894,6 @@ animation: sparkle 1s infinite;
   }
 }
 
-/* ===== RESPONSIVE ADJUSTMENTS ===== */
-@media (max-width: 768px) {
-
-  .keyboard-hints {
-    flex-direction: column;
-    gap: 10px;
-    padding: 10px 15px;
-    font-size: 0.75rem;
-    bottom: 1rem;
-  }
-}
-
-@media (max-width: 480px) {
-
-  .keyboard-hints {
-    padding: 8px 12px;
-    font-size: 0.7rem;
-    bottom: 0.8rem;
-  }
-
-  .keyboard-key {
-    padding: 3px 6px;
-    min-width: 20px;
-    font-size: 0.7rem;
-  }
-}
 
 /* ===== TOUCH DEVICE OPTIMIZATIONS ===== */
 @media (hover: none) and (pointer: coarse) {
@@ -2238,6 +2125,9 @@ transition: var(--transition-fast);
 }
 
 @media (max-width: 992px) {
+    body{
+        zoom:0.7
+    }
   .content-section {
     padding: 2.5rem 3rem;
   }
@@ -2257,12 +2147,15 @@ transition: var(--transition-fast);
 }
 
 @media (max-width: 768px) {
-  body {
-    padding: 1rem;
-  }
-
+    body {
+        padding: 1rem;
+        zoom: 0.5
+    }
+    .col-6 {
+    flex: 0 0 auto;
+    width: 100%;
+    }
   .Graduation-card {
-    flex-direction: column;
     border-radius: var(--radius-lg);
   }
 
@@ -2301,6 +2194,54 @@ transition: var(--transition-fast);
   iframe {
     height: 300px;
   }
+    .keyboard-hints {
+        flex-direction: column;
+        gap: 10px;
+        padding: 10px 15px;
+        font-size: 0.75rem;
+        bottom: 1rem;
+    }
+    .nav-controls {
+        bottom: clamp(5px, 5vw, 10px) !important;
+        padding: 0.5rem 1rem;
+        gap: 1rem;
+        border-radius: 40px;
+    }
+
+    .nav-btn {
+        width: 40px;
+        height: 40px;
+    }
+
+    .playback-btn {
+        width: 46px;
+        height: 46px;
+    }
+
+    .nav-btn i {
+        font-size: 1rem;
+    }
+
+    .playback-btn i {
+        font-size: 1.1rem;
+    }
+
+    .image-counter {
+        font-size: 0.75rem;
+        padding: 4px 10px;
+        bottom: 1rem;
+        right: 1rem;
+    }
+
+    .thumbnail-nav {
+        bottom: clamp(5rem, 5vw, 7rem) !important;
+    }
+
+    .thumbnail-dot {
+        /*use the clamp */
+        width: clamp(6px, 1.5vw, 8px);
+        height: clamp(6px, 1.5vw, 8px);
+    }
 }
 
 @media (max-width: 576px) {
@@ -2337,6 +2278,74 @@ transition: var(--transition-fast);
   }
 }
 
+@media (max-width: 480px) {
+    .keyboard-hints {
+        padding: 8px 12px;
+        font-size: 0.7rem;
+        bottom: 0.8rem;
+    }
+
+    .keyboard-key {
+        padding: 3px 6px;
+        min-width: 20px;
+        font-size: 0.7rem;
+    }
+    .features-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .action-buttons {
+        flex-direction: column;
+    }
+
+    .dialog-content {
+        padding: 30px 25px 25px 25px;
+    }
+    .nav-controls {
+        bottom: clamp(5px, 5vw, 10px) !important;
+        padding: 0.5rem 1rem;
+        gap: 1rem;
+        border-radius: 40px;
+    }
+
+    .nav-btn {
+        width: 36px;
+        height: 36px;
+    }
+
+    .nav-btn i {
+        font-size: 1rem;
+    }
+
+    .playback-btn {
+        width: 40px;
+        height: 40px;
+    }
+
+    .playback-btn i {
+        font-size: 1rem;
+    }
+
+    .image-counter {
+        font-size: 0.7rem;
+        padding: 3px 8px;
+        bottom: 0.8rem;
+        right: 0.8rem;
+    }
+
+    .thumbnail-nav {
+        bottom: 3rem;
+        gap: 4px;
+        max-width: 95%;
+        padding: 4px;
+    }
+
+    .thumbnail-dot {
+        width: 6px;
+        height: 6px;
+    }
+}
+
 @media (max-width: 400px) {
   .Graduation-title {
     font-size: 1.6rem;
@@ -2370,60 +2379,17 @@ transition: var(--transition-fast);
     height: 220px;
   }
 
-  .image-container {
-    display: none;
-  }
+}
 
-  .content-section {
-    background-image: url("/pics/profile_pic.jpg") !important;
-    background-size: cover !important;
-    background-position: center !important;
-    background-repeat: no-repeat !important;
-    color: white !important;
-    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5) !important;
-    animation: bgFade 1s ease;
-  }
-  .Graduation-message {
-    -webkit-backdrop-filter: blur(15px);
-    backdrop-filter: blur(15px);
-background: rgba(255, 255, 255, 0.1);
-border-radius: 2rem;
-padding: 1rem;
-border: 1px solid rgba(255, 255, 255, 0.2);
+@media (max-width: 360px) {
+    .thumbnail-nav {
+        display: none;
+    }
 }
-}
+
 @keyframes bgFade {
 from { background-color: rgba(255, 255, 255, 0.9); }
 to { background-color: transparent; }
-}
-
-/*change the container max-height when the device is in portrait mode*/
-@media (max-width: 950px) and (orientation: landscape) {
-  .image-container {
-    display: none !important;
-  }
-
-    /*noinspection ALL*/
-    .content-section {
-    background-image: url("/pics/profile_pic.jpg") !important;
-    background-size: cover !important;
-    background-position: center -15.5rem !important;
-    background-repeat: no-repeat !important;
-    color: white !important;
-    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5) !important;
-        animation: bgFade 1s ease;
-  }
-  .Graduation-message {
-    -webkit-backdrop-filter: blur(15px);
-    backdrop-filter: blur(15px);
-    border-radius: 2rem;
-    background: rgba(255, 255, 255, 0.1);
-    padding: 1rem;
-border: 1px solid rgba(255, 255, 255, 0.2);
-  }
-  .share-title {
-    color: var(--bs-dark) !important;
-  }
 }
 
 /* ===== Accessibility ===== */
@@ -2621,39 +2587,6 @@ html.theme-transitioning::before {
 }
 [data-theme="dark"] .mode-toggle:hover {
   box-shadow: var(--shadow-lg);
-}
-
-/* Responsive tweaks for dark - ensure contrast on mobile */
-@media (max-width: 400px) {
-  [data-theme="dark"] .content-section {
-      background-image: url("/pics/profile_pic.jpg") !important;
-      background-size: cover !important;
-      background-position: center  !important;
-      background-repeat: no-repeat !important;
-      color: white !important;
-      text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5) !important;
-      animation: bgFade 1s ease;
-  }
-  [data-theme="dark"] .Graduation-message {
-    backdrop-filter: blur(10px);
-    background:rgb(14 26 46 / 65%);
-  }
-}
-
-@media (max-width: 950px) and (orientation: landscape) {
-  [data-theme="dark"] .content-section {
-      /*noinspection CssUnknownTarget*/
-      background-image: url("/pics/profile_pic.jpg") !important;
-      background-size: cover !important;
-      background-position: center -15.5rem !important;
-      background-repeat: no-repeat !important;
-      color: white !important;
-      text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5) !important;
-      animation: bgFade 1s ease;
-  }
-  [data-theme="dark"] .share-title {
-    color: var(--text) !important;
-  }
 }
 
 /* Accessibility in dark mode */
@@ -3012,8 +2945,7 @@ position: relative;
         transition: transform 0.6s ease;
       }
 
-      .dialog-btn-primary
-:hover .btn-glow {
+      .dialog-btn-primary:hover .btn-glow {
         transform: translateX(100%);
       }
 
@@ -3041,20 +2973,5 @@ position: relative;
 
         .dialog-close-btn:hover {
           background: rgba(255, 255, 255, 0.1);
-        }
-      }
-
-      /* Responsive */
-      @media (max-width: 480px) {
-        .features-grid {
-          grid-template-columns: 1fr;
-        }
-
-        .action-buttons {
-          flex-direction: column;
-        }
-
-        .dialog-content {
-          padding: 30px 25px 25px 25px;
         }
       }
